@@ -1,0 +1,6 @@
+
+[data]
+akshare>=1.18
+
+[dev]
+pytest>=8

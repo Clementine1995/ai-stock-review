@@ -1,0 +1,14 @@
+2026-07-06 22:20:39,136 INFO command=review create trade_date=2026-07-06 framework=stock-review.md output=reports\daily\2026-07-06_review.md step_count=10 status=created
+2026-07-06 22:22:28,895 INFO command=review create trade_date=2026-07-06 framework=stock-review.md output=reports\daily\2026-07-06_review.md step_count=10 status=created
+2026-07-07 20:10:39,534 INFO command=evidence import trade_date=2026-07-06 source_file=data\evidence\2026-07-06_sample.json output=data\evidence\2026-07-06_snapshot.json missing_fields= status=created
+2026-07-07 20:11:44,022 INFO command=evidence import trade_date=2026-07-06 source_file=data\evidence\2026-07-06_sample.json output=data\evidence\2026-07-06_snapshot.json missing_fields= status=created
+2026-07-07 20:12:27,710 INFO command=evidence import trade_date=2026-07-06 source_file=data\evidence\2026-07-06_sample.json output=data\evidence\2026-07-06_snapshot.json missing_fields= status=created
+2026-07-07 20:21:34,356 INFO command=review create trade_date=2026-07-07 framework=stock-review.md evidence= output=reports\daily\2026-07-07_review.md step_count=10 status=created
+2026-07-07 20:21:34,365 INFO command=review create trade_date=2026-07-06 framework=stock-review.md evidence=data\evidence\2026-07-06_snapshot.json output=reports\daily\2026-07-06_review.md step_count=10 status=created
+2026-07-07 20:23:18,734 INFO command=review create trade_date=2026-07-06 framework=stock-review.md evidence=data\evidence\2026-07-06_snapshot.json output=reports\daily\2026-07-06_review.md step_count=10 status=created
+2026-07-07 20:23:18,768 INFO command=review create trade_date=2026-07-07 framework=stock-review.md evidence= output=reports\daily\2026-07-07_review.md step_count=10 status=created
+2026-07-07 20:33:43,997 INFO command=pool add pool_type=watch code=000001 start_date=2026-07-06 database=data\stock_review.sqlite status=created
+2026-07-07 20:33:44,009 INFO command=pool add pool_type=hot code=600519 start_date=2026-07-06 database=data\stock_review.sqlite status=created
+2026-07-07 21:35:03,086 INFO command=plan create trade_date=2026-07-06 review=reports\daily\2026-07-06_review.md evidence=data\evidence\2026-07-06_snapshot.json output=reports\daily\2026-07-06_plan.md item_count=2 status=created
+2026-07-07 21:35:03,163 INFO command=plan create trade_date=2026-07-07 review=reports\daily\2026-07-07_review.md evidence= output=reports\daily\2026-07-07_plan.md item_count=2 status=created
+2026-07-07 21:36:41,149 INFO command=plan create trade_date=2026-07-06 review=reports\daily\2026-07-06_review.md evidence=data\evidence\2026-07-06_snapshot.json output=reports\daily\2026-07-06_plan.md item_count=2 status=created

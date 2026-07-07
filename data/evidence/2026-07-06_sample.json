@@ -1,0 +1,62 @@
+{
+  "source": "manual_sample",
+  "sample_date": "2026-07-06",
+  "market": {
+    "indices": [
+      {
+        "name": "上证指数",
+        "change_percent": 0.42,
+        "close": 3120.18
+      },
+      {
+        "name": "创业板指",
+        "change_percent": -0.35,
+        "close": 1842.67
+      }
+    ],
+    "total_amount": 860000000000,
+    "up_count": 2860,
+    "down_count": 2180
+  },
+  "sentiment": {
+    "limit_up_count": 58,
+    "limit_down_count": 7,
+    "broken_board_rate": 0.31,
+    "highest_board": 5
+  },
+  "sectors": [
+    {
+      "name": "机器人",
+      "strength": "active",
+      "limit_up_count": 8
+    },
+    {
+      "name": "电力设备",
+      "strength": "rotation",
+      "limit_up_count": 4
+    }
+  ],
+  "stocks": [
+    {
+      "code": "000001",
+      "name": "平安银行",
+      "exchange": "SZSE",
+      "sector": "银行",
+      "role": "sample_watch"
+    },
+    {
+      "code": "600519",
+      "name": "贵州茅台",
+      "exchange": "SSE",
+      "sector": "白酒",
+      "role": "sample_watch"
+    }
+  ],
+  "events": [
+    {
+      "title": "样例事件",
+      "source": "manual",
+      "note": "仅用于离线验证，不代表真实行情结论。"
+    }
+  ]
+}
