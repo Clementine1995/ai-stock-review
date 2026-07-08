@@ -453,6 +453,13 @@ M4.5 当前已实现：
 .\.venv\Scripts\python.exe -m stock_review.cli evidence collect --date 2026-07-06 --source akshare --scope market --output-dir data/evidence
 ```
 
+M4.6 当前已实现：
+
+```powershell
+.\.venv\Scripts\python.exe -m stock_review.cli evidence collect --date 2026-07-06 --source akshare --scope sentiment --output-dir data/evidence
+.\.venv\Scripts\python.exe -m stock_review.cli evidence collect --date 2026-07-06 --source akshare --scope sectors --output-dir data/evidence
+```
+
 后续命令草案：
 
 ```powershell
@@ -685,11 +692,12 @@ MVP 通过标准：
 
 ### M4.5. AKShare 最小真实数据接入
 
-- 新增 AKShare source，当前只支持 `source=akshare`、`scope=market`。
+- 新增 AKShare source，当前支持 `source=akshare`、`scope=market`。
 - 采集范围显式限定为市场层，不默认全市场扫描。
 - 当前采集上证指数、深证成指、创业板指日线事实。
 - Evidence Snapshot 中保留数据来源、样本日期、指数收盘、涨跌幅和成交额字段。
-- 两市成交额当前来自指数日线成交额求和，并在 `total_amount_source` 中标记来源。
+- 成交额来自指数日线成交额求和，并在 `total_amount_source` 中标记来源。
+- AKShare/东方财富指数接口在当前网络失败时，使用腾讯指数 K 线备用路径。
 - 未安装 AKShare 时，CLI 返回明确错误和安装命令。
 - 当前不采集短线情绪、板块题材、涨停原因或关注池个股行情，这些仍显示为证据缺口。
 
@@ -700,12 +708,87 @@ MVP 通过标准：
 - mock AKShare 数据可生成标准 Evidence Snapshot。
 - 生成的真实采集快照仍可被 `review create --evidence` 消费。
 
+当前验证：
+
+- 2026-07-08 已完成 2026-07-06 真实采集验证。
+- `market` 已生成三大指数、涨跌幅和成交额字段。
+- 东方财富直连可能因代理或远端断开失败，腾讯备用路径可补指数 K 线。
+
 数据源备选记录：
 
 - AKShare：当前首选，用于市场层和公开行情最小闭环。
 - 开盘啦或同类短线情绪源：后续补涨停原因、连板梯队、题材强度和情绪温度，接入前需单独确认授权、稳定性和字段口径。
 - Tushare：后续作为结构化历史行情和专业数据源备选，接入前需处理 token、权限和额度。
 - Baostock：可作为历史行情兜底，不作为短线情绪首选。
+
+### M4.6. 短线情绪和板块证据最小真实接入
+
+#### M4.6.1 离线样例结构增强
+
+- 扩展样例 Evidence Snapshot，增加 `emotion_temperature`、板块涨跌幅、板块成交额、核心票、个股涨跌幅和原因字段。
+- 日报 STEP 2/3 展示情绪温度。
+- 日报 STEP 4/5 展示板块涨跌幅、成交额、核心票等字段。
+- 日报 STEP 6/7 展示个股涨跌幅和原因。
+
+验收：
+
+- 样例证据导入后 `missing_fields` 为空。
+- 日报可展示新增字段。
+- 样例结构只用于离线验证，不代表真实行情结论。
+
+#### M4.6.2 短线情绪真实采集
+
+- `evidence collect --scope sentiment` 支持 AKShare 东方财富涨停池、炸板池和跌停池。
+- 真实采集字段包括涨停数、跌停数、炸板率和连板高度。
+- 炸板率口径为炸板股池数量 / 当日触及涨停总数。
+- 情绪温度暂无稳定真实来源，不再把它混入核心情绪缺口，单独输出 `missing_emotion_temperature`。
+- 不把涨停池个股写入 `stocks`，避免过早生成核心票或买卖候选。
+
+验收：
+
+- `scope=sentiment` 会合并到同一交易日 Evidence Snapshot，不覆盖已有 `market`。
+- 有涨停池、炸板池和跌停池数据时，`missing_sentiment` 消失。
+- 情绪温度缺失时只显示 `missing_emotion_temperature`。
+
+当前验证：
+
+- 2026-07-08 已完成 2026-07-06 真实采集验证。
+- 真实结果包含 `limit_up_count=64`、`limit_down_count=46`、`highest_board=5`、`broken_board_rate=0.3905`。
+
+#### M4.6.3 板块证据真实采集
+
+- `evidence collect --scope sectors` 支持 AKShare 东方财富概念/行业板块列表。
+- 东方财富板块接口在当前网络失败时，兜底使用 AKShare 同花顺行业汇总。
+- 真实采集字段包括板块名称、来源类型、涨跌幅、成交额、净流入、总成交量、上涨家数、下跌家数和领涨股。
+- 概念和行业板块独立容错，单侧失败不阻断另一侧已有板块事实进入快照。
+- 当前不写入核心票列表，不把领涨股直接当作可交易核心票。
+
+验收：
+
+- `scope=sectors` 会合并到同一交易日 Evidence Snapshot，不覆盖已有 `market` 或 `sentiment`。
+- 只要任一板块源返回有效板块，`missing_sectors` 消失。
+- 数据源失败事件写入 `events`，日报只展示已有事实和剩余缺口。
+
+当前验证：
+
+- 2026-07-08 已完成 2026-07-06 真实采集验证。
+- 当前环境下东方财富板块接口失败，已使用同花顺行业汇总兜底。
+- 日报 STEP 4/5 已展示油气开采及服务、旅游及酒店、IT 服务等板块事实。
+
+### M4.7. 个股证据最小接入候选
+
+下一步建议只补 `stocks`，但必须避免自动选股：
+
+- 优先从已采集板块的领涨股和涨停池连板股中提取事实证据。
+- 每条个股证据必须包含代码、名称、来源、所属板块或待确认标记、角色来源和涨跌幅。
+- 只写入“事实候选”，不得输出买卖建议、核心票结论或自动加入关注池。
+- 缺少股票代码、交易所或板块归属时必须标记待确认。
+
+验收：
+
+- `missing_stocks` 能在有真实个股事实时消失。
+- 日报 STEP 6/7 展示个股事实，但人工判断仍由用户填写。
+- 不修改池子状态，不自动生成买卖计划。
 
 ### M5. Observation 闭环
 
