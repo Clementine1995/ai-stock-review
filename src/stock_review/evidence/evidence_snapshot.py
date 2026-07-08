@@ -86,6 +86,8 @@ def identify_missing_fields(
         missing_fields.append("missing_total_amount")
     if not sentiment or any(sentiment.get(field) in (None, "") for field in REQUIRED_SENTIMENT_FIELDS):
         missing_fields.append("missing_sentiment")
+    elif sentiment.get("emotion_temperature") in (None, ""):
+        missing_fields.append("missing_emotion_temperature")
     if not sectors:
         missing_fields.append("missing_sectors")
     if not stocks:

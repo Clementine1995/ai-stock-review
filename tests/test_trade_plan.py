@@ -12,6 +12,11 @@ class TradePlanTest(unittest.TestCase):
             root = Path(temp_path)
             review_path = root / "2026-07-06_review.md"
             review_path.write_text("# 2026-07-06 每日复盘\n", encoding="utf-8")
+            evidence_path = root / "sample_snapshot.json"
+            evidence_path.write_text(
+                Path("data/evidence/2026-07-06_sample.json").read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
             database_path = root / "stock_review.sqlite"
             add_pool_item(
                 "watch",
@@ -27,7 +32,7 @@ class TradePlanTest(unittest.TestCase):
             output_path = create_trade_plan(
                 "2026-07-06",
                 review_path=review_path,
-                evidence_path=Path("data/evidence/2026-07-06_snapshot.json"),
+                evidence_path=evidence_path,
                 database_path=database_path,
                 output_dir=root,
                 log_path=root / "logs" / "stock_review.log",

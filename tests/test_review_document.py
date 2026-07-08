@@ -32,12 +32,18 @@ class ReviewDocumentTest(unittest.TestCase):
 
     def test_daily_review_renders_snapshot_evidence_when_provided(self):
         with TemporaryDirectory() as temp_path:
-            output_dir = Path(temp_path) / "daily"
-            log_path = Path(temp_path) / "logs" / "stock_review.log"
+            root = Path(temp_path)
+            evidence_path = root / "sample_snapshot.json"
+            evidence_path.write_text(
+                Path("data/evidence/2026-07-06_sample.json").read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            output_dir = root / "daily"
+            log_path = root / "logs" / "stock_review.log"
             output_path = create_daily_review(
                 "2026-07-06",
                 Path("stock-review.md"),
-                evidence_path=Path("data/evidence/2026-07-06_snapshot.json"),
+                evidence_path=evidence_path,
                 output_dir=output_dir,
                 log_path=log_path,
             )
@@ -49,8 +55,13 @@ class ReviewDocumentTest(unittest.TestCase):
             self.assertIn("指数：上证指数", content)
             self.assertIn("两市成交额：860000000000", content)
             self.assertIn("涨停数：58", content)
+            self.assertIn("情绪温度：62", content)
             self.assertIn("板块：机器人", content)
+            self.assertIn("涨跌幅：3.8%", content)
+            self.assertIn("成交额：120000000000", content)
+            self.assertIn("核心票：300024、002747", content)
             self.assertIn("个股：000001 平安银行", content)
+            self.assertIn("原因：样例关注票，仅用于验证个股证据渲染。", content)
             self.assertIn("暂无当前 STEP 直接相关的证据缺口。", content)
 
     def test_daily_review_places_missing_fields_on_related_steps(self):

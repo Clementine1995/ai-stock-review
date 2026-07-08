@@ -134,8 +134,8 @@ def build_parser() -> argparse.ArgumentParser:
     evidence_collect_parser.add_argument(
         "--scope",
         required=True,
-        choices=["market"],
-        help="采集范围；当前仅支持 market，禁止默认全市场扫描",
+        choices=["market", "sentiment", "sectors"],
+        help="采集范围；当前支持 market、sentiment 或 sectors，禁止默认全市场扫描",
     )
     evidence_collect_parser.add_argument(
         "--output-dir",
@@ -284,11 +284,12 @@ def handle_evidence_import(args: argparse.Namespace) -> int:
 
 # 真实数据采集必须显式声明数据源、日期、范围和输出目录。
 def handle_evidence_collect(args: argparse.Namespace) -> int:
-    if args.source != "akshare" or args.scope != "market":
-        raise EvidenceSnapshotError("当前仅支持 source=akshare 且 scope=market 的最小市场层采集。")
+    if args.source != "akshare" or args.scope not in ("market", "sentiment", "sectors"):
+        raise EvidenceSnapshotError("当前仅支持 source=akshare 且 scope=market、sentiment 或 sectors 的最小采集。")
 
     output_path = collect_akshare_evidence_snapshot(
         args.date,
+        scope=args.scope,
         output_dir=args.output_dir,
         database_path=args.database,
     )
@@ -296,7 +297,7 @@ def handle_evidence_collect(args: argparse.Namespace) -> int:
     write_evidence_log(
         command="evidence collect",
         trade_date=args.date,
-        source_file=Path("akshare:market"),
+        source_file=Path(f"akshare:{args.scope}"),
         output_path=output_path,
         missing_fields=snapshot.missing_fields,
     )

@@ -47,6 +47,26 @@ class EvidenceSnapshotTest(unittest.TestCase):
             self.assertIsNotNone(stored_data)
             self.assertEqual(stored_data["missing_fields"], [])
 
+    def test_missing_emotion_temperature_is_reported_separately(self):
+        snapshot = build_evidence_snapshot(
+            "2026-07-06",
+            {
+                "source": "manual",
+                "market": {"indices": [{"name": "上证指数"}], "total_amount": 1},
+                "sentiment": {
+                    "limit_up_count": 58,
+                    "limit_down_count": 7,
+                    "broken_board_rate": 0.31,
+                    "highest_board": 5,
+                },
+                "sectors": [{"name": "机器人"}],
+                "stocks": [{"code": "300024", "name": "机器人"}],
+            },
+        )
+
+        self.assertNotIn("missing_sentiment", snapshot.missing_fields)
+        self.assertIn("missing_emotion_temperature", snapshot.missing_fields)
+
     def test_check_evidence_snapshot_reads_existing_snapshot(self):
         with TemporaryDirectory() as temp_path:
             snapshot_dir = Path(temp_path)

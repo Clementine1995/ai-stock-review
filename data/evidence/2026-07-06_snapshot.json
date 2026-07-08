@@ -1,64 +1,170 @@
 {
   "trade_date": "2026-07-06",
-  "source": "manual_sample",
+  "source": "akshare",
   "sample_date": "2026-07-06",
   "market": {
     "indices": [
       {
+        "symbol": "sh000001",
         "name": "上证指数",
-        "change_percent": 0.42,
-        "close": 3120.18
+        "sample_date": "2026-07-06",
+        "close": 4041.24,
+        "change_percent": -0.06,
+        "amount": 590364903
       },
       {
+        "symbol": "sz399001",
+        "name": "深证成指",
+        "sample_date": "2026-07-06",
+        "close": 15416.8,
+        "change_percent": -1.16,
+        "amount": 768142319
+      },
+      {
+        "symbol": "sz399006",
         "name": "创业板指",
-        "change_percent": -0.35,
-        "close": 1842.67
+        "sample_date": "2026-07-06",
+        "close": 3948.86,
+        "change_percent": -1.77,
+        "amount": 216576771
       }
     ],
-    "total_amount": 860000000000,
-    "up_count": 2860,
-    "down_count": 2180
+    "total_amount": 1575083993,
+    "total_amount_source": "tencent_index_kline_amount"
   },
   "sentiment": {
-    "limit_up_count": 58,
-    "limit_down_count": 7,
-    "broken_board_rate": 0.31,
-    "highest_board": 5
+    "limit_up_count": 64,
+    "limit_down_count": 46,
+    "highest_board": 5,
+    "broken_board_rate": 0.3905
   },
   "sectors": [
     {
-      "name": "机器人",
-      "strength": "active",
-      "limit_up_count": 8
+      "name": "油气开采及服务",
+      "code": "",
+      "source_type": "industry_ths",
+      "strength": "按涨跌幅排序",
+      "change_percent": 3.52,
+      "market_value": null,
+      "turnover": 85.41,
+      "net_inflow": 5.38,
+      "total_volume": 1110.38,
+      "turnover_rate": null,
+      "up_count": 17,
+      "down_count": 2,
+      "leading_stock": "科力股份",
+      "leading_stock_change_percent": 11.13
     },
     {
-      "name": "电力设备",
-      "strength": "rotation",
-      "limit_up_count": 4
-    }
-  ],
-  "stocks": [
-    {
-      "code": "000001",
-      "name": "平安银行",
-      "exchange": "SZSE",
-      "sector": "银行",
-      "role": "sample_watch"
+      "name": "旅游及酒店",
+      "code": "",
+      "source_type": "industry_ths",
+      "strength": "按涨跌幅排序",
+      "change_percent": 1.68,
+      "market_value": null,
+      "turnover": 42.7,
+      "net_inflow": -0.73,
+      "total_volume": 561.76,
+      "turnover_rate": null,
+      "up_count": 27,
+      "down_count": 7,
+      "leading_stock": "岭南控股",
+      "leading_stock_change_percent": 10.06
     },
     {
-      "code": "600519",
-      "name": "贵州茅台",
-      "exchange": "SSE",
-      "sector": "白酒",
-      "role": "sample_watch"
+      "name": "IT服务",
+      "code": "",
+      "source_type": "industry_ths",
+      "strength": "按涨跌幅排序",
+      "change_percent": 1.61,
+      "market_value": null,
+      "turnover": 596.85,
+      "net_inflow": 12.85,
+      "total_volume": 3091.55,
+      "turnover_rate": null,
+      "up_count": 94,
+      "down_count": 32,
+      "leading_stock": "网宿科技",
+      "leading_stock_change_percent": 19.97
+    },
+    {
+      "name": "软件开发",
+      "code": "",
+      "source_type": "industry_ths",
+      "strength": "按涨跌幅排序",
+      "change_percent": 1.54,
+      "market_value": null,
+      "turnover": 475.73,
+      "net_inflow": 21.79,
+      "total_volume": 1979.51,
+      "turnover_rate": null,
+      "up_count": 100,
+      "down_count": 37,
+      "leading_stock": "绿盟科技",
+      "leading_stock_change_percent": 20
+    },
+    {
+      "name": "计算机设备",
+      "code": "",
+      "source_type": "industry_ths",
+      "strength": "按涨跌幅排序",
+      "change_percent": 1.21,
+      "market_value": null,
+      "turnover": 471.32,
+      "net_inflow": -10.55,
+      "total_volume": 1426.72,
+      "turnover_rate": null,
+      "up_count": 44,
+      "down_count": 39,
+      "leading_stock": "*ST同辉",
+      "leading_stock_change_percent": 19.61
     }
   ],
+  "stocks": [],
   "events": [
     {
-      "title": "样例事件",
-      "source": "manual",
-      "note": "仅用于离线验证，不代表真实行情结论。"
+      "title": "AKShare 市场层最小采集",
+      "source": "akshare",
+      "note": "当前仅采集指数日线数据；情绪、板块和个股证据仍需后续数据源补齐。"
+    },
+    {
+      "title": "sh000001 使用腾讯行情备用路径",
+      "source": "tencent",
+      "note": "AKShare stock_zh_index_daily_em 和东方财富 K 线直连失败后，使用腾讯指数 K 线接口；原始错误：HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=1.000001&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=19900101&end=20500101 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；东方财富错误：Remote end closed connection without response"
+    },
+    {
+      "title": "sz399001 使用腾讯行情备用路径",
+      "source": "tencent",
+      "note": "AKShare stock_zh_index_daily_em 和东方财富 K 线直连失败后，使用腾讯指数 K 线接口；原始错误：HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=0.399001&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=19900101&end=20500101 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；东方财富错误：Remote end closed connection without response"
+    },
+    {
+      "title": "sz399006 使用腾讯行情备用路径",
+      "source": "tencent",
+      "note": "AKShare stock_zh_index_daily_em 和东方财富 K 线直连失败后，使用腾讯指数 K 线接口；原始错误：HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=0.399006&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=19900101&end=20500101 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；东方财富错误：Remote end closed connection without response"
+    },
+    {
+      "title": "AKShare 短线情绪最小采集",
+      "source": "akshare",
+      "note": "当前仅采集涨停数、跌停数、炸板率和连板高度；情绪温度、板块和个股证据仍需后续数据源补齐。"
+    },
+    {
+      "title": "AKShare 热门板块最小采集",
+      "source": "akshare",
+      "note": "当前仅采集概念和行业板块涨跌幅、总市值、换手率、涨跌家数和领涨股；不写入核心票列表。"
+    },
+    {
+      "title": "concept 板块采集失败",
+      "source": "akshare",
+      "note": "AKShare 板块接口调用失败且东方财富直连备用路径也失败：stock_board_concept_name_em：akshare=HTTPSConnectionPool(host='79.push2.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/clist/get?pn=1&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f12&fs=m%3A90+t%3A3+f%3A%2150&fields=f2%2Cf3%2Cf4%2Cf8%2Cf12%2Cf14%2Cf15%2Cf16%2Cf17%2Cf18%2Cf20%2Cf21%2Cf24%2Cf25%2Cf22%2Cf33%2Cf11%2Cf62%2Cf128%2Cf124%2Cf107%2Cf104%2Cf105%2Cf136 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；eastmoney=Remote end closed connection without response"
+    },
+    {
+      "title": "industry 板块采集失败",
+      "source": "akshare",
+      "note": "AKShare 板块接口调用失败且东方财富直连备用路径也失败：stock_board_industry_name_em：akshare=HTTPSConnectionPool(host='17.push2.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/clist/get?pn=1&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f3&fs=m%3A90+t%3A2+f%3A%2150&fields=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6%2Cf7%2Cf8%2Cf9%2Cf10%2Cf12%2Cf13%2Cf14%2Cf15%2Cf16%2Cf17%2Cf18%2Cf20%2Cf21%2Cf23%2Cf24%2Cf25%2Cf26%2Cf22%2Cf33%2Cf11%2Cf62%2Cf128%2Cf136%2Cf115%2Cf152%2Cf124%2Cf107%2Cf104%2Cf105%2Cf140%2Cf141%2Cf207%2Cf208%2Cf209%2Cf222 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；eastmoney=Remote end closed connection without response"
     }
   ],
-  "missing_fields": []
+  "missing_fields": [
+    "missing_emotion_temperature",
+    "missing_stocks"
+  ]
 }

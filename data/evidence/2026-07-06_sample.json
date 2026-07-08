@@ -22,18 +22,30 @@
     "limit_up_count": 58,
     "limit_down_count": 7,
     "broken_board_rate": 0.31,
-    "highest_board": 5
+    "highest_board": 5,
+    "emotion_temperature": 62
   },
   "sectors": [
     {
       "name": "机器人",
       "strength": "active",
-      "limit_up_count": 8
+      "change_percent": 3.8,
+      "turnover": 120000000000,
+      "limit_up_count": 8,
+      "core_stocks": [
+        "300024",
+        "002747"
+      ]
     },
     {
       "name": "电力设备",
       "strength": "rotation",
-      "limit_up_count": 4
+      "change_percent": 1.6,
+      "turnover": 76000000000,
+      "limit_up_count": 4,
+      "core_stocks": [
+        "300750"
+      ]
     }
   ],
   "stocks": [
@@ -42,14 +54,18 @@
       "name": "平安银行",
       "exchange": "SZSE",
       "sector": "银行",
-      "role": "sample_watch"
+      "role": "关注池样例",
+      "change_percent": 1.2,
+      "reason": "样例关注票，仅用于验证个股证据渲染。"
     },
     {
       "code": "600519",
       "name": "贵州茅台",
       "exchange": "SSE",
       "sector": "白酒",
-      "role": "sample_watch"
+      "role": "容量中军样例",
+      "change_percent": -0.8,
+      "reason": "样例容量票，仅用于验证角色和原因字段。"
     }
   ],
   "events": [

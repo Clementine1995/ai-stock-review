@@ -1,9 +1,14 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import json
 import unittest
 
 from stock_review.evidence import akshare_source
-from stock_review.evidence.akshare_source import collect_akshare_market_evidence
+from stock_review.evidence.akshare_source import (
+    collect_akshare_market_evidence,
+    collect_akshare_sector_evidence,
+    collect_akshare_sentiment_evidence,
+)
 from stock_review.evidence.evidence_snapshot import build_evidence_snapshot
 from stock_review.evidence.manage_evidence_snapshot import collect_akshare_evidence_snapshot
 
@@ -41,32 +46,128 @@ class BrokenAkshareClient:
         raise RuntimeError(f"{symbol} blocked")
 
 
+class FakeSentimentAkshareClient:
+    def stock_zt_pool_em(self, date):
+        self.limit_up_date = date
+        return FakeFrame(
+            [
+                {"代码": "300024", "名称": "机器人", "连板数": 3},
+                {"代码": "002747", "名称": "埃斯顿", "连板数": 2},
+            ]
+        )
+
+    def stock_zt_pool_zbgc_em(self, date):
+        self.broken_board_date = date
+        return FakeFrame([{"代码": "000001", "名称": "平安银行"}])
+
+    def stock_zt_pool_dtgc_em(self, date):
+        self.limit_down_date = date
+        return FakeFrame([{"代码": "600000", "名称": "浦发银行"}])
+
+
+class FakeSectorAkshareClient:
+    def stock_board_concept_name_em(self):
+        return FakeFrame(
+            [
+                {
+                    "板块名称": "机器人",
+                    "板块代码": "BK0001",
+                    "涨跌幅": 3.8,
+                    "总市值": 120000000000,
+                    "换手率": 4.2,
+                    "上涨家数": 20,
+                    "下跌家数": 3,
+                    "领涨股票": "机器人",
+                    "领涨股票-涨跌幅": 12.4,
+                },
+                {
+                    "板块名称": "低位样例",
+                    "板块代码": "BK0002",
+                    "涨跌幅": -1.2,
+                    "总市值": 1,
+                    "换手率": 1,
+                    "上涨家数": 1,
+                    "下跌家数": 10,
+                    "领涨股票": "样例",
+                    "领涨股票-涨跌幅": 0.1,
+                },
+            ]
+        )
+
+    def stock_board_industry_name_em(self):
+        return FakeFrame(
+            [
+                {
+                    "板块名称": "电力设备",
+                    "板块代码": "BK1001",
+                    "涨跌幅": 1.6,
+                    "总市值": 76000000000,
+                    "换手率": 2.1,
+                    "上涨家数": 15,
+                    "下跌家数": 6,
+                    "领涨股票": "宁德时代",
+                    "领涨股票-涨跌幅": 5.5,
+                }
+            ]
+        )
+
+
+class PartiallyBrokenSectorAkshareClient(FakeSectorAkshareClient):
+    def stock_board_industry_name_em(self):
+        raise RuntimeError("industry blocked")
+
+
+class EastmoneyBrokenThsSectorAkshareClient:
+    def stock_board_concept_name_em(self):
+        raise RuntimeError("concept blocked")
+
+    def stock_board_industry_name_em(self):
+        raise RuntimeError("industry blocked")
+
+    def stock_board_industry_summary_ths(self):
+        return FakeFrame(
+            [
+                {
+                    "板块": "油气开采及服务",
+                    "涨跌幅": 3.52,
+                    "总成交量": 1110.38,
+                    "总成交额": 85.41,
+                    "净流入": 5.38,
+                    "上涨家数": 17,
+                    "下跌家数": 2,
+                    "领涨股": "科力股份",
+                    "领涨股-涨跌幅": 11.13,
+                }
+            ]
+        )
+
+
 class FakeResponse:
-    def raise_for_status(self):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
         return None
 
-    def json(self):
-        return {
-            "data": {
-                "klines": [
-                    "2026-07-03,100,100,101,99,1000,10.00,0.00",
-                    "2026-07-06,104,105,106,103,1200,12.00,5.00",
-                ]
-            }
-        }
+    def read(self):
+        return (
+            b'{"data":{"klines":['
+            b'"2026-07-03,100,100,101,99,1000,10.00,0.00",'
+            b'"2026-07-06,104,105,106,103,1200,12.00,5.00"'
+            b"]}}"
+        )
 
 
-class FakeSession:
-    last_session = None
+class FakeOpener:
+    last_opener = None
 
     def __init__(self):
-        self.trust_env = True
-        self.url = ""
-        FakeSession.last_session = self
+        self.request = None
+        self.timeout = None
+        FakeOpener.last_opener = self
 
-    def get(self, url, headers, timeout):
-        self.url = url
-        self.headers = headers
+    def open(self, request, timeout):
+        self.request = request
         self.timeout = timeout
         return FakeResponse()
 
@@ -96,13 +197,101 @@ class AkshareSourceTest(unittest.TestCase):
         self.assertIn("missing_sectors", snapshot.missing_fields)
         self.assertIn("missing_stocks", snapshot.missing_fields)
 
+    def test_collect_akshare_sentiment_evidence_builds_sentiment_snapshot_input(self):
+        client = FakeSentimentAkshareClient()
+
+        raw_data = collect_akshare_sentiment_evidence("2026-07-06", ak_client=client)
+        snapshot = build_evidence_snapshot("2026-07-06", raw_data)
+
+        self.assertEqual(client.limit_up_date, "20260706")
+        self.assertEqual(raw_data["sentiment"]["limit_up_count"], 2)
+        self.assertEqual(raw_data["sentiment"]["limit_down_count"], 1)
+        self.assertEqual(raw_data["sentiment"]["highest_board"], 3)
+        self.assertEqual(raw_data["sentiment"]["broken_board_rate"], 0.3333)
+        self.assertIn("missing_emotion_temperature", snapshot.missing_fields)
+        self.assertIn("missing_indices", snapshot.missing_fields)
+
+    def test_collect_akshare_sector_evidence_builds_sector_snapshot_input(self):
+        raw_data = collect_akshare_sector_evidence("2026-07-06", ak_client=FakeSectorAkshareClient())
+        snapshot = build_evidence_snapshot("2026-07-06", raw_data)
+
+        self.assertEqual(len(raw_data["sectors"]), 3)
+        self.assertEqual(raw_data["sectors"][0]["name"], "机器人")
+        self.assertEqual(raw_data["sectors"][0]["source_type"], "concept")
+        self.assertEqual(raw_data["sectors"][0]["change_percent"], 3.8)
+        self.assertEqual(raw_data["sectors"][0]["market_value"], 120000000000)
+        self.assertEqual(raw_data["sectors"][0]["leading_stock"], "机器人")
+        self.assertNotIn("missing_sectors", snapshot.missing_fields)
+        self.assertIn("missing_stocks", snapshot.missing_fields)
+
+    def test_collect_akshare_sector_evidence_keeps_partial_sector_results(self):
+        raw_data = collect_akshare_sector_evidence("2026-07-06", ak_client=PartiallyBrokenSectorAkshareClient())
+        snapshot = build_evidence_snapshot("2026-07-06", raw_data)
+
+        self.assertTrue(raw_data["sectors"])
+        self.assertTrue(any(event["title"] == "industry 板块采集失败" for event in raw_data["events"]))
+        self.assertNotIn("missing_sectors", snapshot.missing_fields)
+
+    def test_collect_akshare_sector_evidence_uses_ths_industry_when_eastmoney_fails(self):
+        raw_data = collect_akshare_sector_evidence("2026-07-06", ak_client=EastmoneyBrokenThsSectorAkshareClient())
+        snapshot = build_evidence_snapshot("2026-07-06", raw_data)
+
+        self.assertEqual(raw_data["sectors"][0]["name"], "油气开采及服务")
+        self.assertEqual(raw_data["sectors"][0]["source_type"], "industry_ths")
+        self.assertEqual(raw_data["sectors"][0]["turnover"], 85.41)
+        self.assertEqual(raw_data["sectors"][0]["net_inflow"], 5.38)
+        self.assertEqual(raw_data["sectors"][0]["leading_stock"], "科力股份")
+        self.assertNotIn("missing_sectors", snapshot.missing_fields)
+
+    def test_eastmoney_sector_fallback_maps_board_fields(self):
+        original_request_json = akshare_source.request_json_without_environment_proxy
+
+        def fake_request_json(url):
+            return {
+                "data": {
+                    "diff": [
+                        {
+                            "f14": "机器人",
+                            "f12": "BK0001",
+                            "f3": 3.8,
+                            "f20": 120000000000,
+                            "f8": 4.2,
+                            "f104": 20,
+                            "f105": 3,
+                            "f128": "机器人",
+                            "f136": 12.4,
+                        }
+                    ]
+                }
+            }
+
+        akshare_source.request_json_without_environment_proxy = fake_request_json
+        try:
+            rows = akshare_source.request_eastmoney_sector_rows("stock_board_concept_name_em")
+        finally:
+            akshare_source.request_json_without_environment_proxy = original_request_json
+
+        self.assertEqual(rows[0]["板块名称"], "机器人")
+        self.assertEqual(rows[0]["涨跌幅"], 3.8)
+        self.assertEqual(rows[0]["领涨股票"], "机器人")
+
     def test_collect_akshare_market_evidence_uses_eastmoney_fallback_after_client_failure(self):
         original_request = akshare_source.request_eastmoney_index_rows
 
         def fake_request(symbol):
             return [
-                {"date": "2026-07-03", "close": "100", "amount": "10"},
-                {"date": "2026-07-06", "close": "105", "amount": "12"},
+                {
+                    "date": "2026-07-03",
+                    "close": "100",
+                    "amount": "10",
+                    "__amount_source": "eastmoney_index_kline_amount",
+                },
+                {
+                    "date": "2026-07-06",
+                    "close": "105",
+                    "amount": "12",
+                    "__amount_source": "eastmoney_index_kline_amount",
+                },
             ]
 
         akshare_source.request_eastmoney_index_rows = fake_request
@@ -114,22 +303,88 @@ class AkshareSourceTest(unittest.TestCase):
         self.assertEqual(len(raw_data["market"]["indices"]), 3)
         self.assertEqual(raw_data["market"]["indices"][0]["change_percent"], 5)
         self.assertEqual(raw_data["market"]["total_amount"], 36)
+        self.assertEqual(raw_data["market"]["total_amount_source"], "eastmoney_index_kline_amount")
         self.assertTrue(any(event["source"] == "eastmoney" for event in raw_data["events"]))
 
-    def test_eastmoney_fallback_ignores_environment_proxy(self):
-        import requests
+    def test_collect_akshare_market_evidence_uses_tencent_fallback_after_eastmoney_failure(self):
+        original_eastmoney_request = akshare_source.request_eastmoney_index_rows
+        original_tencent_request = akshare_source.request_tencent_index_rows
 
-        original_session = requests.Session
-        requests.Session = FakeSession
+        def broken_eastmoney_request(symbol):
+            raise RuntimeError(f"{symbol} eastmoney blocked")
+
+        def fake_tencent_request(symbol):
+            return [
+                {
+                    "date": "2026-07-03",
+                    "close": "100",
+                    "amount": "10",
+                    "__amount_source": "tencent_index_kline_amount",
+                },
+                {
+                    "date": "2026-07-06",
+                    "close": "103",
+                    "amount": "11",
+                    "__amount_source": "tencent_index_kline_amount",
+                },
+            ]
+
+        akshare_source.request_eastmoney_index_rows = broken_eastmoney_request
+        akshare_source.request_tencent_index_rows = fake_tencent_request
+        try:
+            raw_data = collect_akshare_market_evidence("2026-07-06", ak_client=BrokenAkshareClient())
+        finally:
+            akshare_source.request_eastmoney_index_rows = original_eastmoney_request
+            akshare_source.request_tencent_index_rows = original_tencent_request
+
+        self.assertEqual(len(raw_data["market"]["indices"]), 3)
+        self.assertEqual(raw_data["market"]["indices"][0]["change_percent"], 3)
+        self.assertEqual(raw_data["market"]["total_amount"], 33)
+        self.assertEqual(raw_data["market"]["total_amount_source"], "tencent_index_kline_amount")
+        self.assertTrue(any(event["source"] == "tencent" for event in raw_data["events"]))
+
+    def test_tencent_fallback_treats_sixth_kline_field_as_amount(self):
+        original_request_json = akshare_source.request_json_without_environment_proxy
+
+        def fake_request_json(url):
+            return {
+                "data": {
+                    "sh000001": {
+                        "day": [
+                            ["2026-07-03", "100", "100", "101", "99", "10"],
+                            ["2026-07-06", "104", "105", "106", "103", "12"],
+                        ]
+                    }
+                }
+            }
+
+        akshare_source.request_json_without_environment_proxy = fake_request_json
+        try:
+            rows = akshare_source.request_tencent_index_rows("sh000001")
+        finally:
+            akshare_source.request_json_without_environment_proxy = original_request_json
+
+        self.assertEqual(rows[-1]["amount"], "12")
+        self.assertEqual(rows[-1]["__amount_source"], "tencent_index_kline_amount")
+
+    def test_eastmoney_fallback_ignores_environment_proxy(self):
+        original_build_opener = akshare_source.urllib.request.build_opener
+        captured_handlers = []
+
+        def fake_build_opener(*handlers):
+            captured_handlers.extend(handlers)
+            return FakeOpener()
+
+        akshare_source.urllib.request.build_opener = fake_build_opener
         try:
             rows = akshare_source.request_eastmoney_index_rows("sh000001")
         finally:
-            requests.Session = original_session
+            akshare_source.urllib.request.build_opener = original_build_opener
 
         self.assertEqual(rows[-1]["close"], "105")
-        self.assertIsNotNone(FakeSession.last_session)
-        self.assertFalse(FakeSession.last_session.trust_env)
-        self.assertIn("fields1=f1,f2,f3,f4,f5", FakeSession.last_session.url)
+        self.assertIsNotNone(FakeOpener.last_opener)
+        self.assertEqual(len(captured_handlers), 1)
+        self.assertIn("fields1=f1,f2,f3,f4,f5", FakeOpener.last_opener.request.full_url)
 
     def test_collect_akshare_writes_standard_snapshot_path(self):
         with TemporaryDirectory() as temp_path:
@@ -152,6 +407,119 @@ class AkshareSourceTest(unittest.TestCase):
 
             self.assertEqual(output_path, root / "2026-07-06_snapshot.json")
             self.assertTrue(output_path.exists())
+
+    def test_collect_akshare_sentiment_writes_standard_snapshot_path(self):
+        with TemporaryDirectory() as temp_path:
+            root = Path(temp_path)
+
+            from stock_review.evidence import manage_evidence_snapshot
+
+            original_collect = manage_evidence_snapshot.collect_akshare_sentiment_evidence
+            manage_evidence_snapshot.collect_akshare_sentiment_evidence = (
+                lambda trade_date: collect_akshare_sentiment_evidence(trade_date, ak_client=FakeSentimentAkshareClient())
+            )
+            try:
+                output_path = collect_akshare_evidence_snapshot(
+                    "2026-07-06",
+                    scope="sentiment",
+                    output_dir=root,
+                    database_path=root / "stock_review.sqlite",
+                )
+            finally:
+                manage_evidence_snapshot.collect_akshare_sentiment_evidence = original_collect
+
+            self.assertEqual(output_path, root / "2026-07-06_snapshot.json")
+            self.assertTrue(output_path.exists())
+
+    def test_collect_akshare_sentiment_keeps_existing_market_snapshot(self):
+        with TemporaryDirectory() as temp_path:
+            root = Path(temp_path)
+            snapshot_path = root / "2026-07-06_snapshot.json"
+            snapshot_path.write_text(
+                json.dumps(
+                    {
+                        "trade_date": "2026-07-06",
+                        "source": "akshare",
+                        "sample_date": "2026-07-06",
+                        "market": {"indices": [{"name": "上证指数"}], "total_amount": 1},
+                        "sentiment": {},
+                        "sectors": [],
+                        "stocks": [],
+                        "events": [{"title": "已有市场证据", "source": "akshare", "note": "market"}],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+            from stock_review.evidence import manage_evidence_snapshot
+
+            original_collect = manage_evidence_snapshot.collect_akshare_sentiment_evidence
+            manage_evidence_snapshot.collect_akshare_sentiment_evidence = (
+                lambda trade_date: collect_akshare_sentiment_evidence(trade_date, ak_client=FakeSentimentAkshareClient())
+            )
+            try:
+                collect_akshare_evidence_snapshot(
+                    "2026-07-06",
+                    scope="sentiment",
+                    output_dir=root,
+                    database_path=root / "stock_review.sqlite",
+                )
+            finally:
+                manage_evidence_snapshot.collect_akshare_sentiment_evidence = original_collect
+
+            snapshot_data = json.loads(snapshot_path.read_text(encoding="utf-8"))
+            self.assertEqual(snapshot_data["market"]["total_amount"], 1)
+            self.assertEqual(snapshot_data["sentiment"]["limit_up_count"], 2)
+            self.assertEqual(len(snapshot_data["events"]), 2)
+
+    def test_collect_akshare_sectors_keeps_existing_market_and_sentiment_snapshot(self):
+        with TemporaryDirectory() as temp_path:
+            root = Path(temp_path)
+            snapshot_path = root / "2026-07-06_snapshot.json"
+            snapshot_path.write_text(
+                json.dumps(
+                    {
+                        "trade_date": "2026-07-06",
+                        "source": "akshare",
+                        "sample_date": "2026-07-06",
+                        "market": {"indices": [{"name": "上证指数"}], "total_amount": 1},
+                        "sentiment": {
+                            "limit_up_count": 2,
+                            "limit_down_count": 1,
+                            "highest_board": 3,
+                            "broken_board_rate": 0.3333,
+                        },
+                        "sectors": [],
+                        "stocks": [],
+                        "events": [{"title": "已有证据", "source": "akshare", "note": "market_sentiment"}],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+            from stock_review.evidence import manage_evidence_snapshot
+
+            original_collect = manage_evidence_snapshot.collect_akshare_sector_evidence
+            manage_evidence_snapshot.collect_akshare_sector_evidence = (
+                lambda trade_date: collect_akshare_sector_evidence(trade_date, ak_client=FakeSectorAkshareClient())
+            )
+            try:
+                collect_akshare_evidence_snapshot(
+                    "2026-07-06",
+                    scope="sectors",
+                    output_dir=root,
+                    database_path=root / "stock_review.sqlite",
+                )
+            finally:
+                manage_evidence_snapshot.collect_akshare_sector_evidence = original_collect
+
+            snapshot_data = json.loads(snapshot_path.read_text(encoding="utf-8"))
+            self.assertEqual(snapshot_data["market"]["total_amount"], 1)
+            self.assertEqual(snapshot_data["sentiment"]["limit_up_count"], 2)
+            self.assertEqual(snapshot_data["sectors"][0]["name"], "机器人")
+            self.assertEqual(len(snapshot_data["events"]), 2)
 
 
 if __name__ == "__main__":

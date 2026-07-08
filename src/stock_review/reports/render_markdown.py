@@ -115,6 +115,7 @@ def render_sentiment_lines(snapshot: EvidenceSnapshot) -> list[str]:
         f"- 跌停数：{format_value(sentiment.get('limit_down_count'))}。",
         f"- 炸板率：{format_value(sentiment.get('broken_board_rate'))}。",
         f"- 连板高度：{format_value(sentiment.get('highest_board'))}。",
+        f"- 情绪温度：{format_value(sentiment.get('emotion_temperature'))}。",
     ]
 
 
@@ -123,8 +124,22 @@ def render_sector_lines(snapshot: EvidenceSnapshot) -> list[str]:
     for sector in snapshot.sectors:
         name = format_value(sector.get("name"))
         strength = format_value(sector.get("strength"))
+        change_percent = format_value(sector.get("change_percent"))
+        turnover = format_value(sector.get("turnover"))
+        market_value = format_value(sector.get("market_value"))
+        turnover_rate = format_value(sector.get("turnover_rate"))
+        up_count = format_value(sector.get("up_count"))
+        down_count = format_value(sector.get("down_count"))
+        leading_stock = format_value(sector.get("leading_stock"))
+        leading_stock_change_percent = format_value(sector.get("leading_stock_change_percent"))
         limit_up_count = format_value(sector.get("limit_up_count"))
-        lines.append(f"- 板块：{name}，状态：{strength}，涨停家数：{limit_up_count}。")
+        core_stocks = format_list_value(sector.get("core_stocks"))
+        lines.append(
+            f"- 板块：{name}，状态：{strength}，涨跌幅：{change_percent}%，"
+            f"成交额：{turnover}，总市值：{market_value}，换手率：{turnover_rate}%，"
+            f"上涨家数：{up_count}，下跌家数：{down_count}，涨停家数：{limit_up_count}，"
+            f"领涨股：{leading_stock}（{leading_stock_change_percent}%），核心票：{core_stocks}。"
+        )
     return lines
 
 
@@ -136,7 +151,12 @@ def render_stock_lines(snapshot: EvidenceSnapshot) -> list[str]:
         exchange = format_value(stock.get("exchange"))
         sector = format_value(stock.get("sector"))
         role = format_value(stock.get("role"))
-        lines.append(f"- 个股：{code} {name}，交易所：{exchange}，板块：{sector}，角色：{role}。")
+        change_percent = format_value(stock.get("change_percent"))
+        reason = format_value(stock.get("reason"))
+        lines.append(
+            f"- 个股：{code} {name}，交易所：{exchange}，板块：{sector}，角色：{role}，"
+            f"涨跌幅：{change_percent}%，原因：{reason}"
+        )
     return lines
 
 
@@ -153,8 +173,8 @@ def render_gap_lines(number: int, snapshot: EvidenceSnapshot | None) -> list[str
 def is_gap_relevant_to_step(number: int, gap: str) -> bool:
     step_gaps = {
         1: {"missing_indices", "missing_total_amount"},
-        2: {"missing_sentiment"},
-        3: {"missing_sentiment"},
+        2: {"missing_sentiment", "missing_emotion_temperature"},
+        3: {"missing_sentiment", "missing_emotion_temperature"},
         4: {"missing_sectors"},
         5: {"missing_sectors"},
         6: {"missing_stocks"},
@@ -167,3 +187,9 @@ def format_value(value: Any) -> str:
     if value in (None, ""):
         return "待确认"
     return str(value)
+
+
+def format_list_value(value: Any) -> str:
+    if not isinstance(value, list) or not value:
+        return "待确认"
+    return "、".join(str(item) for item in value if item not in (None, "")) or "待确认"
