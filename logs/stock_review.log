@@ -28,3 +28,8 @@
 2026-07-09 21:40:32,496 INFO command=evidence collect trade_date=2026-07-06 source_file=akshare:stocks output=data\evidence\2026-07-06_snapshot.json missing_fields=missing_emotion_temperature status=created
 2026-07-09 21:40:32,662 INFO command=review create trade_date=2026-07-06 framework=stock-review.md evidence=data\evidence\2026-07-06_snapshot.json output=reports\daily\2026-07-06_review.md step_count=10 status=created
 2026-07-11 18:58:05,946 INFO command=evidence collect trade_date=2026-07-10 source_file=akshare:market output=data\evidence\2026-07-10_snapshot.json missing_fields=missing_sentiment,missing_sectors,missing_stocks status=created
+2026-07-11 19:14:29,828 INFO command=review create trade_date=2026-07-10 framework=stock-review.md evidence=data\evidence\2026-07-10_snapshot.json output=reports\daily\2026-07-10_review.md step_count=10 status=created
+2026-07-11 19:14:29,955 INFO command=plan create trade_date=2026-07-10 review=reports\daily\2026-07-10_review.md evidence=data\evidence\2026-07-10_snapshot.json output=reports\daily\2026-07-10_plan.md item_count=2 status=created
+2026-07-11 19:14:30,102 INFO command=observation add observation_id=OBS-20260710-001 status=pending database=data\stock_review.sqlite
+2026-07-11 19:14:30,236 INFO command=observation review observation_id=OBS-20260710-001 status=invalid database=data\stock_review.sqlite
+2026-07-11 19:14:30,362 INFO command=learning weekly start_date=2026-07-06 end_date=2026-07-10 output=reports\weekly\2026-07-06_to_2026-07-10_learning.md observation_count=1 status=created
