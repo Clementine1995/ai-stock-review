@@ -58,11 +58,17 @@ flowchart TD
 - M4.2 已完成最小次日计划：可以基于日报、Evidence Snapshot 和池子记录生成次日观察计划 Markdown。
 - M4.5 已完成 AKShare 市场层最小接入口：提供 `evidence collect --source akshare --scope market`，用于采集指数和成交额 Evidence Snapshot；真实采集需先安装可选依赖。
 - M4.6 已完成短线情绪和板块真实证据最小接入口：提供 `evidence collect --source akshare --scope sentiment|sectors`，用于采集涨停数、跌停数、炸板率、连板高度和热门板块事实。
+- M4.7 已完成个股事实证据最小接入口：提供 `evidence collect --source akshare --scope stocks`，只提取已有板块领涨股和涨停池连板股事实，不认定核心票。
+- M5 已完成 Observation 最小闭环：支持手工创建、按日期/状态查询，以及回填 `pending|hit|miss|invalid`。
+- M6.1 已完成周度学习总结最小闭环：按日期范围汇总 Observation，区分命中、失败、无效和待观察样本，并输出可追溯经验候选。
+- M6.2.1 已完成市场状态与板块强度可解释评分：固定规则输出得分、标签、证据覆盖率和字段缺口。
+- M6.2.2 已完成个股角色标签与买点模式疑似匹配：只基于 Evidence Snapshot 已有个股事实生成候选标签和疑似观察模式，并展示证据缺口。
 - 当前 `stock-review.md` 实际包含 `STEP 1` 到 `STEP 10`，命令会按文件内容动态识别，不硬编码 STEP 数量。
-- 当前已在本地开发环境完成 2026-07-06 的真实联网采集验证，尚未接入 Observation 或 WebUI。
+- 当前已在本地开发环境完成 2026-07-06 的真实联网采集验证；MVP 暂不建设 WebUI。
+- 个股角色标签和买点模式疑似匹配只基于数据源明确给出的板块领涨、连板等事实，不能认定核心票、龙头或确认买点。
 - 当前日报只展示 Evidence Snapshot 中已有字段，禁止生成没有证据支持的市场、板块或个股结论。
 - 当前计划只记录观察条件和应对框架，不是买卖指令。
-- 当前仍未接入真实个股核心票证据；`missing_stocks` 需要后续从板块领涨股、涨停池连板股或用户池子中补齐。
+- 当前已在本地开发环境完成 2026-07-06 的 M4.7 真实联网个股采集，快照只剩 `missing_emotion_temperature`。
 
 ## 最小启动
 
@@ -85,6 +91,12 @@ python -m stock_review.cli plan create --date 2026-07-06 --review reports/daily/
 python -m stock_review.cli evidence collect --date 2026-07-06 --source akshare --scope market --output-dir data/evidence
 python -m stock_review.cli evidence collect --date 2026-07-06 --source akshare --scope sentiment --output-dir data/evidence
 python -m stock_review.cli evidence collect --date 2026-07-06 --source akshare --scope sectors --output-dir data/evidence
+python -m stock_review.cli evidence collect --date 2026-07-06 --source akshare --scope stocks --output-dir data/evidence
+python -m stock_review.cli observation add --date 2026-07-06 --topic 机器人板块延续性 --target 机器人板块 --hypothesis 机器人板块次日保持强势 --confirmation 板块次日继续放量 --invalidation "板块跌幅超过 2%" --evidence-source "2026-07-06 Evidence Snapshot"
+python -m stock_review.cli observation list --date 2026-07-06 --status pending
+python -m stock_review.cli observation review --id OBS-20260706-001 --status hit --result "板块次日上涨 3%" --note 成立条件满足
+python -m stock_review.cli learning weekly --start 2026-07-06 --end 2026-07-10
+python -m stock_review.cli scoring create --date 2026-07-06 --evidence data/evidence/2026-07-06_snapshot.json
 ```
 
 可选初始化：
@@ -109,6 +121,12 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m stock_review.cli evidence collect --date 2026-07-06 --source akshare --scope market --output-dir data/evidence
 .\.venv\Scripts\python.exe -m stock_review.cli evidence collect --date 2026-07-06 --source akshare --scope sentiment --output-dir data/evidence
 .\.venv\Scripts\python.exe -m stock_review.cli evidence collect --date 2026-07-06 --source akshare --scope sectors --output-dir data/evidence
+.\.venv\Scripts\python.exe -m stock_review.cli evidence collect --date 2026-07-06 --source akshare --scope stocks --output-dir data/evidence
+.\.venv\Scripts\python.exe -m stock_review.cli observation add --date 2026-07-06 --topic 机器人板块延续性 --target 机器人板块 --hypothesis 机器人板块次日保持强势 --confirmation 板块次日继续放量 --invalidation "板块跌幅超过 2%" --evidence-source "2026-07-06 Evidence Snapshot"
+.\.venv\Scripts\python.exe -m stock_review.cli observation list --date 2026-07-06 --status pending
+.\.venv\Scripts\python.exe -m stock_review.cli observation review --id OBS-20260706-001 --status hit --result "板块次日上涨 3%" --note 成立条件满足
+.\.venv\Scripts\python.exe -m stock_review.cli learning weekly --start 2026-07-06 --end 2026-07-10
+.\.venv\Scripts\python.exe -m stock_review.cli scoring create --date 2026-07-06 --evidence data/evidence/2026-07-06_snapshot.json
 ```
 
 测试：
@@ -126,10 +144,10 @@ python -m unittest discover -s tests
 - `docs/PRODUCT_REQUIREMENTS.md`：当前项目需求、功能拆解、数据边界、MVP 里程碑和风险控制。
 - `PRD.md`：上一版失败项目材料，仅作为经验教训和背景参考，不作为当前定版需求。
 - `stock-review.md`：用户维护的盘后复盘框架，是系统主流程来源。
-- `src/stock_review/`：主工程源码，当前包含 CLI、复盘框架解析、带证据日报生成、次日计划生成、Markdown 渲染、Evidence Snapshot、AKShare source、池子管理和 SQLite repository。
-- `tests/`：自动化测试目录，当前覆盖 STEP 识别、无 STEP 错误、日报生成、证据接入、证据缺口识别、样例导入、AKShare 市场/情绪/板块标准化、SQLite 保存、池子管理和计划生成。
+- `src/stock_review/`：主工程源码，当前包含 CLI、复盘框架解析、带证据日报生成、次日计划生成、周度学习总结、Markdown 渲染、Evidence Snapshot、AKShare source、池子管理、Observation 管理和 SQLite repository。
+- `tests/`：自动化测试目录，当前覆盖 STEP 识别、日报生成、证据接入、AKShare 标准化、SQLite 保存、池子管理、计划生成、Observation 闭环和周度学习总结。
 - `data/`：本地样例数据、证据快照、池子记录和本地 SQLite，当前 `data/evidence/` 保存离线样例和标准化快照。
-- `reports/`：每日复盘、次日计划和周度学习 Markdown 输出，当前 `reports/daily/` 用于日报和计划。
+- `reports/`：Markdown 输出目录，`reports/daily/` 用于日报和计划，`reports/weekly/` 用于周度学习总结。
 - `logs/`：正式 CLI 写操作日志，当前记录日报生成命令、日期、框架、输出文件和状态。
 
 ## 文档索引
@@ -162,6 +180,7 @@ python -m unittest discover -s tests
 - 当前 AKShare `market` 最小范围：上证指数、深证成指、创业板指日线；成交额来自数据源返回的指数日线成交额求和，并在快照中标记来源。AKShare/东方财富失败时，会尝试腾讯指数 K 线备用路径。
 - 当前 AKShare `sentiment` 最小范围：东方财富涨停池、炸板池、跌停池，生成涨停数、跌停数、炸板率和连板高度。情绪温度暂无稳定真实来源，单独标记 `missing_emotion_temperature`。
 - 当前 AKShare `sectors` 最小范围：东方财富概念/行业板块列表；在当前网络不可用时，兜底使用同花顺行业汇总，生成板块涨跌幅、成交额、上涨/下跌家数和领涨股。当前不写入核心票列表。
+- 当前 AKShare `stocks` 最小范围：从快照已有板块领涨股和东方财富涨停池连板股提取事实；缺少代码、交易所或板块时标记待确认，不认定核心票、不修改池子。
 - 分 scope 采集会合并到同一交易日 Evidence Snapshot，后采集的空字段不会覆盖已有 market、sentiment 或 sectors 证据。
 - 可选依赖安装：`python -m pip install -e .[data]`。
 - 备选数据源：
@@ -171,10 +190,9 @@ python -m unittest discover -s tests
 
 ## 当前证据缺口
 
-以 2026-07-06 真实采集快照为例，当前已补齐 `market`、短线情绪核心字段和 `sectors`，仍保留：
+以 2026-07-06 真实采集快照为例，当前已补齐 `market`、短线情绪核心字段、`sectors` 和 `stocks`，仍保留：
 
 - `missing_emotion_temperature`：情绪温度暂无稳定真实来源，后续可评估开盘啦或同类短线情绪源。
-- `missing_stocks`：核心票/热门票证据尚未接入，后续应从板块领涨股、涨停池连板股和用户池子中做最小证据，不直接生成买卖候选。
 
 ## 今日验证命令
 

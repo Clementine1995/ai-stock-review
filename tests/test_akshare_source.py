@@ -8,6 +8,7 @@ from stock_review.evidence.akshare_source import (
     collect_akshare_market_evidence,
     collect_akshare_sector_evidence,
     collect_akshare_sentiment_evidence,
+    collect_akshare_stock_evidence,
 )
 from stock_review.evidence.evidence_snapshot import build_evidence_snapshot
 from stock_review.evidence.manage_evidence_snapshot import collect_akshare_evidence_snapshot
@@ -51,8 +52,8 @@ class FakeSentimentAkshareClient:
         self.limit_up_date = date
         return FakeFrame(
             [
-                {"代码": "300024", "名称": "机器人", "连板数": 3},
-                {"代码": "002747", "名称": "埃斯顿", "连板数": 2},
+                {"代码": "300024", "名称": "机器人", "连板数": 3, "涨跌幅": 20, "所属行业": "软件开发"},
+                {"代码": "002747", "名称": "埃斯顿", "连板数": 2, "涨跌幅": 10, "所属行业": "自动化设备"},
             ]
         )
 
@@ -63,6 +64,17 @@ class FakeSentimentAkshareClient:
     def stock_zt_pool_dtgc_em(self, date):
         self.limit_down_date = date
         return FakeFrame([{"代码": "600000", "名称": "浦发银行"}])
+
+
+class FakeStockAkshareClient(FakeSentimentAkshareClient):
+    def stock_zt_pool_em(self, date):
+        frame = super().stock_zt_pool_em(date)
+        return FakeFrame(
+            [
+                *frame.rows,
+                {"代码": "000001", "名称": "平安银行", "连板数": 1, "涨跌幅": 10, "所属行业": "银行"},
+            ]
+        )
 
 
 class FakeSectorAkshareClient:
@@ -231,6 +243,31 @@ class AkshareSourceTest(unittest.TestCase):
         self.assertTrue(raw_data["sectors"])
         self.assertTrue(any(event["title"] == "industry 板块采集失败" for event in raw_data["events"]))
         self.assertNotIn("missing_sectors", snapshot.missing_fields)
+
+    def test_collect_akshare_stock_evidence_uses_sector_leaders_and_consecutive_limit_up_stocks(self):
+        sectors = collect_akshare_sector_evidence(
+            "2026-07-06",
+            ak_client=FakeSectorAkshareClient(),
+        )["sectors"]
+
+        raw_data = collect_akshare_stock_evidence(
+            "2026-07-06",
+            sectors=sectors,
+            ak_client=FakeStockAkshareClient(),
+        )
+        snapshot = build_evidence_snapshot("2026-07-06", raw_data)
+
+        self.assertEqual(raw_data["stocks"][0]["name"], "机器人")
+        self.assertEqual(raw_data["stocks"][0]["code"], "待确认")
+        self.assertEqual(raw_data["stocks"][0]["sector"], "机器人")
+        self.assertEqual(raw_data["stocks"][0]["role_source"], "concept 板块领涨股")
+        self.assertTrue(any(stock["code"] == "300024" for stock in raw_data["stocks"]))
+        self.assertFalse(any(stock["code"] == "000001" for stock in raw_data["stocks"]))
+        self.assertEqual(
+            next(stock["change_percent"] for stock in raw_data["stocks"] if stock["code"] == "300024"),
+            20,
+        )
+        self.assertNotIn("missing_stocks", snapshot.missing_fields)
 
     def test_collect_akshare_sector_evidence_uses_ths_industry_when_eastmoney_fails(self):
         raw_data = collect_akshare_sector_evidence("2026-07-06", ak_client=EastmoneyBrokenThsSectorAkshareClient())
@@ -520,6 +557,64 @@ class AkshareSourceTest(unittest.TestCase):
             self.assertEqual(snapshot_data["sentiment"]["limit_up_count"], 2)
             self.assertEqual(snapshot_data["sectors"][0]["name"], "机器人")
             self.assertEqual(len(snapshot_data["events"]), 2)
+
+    def test_collect_akshare_stocks_keeps_existing_evidence_and_removes_stock_gap(self):
+        with TemporaryDirectory() as temp_path:
+            root = Path(temp_path)
+            snapshot_path = root / "2026-07-06_snapshot.json"
+            snapshot_path.write_text(
+                json.dumps(
+                    {
+                        "trade_date": "2026-07-06",
+                        "source": "akshare",
+                        "sample_date": "2026-07-06",
+                        "market": {"indices": [{"name": "上证指数"}], "total_amount": 1},
+                        "sentiment": {
+                            "limit_up_count": 2,
+                            "limit_down_count": 1,
+                            "highest_board": 3,
+                            "broken_board_rate": 0.3333,
+                        },
+                        "sectors": [
+                            {
+                                "name": "机器人",
+                                "source_type": "concept",
+                                "leading_stock": "机器人",
+                                "leading_stock_change_percent": 12.4,
+                            }
+                        ],
+                        "stocks": [],
+                        "events": [],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+            from stock_review.evidence import manage_evidence_snapshot
+
+            original_collect = manage_evidence_snapshot.collect_akshare_stock_evidence
+            manage_evidence_snapshot.collect_akshare_stock_evidence = (
+                lambda trade_date, sectors: collect_akshare_stock_evidence(
+                    trade_date,
+                    sectors=sectors,
+                    ak_client=FakeStockAkshareClient(),
+                )
+            )
+            try:
+                collect_akshare_evidence_snapshot(
+                    "2026-07-06",
+                    scope="stocks",
+                    output_dir=root,
+                    database_path=root / "stock_review.sqlite",
+                )
+            finally:
+                manage_evidence_snapshot.collect_akshare_stock_evidence = original_collect
+
+            snapshot_data = json.loads(snapshot_path.read_text(encoding="utf-8"))
+            self.assertEqual(snapshot_data["market"]["total_amount"], 1)
+            self.assertEqual(snapshot_data["sectors"][0]["name"], "机器人")
+            self.assertNotIn("missing_stocks", snapshot_data["missing_fields"])
 
 
 if __name__ == "__main__":

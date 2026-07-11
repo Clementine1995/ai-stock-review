@@ -120,7 +120,151 @@
       "leading_stock_change_percent": 19.61
     }
   ],
-  "stocks": [],
+  "stocks": [
+    {
+      "code": "待确认",
+      "name": "科力股份",
+      "exchange": "待确认",
+      "sector": "油气开采及服务",
+      "role": "板块领涨事实候选",
+      "role_source": "industry_ths 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": 11.13,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "岭南控股",
+      "exchange": "待确认",
+      "sector": "旅游及酒店",
+      "role": "板块领涨事实候选",
+      "role_source": "industry_ths 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": 10.06,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "网宿科技",
+      "exchange": "待确认",
+      "sector": "IT服务",
+      "role": "板块领涨事实候选",
+      "role_source": "industry_ths 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": 19.97,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "绿盟科技",
+      "exchange": "待确认",
+      "sector": "软件开发",
+      "role": "板块领涨事实候选",
+      "role_source": "industry_ths 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": 20,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "*ST同辉",
+      "exchange": "待确认",
+      "sector": "计算机设备",
+      "role": "板块领涨事实候选",
+      "role_source": "industry_ths 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": 19.61,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "000656",
+      "name": "金科股份",
+      "exchange": "待确认",
+      "sector": "房地产开",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（3板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10,
+      "reason": "涨停池记录的连板数为 3，仅作为可追溯事实。"
+    },
+    {
+      "code": "002396",
+      "name": "星网锐捷",
+      "exchange": "待确认",
+      "sector": "通信设备",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。"
+    },
+    {
+      "code": "603137",
+      "name": "恒尚节能",
+      "exchange": "待确认",
+      "sector": "装修装饰",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（5板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 9.9884,
+      "reason": "涨停池记录的连板数为 5，仅作为可追溯事实。"
+    },
+    {
+      "code": "603722",
+      "name": "阿科力",
+      "exchange": "待确认",
+      "sector": "化学制品",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。"
+    },
+    {
+      "code": "002767",
+      "name": "先锋电子",
+      "exchange": "待确认",
+      "sector": "通用设备",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 9.9778,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。"
+    },
+    {
+      "code": "002141",
+      "name": "贤丰控股",
+      "exchange": "待确认",
+      "sector": "元件",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 9.9222,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。"
+    },
+    {
+      "code": "603211",
+      "name": "晋拓股份",
+      "exchange": "待确认",
+      "sector": "汽车零部",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 9.9889,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。"
+    },
+    {
+      "code": "600793",
+      "name": "宜宾纸业",
+      "exchange": "待确认",
+      "sector": "造纸",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（4板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 9.9938,
+      "reason": "涨停池记录的连板数为 4，仅作为可追溯事实。"
+    }
+  ],
   "events": [
     {
       "title": "AKShare 市场层最小采集",
@@ -161,10 +305,14 @@
       "title": "industry 板块采集失败",
       "source": "akshare",
       "note": "AKShare 板块接口调用失败且东方财富直连备用路径也失败：stock_board_industry_name_em：akshare=HTTPSConnectionPool(host='17.push2.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/clist/get?pn=1&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f3&fs=m%3A90+t%3A2+f%3A%2150&fields=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6%2Cf7%2Cf8%2Cf9%2Cf10%2Cf12%2Cf13%2Cf14%2Cf15%2Cf16%2Cf17%2Cf18%2Cf20%2Cf21%2Cf23%2Cf24%2Cf25%2Cf26%2Cf22%2Cf33%2Cf11%2Cf62%2Cf128%2Cf136%2Cf115%2Cf152%2Cf124%2Cf107%2Cf104%2Cf105%2Cf140%2Cf141%2Cf207%2Cf208%2Cf209%2Cf222 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；eastmoney=Remote end closed connection without response"
+    },
+    {
+      "title": "AKShare 个股事实最小采集",
+      "source": "akshare",
+      "note": "仅提取已有板块领涨股和涨停池连板股事实；不认定核心票，不修改池子，不生成买卖建议。"
     }
   ],
   "missing_fields": [
-    "missing_emotion_temperature",
-    "missing_stocks"
+    "missing_emotion_temperature"
   ]
 }

@@ -28,7 +28,7 @@
 - 把复盘中的可验证判断保存为 Observation。
 - 在后续交易日回填 Observation 结果。
 - 周期性总结有效模式、误判模式和经验规则候选。
-- 在证据充分时使用规则评分、模式匹配和历史统计辅助复盘。
+- 在证据充分时使用规则评分和历史统计辅助复盘。
 
 ### 2.3 不做什么
 
@@ -261,7 +261,6 @@ MVP 优先使用本地轻量存储：
 - 每日复盘结论
 - 核心板块和核心票
 - 关注池和热点池状态
-- 买点模式匹配结果
 
 **输出**
 
@@ -375,16 +374,13 @@ MVP 优先使用本地轻量存储：
 - invalid 只作为无效说明，不进入经验候选。
 - 无回填数据时，明确提示样本不足。
 
-### F9. 规则评分与模式匹配
+### F9. 可解释规则评分
 
 **目标**：用可解释算法辅助复盘，而不是预测涨跌。
 
 **输入**
 
 - Evidence Snapshot
-- 关注池和热点池
-- `stock-review.md` 中的买点模式
-- 历史 Observation 统计
 
 **输出**
 
@@ -392,20 +388,19 @@ MVP 优先使用本地轻量存储：
 - 板块强度评分。
 - 个股角色标签。
 - 买点模式疑似匹配。
-- 历史相似场景摘要。
 
 **功能要求**
 
 - 规则评分必须可解释，输出主要证据和缺口。
-- 模式匹配只能标记“疑似匹配”，必须由用户确认。
-- 历史统计必须基于已回填 Observation。
 - 不输出黑盒买卖建议。
+- 个股角色标签只允许来自数据源明确给出的板块领涨、涨停池连板等事实，不根据有限证据升级为核心票或龙头。
+- 买点模式只输出“疑似观察模式”，必须展示竞价、分时、前一日反馈等缺口，不得写成确认买点。
 
 **可测试条件**
 
 - 相同输入必须产生稳定评分。
 - 证据缺失时评分必须降级或提示不可判定。
-- 模式匹配结果必须能追溯到触发条件。
+- 疑似匹配结果必须能追溯到触发条件和缺口。
 
 ## 8. CLI 设计
 
@@ -460,13 +455,36 @@ M4.6 当前已实现：
 .\.venv\Scripts\python.exe -m stock_review.cli evidence collect --date 2026-07-06 --source akshare --scope sectors --output-dir data/evidence
 ```
 
+M4.7 当前已实现：
+
+```powershell
+.\.venv\Scripts\python.exe -m stock_review.cli evidence collect --date 2026-07-06 --source akshare --scope stocks --output-dir data/evidence
+```
+
+M5 当前已实现：
+
+```powershell
+.\.venv\Scripts\python.exe -m stock_review.cli observation add --date 2026-07-06 --topic 机器人板块延续性 --target 机器人板块 --hypothesis 机器人板块次日保持强势 --confirmation 板块次日继续放量 --invalidation "板块跌幅超过 2%" --evidence-source "2026-07-06 Evidence Snapshot"
+.\.venv\Scripts\python.exe -m stock_review.cli observation list --date 2026-07-06 --status pending
+.\.venv\Scripts\python.exe -m stock_review.cli observation review --id OBS-20260706-001 --status hit --result "板块次日上涨 3%" --note 成立条件满足
+```
+
+M6.1 当前已实现：
+
+```powershell
+.\.venv\Scripts\python.exe -m stock_review.cli learning weekly --start 2026-07-06 --end 2026-07-10
+```
+
+M6.2.1 当前已实现：
+
+```powershell
+.\.venv\Scripts\python.exe -m stock_review.cli scoring create --date 2026-07-06 --evidence data/evidence/2026-07-06_snapshot.json
+```
+
 后续命令草案：
 
 ```powershell
 .\.venv\Scripts\python.exe -m stock_review.cli init
-.\.venv\Scripts\python.exe -m stock_review.cli observation add --date 2026-07-06
-.\.venv\Scripts\python.exe -m stock_review.cli observation review --id OBS001 --status hit
-.\.venv\Scripts\python.exe -m stock_review.cli learning weekly --start 2026-07-01 --end 2026-07-05
 ```
 
 ### 8.2 CLI 验收标准
@@ -775,7 +793,7 @@ MVP 通过标准：
 - 当前环境下东方财富板块接口失败，已使用同花顺行业汇总兜底。
 - 日报 STEP 4/5 已展示油气开采及服务、旅游及酒店、IT 服务等板块事实。
 
-### M4.7. 个股证据最小接入候选
+### M4.7. 个股证据最小接入
 
 下一步建议只补 `stocks`，但必须避免自动选股：
 
@@ -783,6 +801,8 @@ MVP 通过标准：
 - 每条个股证据必须包含代码、名称、来源、所属板块或待确认标记、角色来源和涨跌幅。
 - 只写入“事实候选”，不得输出买卖建议、核心票结论或自动加入关注池。
 - 缺少股票代码、交易所或板块归属时必须标记待确认。
+- `evidence collect --scope stocks` 会读取同交易日快照中已有板块领涨股，并调用东方财富涨停池提取连板数大于等于 2 的个股事实。
+- 板块领涨股来源缺少代码和交易所时保留“待确认”，不额外扫描全市场补全。
 
 验收：
 
@@ -790,27 +810,93 @@ MVP 通过标准：
 - 日报 STEP 6/7 展示个股事实，但人工判断仍由用户填写。
 - 不修改池子状态，不自动生成买卖计划。
 
+当前状态：
+
+- 已完成 `scope=stocks` 代码接入和离线测试。
+- 已验证分 scope 合并不会覆盖已有 `market`、`sentiment` 和 `sectors`。
+- 2026-07-09 已完成 2026-07-06 真实联网个股采集，共生成 13 条事实记录。
+- `missing_stocks` 已消失，当前快照只剩 `missing_emotion_temperature`。
+
 ### M5. Observation 闭环
 
-- 创建 Observation。
-- 回填结果。
-- 标记 invalid。
+- `observation add` 支持手工创建 Observation，必须填写主题、假设、成立条件、失效条件和证据来源。
+- `observation list` 支持按复盘日期和状态查询。
+- `observation review` 支持回填实际结果、状态和复盘备注。
+- 状态范围固定为 `pending`、`hit`、`miss`、`invalid`。
+- 相同复盘日期、主题和假设的重复 Observation 会被拒绝。
+- 重复回填同一 Observation 时更新原回填记录，不新增重复记录。
 
 验收：
 
 - Observation 可创建、更新、查询。
 - invalid 不进入经验候选。
+- 缺少成立条件、失效条件或证据来源时不能入库。
 
-### M6. 周度学习总结和规则评分
+当前状态：
 
-- 汇总 hit/miss/invalid。
-- 输出经验候选。
-- 增加市场状态、板块强度、个股角色和买点模式的可解释辅助判断。
+- 已完成业务模型、SQLite Repository 和 CLI 最小闭环。
+- 已使用临时 SQLite 数据库验证创建、查询、重复识别、状态回填和重复回填更新。
+- 当前仓库真实数据库尚未执行 Observation 建表或写入。
+
+### M6.1. 周度学习总结
+
+- `learning weekly` 按起止日期读取 Observation。
+- 报告区分 `hit`、`miss`、`invalid` 和 `pending`。
+- 只有 `hit` 和 `miss` 进入经验候选。
+- `invalid` 只进入无效样本说明，`pending` 只进入待观察样本。
+- 有效模式和反复误判主题只按已回填样本做确定性计数，不推断因果。
+- 输出默认写入 `reports/weekly/`，不自动修改 `stock-review.md`。
 
 验收：
 
 - 能从样例 Observation 生成周度学习 Markdown。
-- 评分结果可追溯到证据字段。
+- 无 hit/miss 时明确提示有效回填样本不足。
+- 每条经验候选可追溯到 Observation ID 和证据来源。
+
+当前状态：
+
+- 已完成日期范围查询、Markdown 生成、CLI 和写操作日志。
+- 已使用临时 SQLite 数据库验证命中、失败、无效和待观察分流。
+- 当前真实数据库没有 Observation 样本，因此未生成真实周度学习报告。
+
+### M6.2.1. 市场状态与板块强度评分
+
+- 市场状态由指数正收益占比、涨停占涨跌停比例、封板稳定度和连板高度达标度四项等权计算。
+- 市场标签固定为偏强、中性、偏弱或不可判定，不等同于牛熊判断或完整情绪周期。
+- 板块强度由涨跌幅、上涨家数占比、净流入方向和领涨股涨跌幅计算。
+- 板块报告显示得分、强中弱标签、证据覆盖率、逐项规则证据和缺口。
+- 核心市场证据缺失时直接不可判定；板块证据覆盖率低于 50% 时不输出强弱标签。
+- 评分报告只辅助复盘，不预测涨跌，不构成买卖建议。
+
+验收：
+
+- 相同输入产生稳定评分。
+- 证据缺失时降级或提示不可判定。
+- 每项得分可追溯到 Evidence Snapshot 字段。
+
+当前状态：
+
+- 已完成评分模型、Markdown 报告和 `scoring create` CLI。
+- 已使用离线样例验证稳定评分和缺口降级，尚未生成真实评分报告。
+
+### M6.2.2. 个股角色标签与买点模式疑似匹配
+
+- 基于 Evidence Snapshot `stocks` 中的 `source`、`role_source`、`sector` 和涨跌幅生成个股角色标签。
+- 当前允许的角色标签包括板块领涨、连板股和连板高度事实候选。
+- 基于已采集板块强度和连板事实输出买点模式疑似匹配，例如板块领涨疑似观察模式、连板接力疑似观察模式。
+- 疑似模式必须同时展示规则证据和缺口；缺少竞价、分时、前一日反馈时不得确认买点。
+- 不修改关注池、热点池、交易计划或 Observation，不生成买卖建议。
+
+验收：
+
+- 同一 Evidence Snapshot 生成稳定的个股角色标签和疑似模式。
+- 缺少代码、交易所、板块、竞价、分时或前一日反馈时必须展示缺口。
+- 报告必须明确疑似模式不是确认买点，不构成买卖建议。
+
+当前状态：
+
+- 已在 `scoring create` 报告中加入个股角色与疑似观察模式章节。
+- 已添加离线测试覆盖板块领涨、连板股、连板高度事实候选和证据缺口。
 
 ### M7. 数据源增强
 
@@ -835,7 +921,7 @@ MVP 通过标准：
 | LLM 产生幻觉 | LLM 只能基于历史记录和证据归纳，不得编造事实 |
 | 复盘框架继续变化 | 框架读取动态识别 STEP，不硬编码步骤 |
 | AI 把计划写成买卖指令 | 计划必须表达观察条件和应对框架，不直接替用户决策 |
-| 杂毛票被误识别为核心 | 个股角色识别必须输出证据和不确定性，用户最终确认 |
+| 杂毛票被误识别为核心 | 角色标签和疑似模式必须基于数据源明确事实，并明确不得认定核心票、龙头或确认买点 |
 
 ## 14. 后续扩展
 

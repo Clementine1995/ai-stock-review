@@ -1,4 +1,4 @@
-# 本文件负责通过 AKShare 采集最小市场层证据，不做全市场扫描和交易判断。
+# 本文件负责通过 AKShare 采集最小事实证据，不做全市场扫描和交易判断。
 
 from __future__ import annotations
 
@@ -180,6 +180,91 @@ def collect_akshare_sector_evidence(trade_date: str, ak_client: Any | None = Non
         "stocks": [],
         "events": events,
     }
+
+
+# 个股采集只组合已有板块领涨字段和涨停池连板事实，不据此生成核心票结论。
+def collect_akshare_stock_evidence(
+    trade_date: str,
+    sectors: list[dict[str, Any]] | None = None,
+    ak_client: Any | None = None,
+) -> dict[str, Any]:
+    client = ak_client or import_akshare_client()
+    limit_up_rows = get_sentiment_rows(client, "stock_zt_pool_em", trade_date.replace("-", ""))
+    stocks = collect_sector_leading_stocks(sectors or [])
+    seen_keys = {(stock["code"], stock["name"], stock["role_source"]) for stock in stocks}
+
+    # 仅提取连板数大于等于 2 的涨停池事实，首板不作为本次最小个股证据范围。
+    for row in limit_up_rows:
+        board_count = parse_int(get_first_value(row, ("连板数",)))
+        if board_count is None or board_count < 2:
+            continue
+        change_percent = parse_decimal(get_first_value(row, ("涨跌幅",)))
+        stock = {
+            "code": format_pending_text(get_first_value(row, ("代码",))),
+            "name": format_pending_text(get_first_value(row, ("名称",))),
+            "exchange": "待确认",
+            "sector": format_pending_text(get_first_value(row, ("所属行业",))),
+            "role": "连板事实候选",
+            "role_source": f"涨停池连板股（{board_count}板）",
+            "source": "akshare:stock_zt_pool_em",
+            # AKShare 部分涨跌幅来自低精度浮点，统一到 4 位小数，避免二进制尾差进入日报。
+            "change_percent": decimal_to_number(
+                change_percent.quantize(Decimal("0.0001")) if change_percent is not None else None
+            ),
+            "reason": f"涨停池记录的连板数为 {board_count}，仅作为可追溯事实。",
+        }
+        key = (stock["code"], stock["name"], stock["role_source"])
+        if key not in seen_keys:
+            stocks.append(stock)
+            seen_keys.add(key)
+
+    if not stocks:
+        raise AkshareSourceError("AKShare 个股证据来源未返回板块领涨股或涨停池连板股")
+
+    return {
+        "source": "akshare",
+        "sample_date": trade_date,
+        "market": {},
+        "sentiment": {},
+        "sectors": [],
+        "stocks": stocks,
+        "events": [
+            {
+                "title": "AKShare 个股事实最小采集",
+                "source": "akshare",
+                "note": "仅提取已有板块领涨股和涨停池连板股事实；不认定核心票，不修改池子，不生成买卖建议。",
+            }
+        ],
+    }
+
+
+# 板块领涨股转换只保留来源事实，缺失代码与交易所时必须显式标记待确认。
+def collect_sector_leading_stocks(sectors: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    stocks: list[dict[str, Any]] = []
+    seen_keys: set[tuple[str, str]] = set()
+    for sector in sectors:
+        name = format_optional_text(sector.get("leading_stock"))
+        if not name:
+            continue
+        sector_name = format_pending_text(sector.get("name"))
+        key = (name, sector_name)
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        stocks.append(
+            {
+                "code": "待确认",
+                "name": name,
+                "exchange": "待确认",
+                "sector": sector_name,
+                "role": "板块领涨事实候选",
+                "role_source": f"{format_pending_text(sector.get('source_type'))} 板块领涨股",
+                "source": "akshare:sector_leading_stock",
+                "change_percent": sector.get("leading_stock_change_percent"),
+                "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。",
+            }
+        )
+    return stocks
 
 
 def import_akshare_client() -> Any:
@@ -558,6 +643,10 @@ def format_optional_text(value: Any) -> str:
     if value in (None, ""):
         return ""
     return str(value)
+
+
+def format_pending_text(value: Any) -> str:
+    return format_optional_text(value) or "待确认"
 
 
 def decimal_to_number(value: Decimal | None) -> int | float | None:

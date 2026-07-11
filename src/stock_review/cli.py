@@ -1,4 +1,4 @@
-# 本文件负责 CLI 参数解析、错误展示，并调用应用服务完成复盘框架检查和日报生成。
+# 本文件负责 CLI 参数解析、错误展示，并调用当前已实现的应用服务。
 
 from __future__ import annotations
 
@@ -15,6 +15,13 @@ from stock_review.evidence.manage_evidence_snapshot import (
     collect_akshare_evidence_snapshot,
     import_evidence_snapshot,
 )
+from stock_review.learning.summarize_weekly_learning import create_weekly_learning
+from stock_review.observations.manage_observation import (
+    ObservationError,
+    add_observation,
+    list_observations,
+    review_observation,
+)
 from stock_review.planning.build_trade_plan import TradePlanError, create_trade_plan
 from stock_review.pools.manage_pool_item import PoolItemError, add_pool_item, list_pool_items
 from stock_review.review_documents.create_daily_review import create_daily_review
@@ -22,6 +29,7 @@ from stock_review.review_framework.parse_framework import (
     FrameworkParseError,
     parse_framework_file,
 )
+from stock_review.scoring.score_market_state import create_scoring_report
 
 
 # CLI 失败时需要给出明确原因，并用非 0 退出码提示调用方当前命令未完成。
@@ -35,7 +43,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         return args.handler(args)
-    except (EvidenceSnapshotError, FrameworkParseError, PoolItemError, TradePlanError) as error:
+    except (EvidenceSnapshotError, FrameworkParseError, ObservationError, PoolItemError, TradePlanError) as error:
         print(f"错误：{error}", file=sys.stderr)
         return 1
     except OSError as error:
@@ -43,7 +51,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
 
-# 命令树只暴露当前 M2 所需入口，避免提前扩展未实现的业务命令。
+# 命令树只暴露当前已完成里程碑的正式入口，避免提前扩展未实现的业务命令。
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="stock_review",
@@ -134,8 +142,8 @@ def build_parser() -> argparse.ArgumentParser:
     evidence_collect_parser.add_argument(
         "--scope",
         required=True,
-        choices=["market", "sentiment", "sectors"],
-        help="采集范围；当前支持 market、sentiment 或 sectors，禁止默认全市场扫描",
+        choices=["market", "sentiment", "sectors", "stocks"],
+        help="采集范围；当前支持 market、sentiment、sectors 或 stocks，禁止默认全市场扫描",
     )
     evidence_collect_parser.add_argument(
         "--output-dir",
@@ -224,6 +232,91 @@ def build_parser() -> argparse.ArgumentParser:
     )
     plan_create_parser.set_defaults(handler=handle_plan_create)
 
+    observation_parser = subparsers.add_parser("observation", help="Observation 相关命令")
+    observation_subparsers = observation_parser.add_subparsers(dest="observation_command")
+
+    observation_add_parser = observation_subparsers.add_parser("add", help="手工创建 Observation")
+    observation_add_parser.add_argument("--date", required=True, help="复盘日期，格式 YYYY-MM-DD")
+    observation_add_parser.add_argument("--topic", required=True, help="判断主题")
+    observation_add_parser.add_argument("--target", default="", help="相关板块或个股，缺失时标记为待确认")
+    observation_add_parser.add_argument("--hypothesis", required=True, help="可验证假设")
+    observation_add_parser.add_argument("--confirmation", required=True, help="成立条件")
+    observation_add_parser.add_argument("--invalidation", required=True, help="失效条件")
+    observation_add_parser.add_argument("--evidence-source", required=True, help="证据来源")
+    observation_add_parser.add_argument("--plan-item", default="", help="可选关联计划项")
+    observation_add_parser.add_argument(
+        "--database",
+        type=Path,
+        default=DEFAULT_DATABASE_PATH,
+        help="本地 SQLite 数据库路径",
+    )
+    observation_add_parser.set_defaults(handler=handle_observation_add)
+
+    observation_list_parser = observation_subparsers.add_parser("list", help="查询 Observation")
+    observation_list_parser.add_argument("--date", help="可选复盘日期，格式 YYYY-MM-DD")
+    observation_list_parser.add_argument(
+        "--status",
+        choices=["pending", "hit", "miss", "invalid"],
+        help="可选状态筛选",
+    )
+    observation_list_parser.add_argument(
+        "--database",
+        type=Path,
+        default=DEFAULT_DATABASE_PATH,
+        help="本地 SQLite 数据库路径",
+    )
+    observation_list_parser.set_defaults(handler=handle_observation_list)
+
+    observation_review_parser = observation_subparsers.add_parser("review", help="回填 Observation 结果")
+    observation_review_parser.add_argument("--id", required=True, help="Observation ID")
+    observation_review_parser.add_argument(
+        "--status",
+        required=True,
+        choices=["pending", "hit", "miss", "invalid"],
+        help="回填状态",
+    )
+    observation_review_parser.add_argument("--result", required=True, help="实际结果")
+    observation_review_parser.add_argument("--note", default="", help="复盘备注")
+    observation_review_parser.add_argument(
+        "--database",
+        type=Path,
+        default=DEFAULT_DATABASE_PATH,
+        help="本地 SQLite 数据库路径",
+    )
+    observation_review_parser.set_defaults(handler=handle_observation_review)
+
+    learning_parser = subparsers.add_parser("learning", help="学习总结相关命令")
+    learning_subparsers = learning_parser.add_subparsers(dest="learning_command")
+    learning_weekly_parser = learning_subparsers.add_parser("weekly", help="生成周度学习总结")
+    learning_weekly_parser.add_argument("--start", required=True, help="开始日期，格式 YYYY-MM-DD")
+    learning_weekly_parser.add_argument("--end", required=True, help="结束日期，格式 YYYY-MM-DD")
+    learning_weekly_parser.add_argument(
+        "--database",
+        type=Path,
+        default=DEFAULT_DATABASE_PATH,
+        help="本地 SQLite 数据库路径",
+    )
+    learning_weekly_parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("reports") / "weekly",
+        help="周度学习报告输出目录",
+    )
+    learning_weekly_parser.set_defaults(handler=handle_learning_weekly)
+
+    scoring_parser = subparsers.add_parser("scoring", help="可解释规则评分相关命令")
+    scoring_subparsers = scoring_parser.add_subparsers(dest="scoring_command")
+    scoring_create_parser = scoring_subparsers.add_parser("create", help="生成市场与板块评分报告")
+    scoring_create_parser.add_argument("--date", required=True, help="交易日期，格式 YYYY-MM-DD")
+    scoring_create_parser.add_argument("--evidence", required=True, type=Path, help="Evidence Snapshot 路径")
+    scoring_create_parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("reports") / "daily",
+        help="评分报告输出目录",
+    )
+    scoring_create_parser.set_defaults(handler=handle_scoring_create)
+
     return parser
 
 
@@ -284,8 +377,10 @@ def handle_evidence_import(args: argparse.Namespace) -> int:
 
 # 真实数据采集必须显式声明数据源、日期、范围和输出目录。
 def handle_evidence_collect(args: argparse.Namespace) -> int:
-    if args.source != "akshare" or args.scope not in ("market", "sentiment", "sectors"):
-        raise EvidenceSnapshotError("当前仅支持 source=akshare 且 scope=market、sentiment 或 sectors 的最小采集。")
+    if args.source != "akshare" or args.scope not in ("market", "sentiment", "sectors", "stocks"):
+        raise EvidenceSnapshotError(
+            "当前仅支持 source=akshare 且 scope=market、sentiment、sectors 或 stocks 的最小采集。"
+        )
 
     output_path = collect_akshare_evidence_snapshot(
         args.date,
@@ -429,6 +524,115 @@ def handle_plan_create(args: argparse.Namespace) -> int:
     )
     print(f"已生成次日观察计划：{output_path}")
     return 0
+
+
+# Observation 创建只保存用户显式输入的可验证判断，不从证据或计划自动生成。
+def handle_observation_add(args: argparse.Namespace) -> int:
+    observation = add_observation(
+        review_date=args.date,
+        topic=args.topic,
+        related_target=args.target,
+        hypothesis=args.hypothesis,
+        confirmation_condition=args.confirmation,
+        invalidation_condition=args.invalidation,
+        evidence_source=args.evidence_source,
+        plan_item=args.plan_item,
+        database_path=args.database,
+    )
+    write_observation_log("observation add", observation.observation_id, observation.status, args.database)
+    print(f"已创建 Observation：{observation.observation_id}")
+    print(f"状态：{observation.status}")
+    return 0
+
+
+def handle_observation_list(args: argparse.Namespace) -> int:
+    observations = list_observations(args.date, args.status, database_path=args.database)
+    if not observations:
+        print("暂无 Observation 记录。")
+        return 0
+    for observation in observations:
+        print(
+            f"{observation.observation_id} | {observation.review_date} | {observation.status} | "
+            f"{observation.topic} | {observation.related_target} | {observation.hypothesis}"
+        )
+    return 0
+
+
+# 回填命令更新唯一结果记录，invalid 状态由业务模型明确排除在经验候选之外。
+def handle_observation_review(args: argparse.Namespace) -> int:
+    observation = review_observation(
+        observation_id=args.id,
+        status=args.status,
+        actual_result=args.result,
+        review_note=args.note,
+        database_path=args.database,
+    )
+    write_observation_log("observation review", observation.observation_id, observation.status, args.database)
+    print(f"已回填 Observation：{observation.observation_id}")
+    print(f"状态：{observation.status}")
+    return 0
+
+
+def write_observation_log(command: str, observation_id: str, status: str, database_path: Path) -> None:
+    log_path = Path("logs") / "stock_review.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    logger = logging.getLogger("stock_review.observation")
+    logger.setLevel(logging.INFO)
+
+    handler = logging.FileHandler(log_path, encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    logger.addHandler(handler)
+    try:
+        logger.info(
+            "command=%s observation_id=%s status=%s database=%s",
+            command,
+            observation_id,
+            status,
+            database_path,
+        )
+    finally:
+        logger.removeHandler(handler)
+        handler.close()
+
+
+# 周度学习只读取已保存 Observation，生成经验候选但不修改复盘规则。
+def handle_learning_weekly(args: argparse.Namespace) -> int:
+    output_path = create_weekly_learning(
+        args.start,
+        args.end,
+        database_path=args.database,
+        output_dir=args.output_dir,
+    )
+    print(f"已生成周度学习总结：{output_path}")
+    return 0
+
+
+# 评分命令只消费标准证据并输出可解释规则，不改变池子、计划或 Observation。
+def handle_scoring_create(args: argparse.Namespace) -> int:
+    output_path = create_scoring_report(args.date, args.evidence, args.output_dir)
+    write_scoring_log(args.date, args.evidence, output_path)
+    print(f"已生成可解释规则评分：{output_path}")
+    return 0
+
+
+def write_scoring_log(trade_date: str, evidence_path: Path, output_path: Path) -> None:
+    log_path = Path("logs") / "stock_review.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    logger = logging.getLogger("stock_review.scoring")
+    logger.setLevel(logging.INFO)
+    handler = logging.FileHandler(log_path, encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    logger.addHandler(handler)
+    try:
+        logger.info(
+            "command=scoring create trade_date=%s evidence=%s output=%s status=created",
+            trade_date,
+            evidence_path,
+            output_path,
+        )
+    finally:
+        logger.removeHandler(handler)
+        handler.close()
 
 
 if __name__ == "__main__":

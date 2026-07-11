@@ -151,11 +151,13 @@ def render_stock_lines(snapshot: EvidenceSnapshot) -> list[str]:
         exchange = format_value(stock.get("exchange"))
         sector = format_value(stock.get("sector"))
         role = format_value(stock.get("role"))
+        role_source = format_value(stock.get("role_source"))
+        source = format_value(stock.get("source"))
         change_percent = format_value(stock.get("change_percent"))
         reason = format_value(stock.get("reason"))
         lines.append(
             f"- 个股：{code} {name}，交易所：{exchange}，板块：{sector}，角色：{role}，"
-            f"涨跌幅：{change_percent}%，原因：{reason}"
+            f"角色来源：{role_source}，涨跌幅：{change_percent}%，来源：{source}，原因：{reason}"
         )
     return lines
 

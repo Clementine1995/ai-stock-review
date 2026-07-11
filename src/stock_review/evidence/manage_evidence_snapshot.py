@@ -11,6 +11,7 @@ from stock_review.evidence.akshare_source import (
     collect_akshare_market_evidence,
     collect_akshare_sector_evidence,
     collect_akshare_sentiment_evidence,
+    collect_akshare_stock_evidence,
 )
 from stock_review.evidence.evidence_snapshot import EvidenceSnapshot, build_evidence_snapshot
 from stock_review.storage.sqlite_repository import EvidenceSnapshotRepository
@@ -53,6 +54,8 @@ def collect_akshare_evidence_snapshot(
     output_dir: Path = DEFAULT_EVIDENCE_DIR,
     database_path: Path = DEFAULT_DATABASE_PATH,
 ) -> Path:
+    output_path = output_dir / f"{trade_date}_snapshot.json"
+    existing_data = read_json_mapping(output_path) if output_path.exists() else {}
     try:
         if scope == "market":
             raw_data = collect_akshare_market_evidence(trade_date)
@@ -60,15 +63,18 @@ def collect_akshare_evidence_snapshot(
             raw_data = collect_akshare_sentiment_evidence(trade_date)
         elif scope == "sectors":
             raw_data = collect_akshare_sector_evidence(trade_date)
+        elif scope == "stocks":
+            existing_sectors = existing_data.get("sectors")
+            sectors = existing_sectors if isinstance(existing_sectors, list) else []
+            raw_data = collect_akshare_stock_evidence(trade_date, sectors=sectors)
         else:
-            raise AkshareSourceError("当前仅支持 scope=market、sentiment 或 sectors 的最小采集。")
+            raise AkshareSourceError("当前仅支持 scope=market、sentiment、sectors 或 stocks 的最小采集。")
     except AkshareSourceError as error:
         raise EvidenceSnapshotError(str(error)) from error
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f"{trade_date}_snapshot.json"
-    if output_path.exists():
-        raw_data = merge_evidence_data(read_json_mapping(output_path), raw_data)
+    if existing_data:
+        raw_data = merge_evidence_data(existing_data, raw_data)
 
     snapshot = build_evidence_snapshot(trade_date, raw_data)
     output_path.write_text(

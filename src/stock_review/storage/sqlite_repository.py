@@ -8,6 +8,7 @@ from pathlib import Path
 import sqlite3
 
 from stock_review.evidence.evidence_snapshot import EvidenceSnapshot
+from stock_review.observations.manage_observation import Observation
 from stock_review.pools.manage_pool_item import PoolItem
 
 
@@ -190,6 +191,265 @@ class PoolItemRepository:
             start_date=row["start_date"],
             status=row["status"],
             note=row["note"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+        )
+
+
+class ObservationRepository:
+    def __init__(self, database_path: Path) -> None:
+        self.database_path = Path(database_path)
+
+    # Observation 主表保存人工判断及当前状态，唯一约束用于阻止同日重复判断。
+    def add_observation(self, observation: Observation) -> None:
+        self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        connection = sqlite3.connect(self.database_path)
+        try:
+            self.ensure_tables(connection)
+            connection.execute(
+                """
+                INSERT INTO observations (
+                    observation_id,
+                    review_date,
+                    topic,
+                    related_target,
+                    hypothesis,
+                    confirmation_condition,
+                    invalidation_condition,
+                    evidence_source,
+                    plan_item,
+                    status,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    observation.observation_id,
+                    observation.review_date,
+                    observation.topic,
+                    observation.related_target,
+                    observation.hypothesis,
+                    observation.confirmation_condition,
+                    observation.invalidation_condition,
+                    observation.evidence_source,
+                    observation.plan_item,
+                    observation.status,
+                    observation.created_at,
+                    observation.updated_at,
+                ),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+    # ID 在单个复盘日期内递增，便于 CLI 人工引用和日志追踪。
+    def next_observation_id(self, review_date: str) -> str:
+        connection = sqlite3.connect(self.database_path)
+        try:
+            self.ensure_tables(connection)
+            prefix = f"OBS-{review_date.replace('-', '')}-"
+            row = connection.execute(
+                """
+                SELECT observation_id
+                FROM observations
+                WHERE observation_id LIKE ?
+                ORDER BY observation_id DESC
+                LIMIT 1
+                """,
+                (f"{prefix}%",),
+            ).fetchone()
+        finally:
+            connection.close()
+
+        sequence = int(row[0].removeprefix(prefix)) + 1 if row else 1
+        return f"{prefix}{sequence:03d}"
+
+    # 列表查询只返回持久化事实，状态筛选不承担后续学习判断。
+    def list_observations(
+        self,
+        review_date: str | None = None,
+        status: str | None = None,
+    ) -> list[Observation]:
+        connection = sqlite3.connect(self.database_path)
+        try:
+            connection.row_factory = sqlite3.Row
+            self.ensure_tables(connection)
+            clauses: list[str] = []
+            parameters: list[str] = []
+            if review_date is not None:
+                clauses.append("observations.review_date = ?")
+                parameters.append(review_date)
+            if status is not None:
+                clauses.append("observations.status = ?")
+                parameters.append(status)
+            where_clause = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+            rows = connection.execute(
+                f"""
+                SELECT
+                    observations.observation_id,
+                    observations.review_date,
+                    observations.topic,
+                    observations.related_target,
+                    observations.hypothesis,
+                    observations.confirmation_condition,
+                    observations.invalidation_condition,
+                    observations.evidence_source,
+                    observations.plan_item,
+                    observations.status,
+                    observations.created_at,
+                    observations.updated_at,
+                    COALESCE(observation_reviews.actual_result, '') AS actual_result,
+                    COALESCE(observation_reviews.review_note, '') AS review_note
+                FROM observations
+                LEFT JOIN observation_reviews
+                    ON observation_reviews.observation_id = observations.observation_id
+                {where_clause}
+                ORDER BY observations.review_date, observations.observation_id
+                """,
+                parameters,
+            ).fetchall()
+        finally:
+            connection.close()
+        return [self.row_to_observation(row) for row in rows]
+
+    # 周度查询只按复盘日期范围读取，不把 invalid 或 pending 在存储层静默过滤。
+    def list_observations_between(self, start_date: str, end_date: str) -> list[Observation]:
+        connection = sqlite3.connect(self.database_path)
+        try:
+            connection.row_factory = sqlite3.Row
+            self.ensure_tables(connection)
+            rows = connection.execute(
+                """
+                SELECT
+                    observations.observation_id,
+                    observations.review_date,
+                    observations.topic,
+                    observations.related_target,
+                    observations.hypothesis,
+                    observations.confirmation_condition,
+                    observations.invalidation_condition,
+                    observations.evidence_source,
+                    observations.plan_item,
+                    observations.status,
+                    observations.created_at,
+                    observations.updated_at,
+                    COALESCE(observation_reviews.actual_result, '') AS actual_result,
+                    COALESCE(observation_reviews.review_note, '') AS review_note
+                FROM observations
+                LEFT JOIN observation_reviews
+                    ON observation_reviews.observation_id = observations.observation_id
+                WHERE observations.review_date BETWEEN ? AND ?
+                ORDER BY observations.review_date, observations.observation_id
+                """,
+                (start_date, end_date),
+            ).fetchall()
+        finally:
+            connection.close()
+        return [self.row_to_observation(row) for row in rows]
+
+    # 回填与主表状态在同一事务更新，避免状态和实际结果不一致。
+    def review_observation(
+        self,
+        observation_id: str,
+        status: str,
+        actual_result: str,
+        review_note: str,
+        reviewed_at: str,
+    ) -> Observation | None:
+        connection = sqlite3.connect(self.database_path)
+        try:
+            connection.row_factory = sqlite3.Row
+            self.ensure_tables(connection)
+            exists = connection.execute(
+                "SELECT 1 FROM observations WHERE observation_id = ?",
+                (observation_id,),
+            ).fetchone()
+            if exists is None:
+                return None
+            connection.execute(
+                """
+                INSERT INTO observation_reviews (
+                    observation_id,
+                    actual_result,
+                    status,
+                    review_note,
+                    reviewed_at
+                )
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(observation_id) DO UPDATE SET
+                    actual_result = excluded.actual_result,
+                    status = excluded.status,
+                    review_note = excluded.review_note,
+                    reviewed_at = excluded.reviewed_at
+                """,
+                (observation_id, actual_result, status, review_note, reviewed_at),
+            )
+            connection.execute(
+                """
+                UPDATE observations
+                SET status = ?, updated_at = ?
+                WHERE observation_id = ?
+                """,
+                (status, reviewed_at, observation_id),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+        observations = self.list_observations()
+        return next(
+            (observation for observation in observations if observation.observation_id == observation_id),
+            None,
+        )
+
+    def ensure_tables(self, connection: sqlite3.Connection) -> None:
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS observations (
+                observation_id TEXT PRIMARY KEY,
+                review_date TEXT NOT NULL,
+                topic TEXT NOT NULL,
+                related_target TEXT NOT NULL,
+                hypothesis TEXT NOT NULL,
+                confirmation_condition TEXT NOT NULL,
+                invalidation_condition TEXT NOT NULL,
+                evidence_source TEXT NOT NULL,
+                plan_item TEXT NOT NULL,
+                status TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE (review_date, topic, hypothesis)
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS observation_reviews (
+                observation_id TEXT PRIMARY KEY,
+                actual_result TEXT NOT NULL,
+                status TEXT NOT NULL,
+                review_note TEXT NOT NULL,
+                reviewed_at TEXT NOT NULL,
+                FOREIGN KEY (observation_id) REFERENCES observations (observation_id)
+            )
+            """
+        )
+
+    def row_to_observation(self, row: sqlite3.Row) -> Observation:
+        return Observation(
+            observation_id=row["observation_id"],
+            review_date=row["review_date"],
+            topic=row["topic"],
+            related_target=row["related_target"],
+            hypothesis=row["hypothesis"],
+            confirmation_condition=row["confirmation_condition"],
+            invalidation_condition=row["invalidation_condition"],
+            evidence_source=row["evidence_source"],
+            plan_item=row["plan_item"],
+            status=row["status"],
+            actual_result=row["actual_result"],
+            review_note=row["review_note"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )

@@ -61,6 +61,8 @@ class ReviewDocumentTest(unittest.TestCase):
             self.assertIn("成交额：120000000000", content)
             self.assertIn("核心票：300024、002747", content)
             self.assertIn("个股：000001 平安银行", content)
+            self.assertIn("角色来源：待确认", content)
+            self.assertIn("来源：待确认", content)
             self.assertIn("原因：样例关注票，仅用于验证个股证据渲染。", content)
             self.assertIn("暂无当前 STEP 直接相关的证据缺口。", content)
 
