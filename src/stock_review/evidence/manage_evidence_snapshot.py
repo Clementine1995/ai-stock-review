@@ -53,9 +53,13 @@ def collect_akshare_evidence_snapshot(
     scope: str = "market",
     output_dir: Path = DEFAULT_EVIDENCE_DIR,
     database_path: Path = DEFAULT_DATABASE_PATH,
+    refresh: bool = False,
 ) -> Path:
     output_path = output_dir / f"{trade_date}_snapshot.json"
     existing_data = read_json_mapping(output_path) if output_path.exists() else {}
+    # 同日同 scope 已有有效 AKShare 事实时直接复用，避免重复请求触发上游限流。
+    if not refresh and is_akshare_scope_covered(existing_data, scope):
+        return output_path
     try:
         if scope == "market":
             raw_data = collect_akshare_market_evidence(trade_date)
@@ -85,6 +89,23 @@ def collect_akshare_evidence_snapshot(
     repository = EvidenceSnapshotRepository(database_path)
     repository.save_snapshot(snapshot)
     return output_path
+
+
+def is_akshare_scope_covered(snapshot_data: dict[str, Any], scope: str) -> bool:
+    # 复用只针对已标记为 AKShare 的同日快照，避免把手工事实误当作可刷新来源。
+    if snapshot_data.get("source") != "akshare":
+        return False
+    if scope == "market":
+        market = snapshot_data.get("market")
+        return isinstance(market, dict) and bool(market.get("indices")) and market.get("total_amount") is not None
+    if scope == "sentiment":
+        sentiment = snapshot_data.get("sentiment")
+        required_fields = ("limit_up_count", "limit_down_count", "broken_board_rate", "highest_board")
+        return isinstance(sentiment, dict) and all(sentiment.get(field) is not None for field in required_fields)
+    if scope in ("sectors", "stocks"):
+        items = snapshot_data.get(scope)
+        return isinstance(items, list) and bool(items)
+    return False
 
 
 def merge_evidence_data(existing_data: dict[str, Any], incoming_data: dict[str, Any]) -> dict[str, Any]:

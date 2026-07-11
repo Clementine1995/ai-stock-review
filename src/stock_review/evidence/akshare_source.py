@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
+import time
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any
+from typing import Any, Callable
 import urllib.parse
 import urllib.request
 
@@ -43,11 +44,27 @@ EASTMONEY_SECTOR_CONFIGS = {
     },
 }
 
+AKSHARE_REQUEST_INTERVAL_SECONDS = 0.3
+
+
+class AkshareRequestPacer:
+    # 同一次 scope 采集中的 AKShare 请求固定间隔，降低上游短时限流风险。
+    def __init__(self, sleep: Callable[[float], None] = time.sleep) -> None:
+        self.sleep = sleep
+        self.has_requested = False
+
+    # 首次请求不等待，后续请求才执行固定节流，避免无意义延迟。
+    def wait_before_request(self) -> None:
+        if self.has_requested:
+            self.sleep(AKSHARE_REQUEST_INTERVAL_SECONDS)
+        self.has_requested = True
+
 
 # 当前最小范围只采集 STEP 1 需要的指数事实；情绪、板块和个股留给后续数据源补齐。
 def collect_akshare_market_evidence(trade_date: str, ak_client: Any | None = None) -> dict[str, Any]:
     client = ak_client or import_akshare_client()
     target_date = date.fromisoformat(trade_date)
+    request_pacer = AkshareRequestPacer()
 
     indices: list[dict[str, Any]] = []
     sample_dates: list[str] = []
@@ -63,7 +80,7 @@ def collect_akshare_market_evidence(trade_date: str, ak_client: Any | None = Non
     ]
 
     for symbol, name in INDEX_SYMBOLS:
-        rows = get_index_rows(client, symbol, events)
+        rows = get_index_rows(client, symbol, events, request_pacer)
         selected_row, previous_row = select_rows_for_trade_date(rows, target_date)
         if selected_row is None:
             continue
@@ -114,9 +131,10 @@ def collect_akshare_market_evidence(trade_date: str, ak_client: Any | None = Non
 def collect_akshare_sentiment_evidence(trade_date: str, ak_client: Any | None = None) -> dict[str, Any]:
     client = ak_client or import_akshare_client()
     query_date = trade_date.replace("-", "")
-    limit_up_rows = get_sentiment_rows(client, "stock_zt_pool_em", query_date)
-    broken_board_rows = get_sentiment_rows(client, "stock_zt_pool_zbgc_em", query_date)
-    limit_down_rows = get_sentiment_rows(client, "stock_zt_pool_dtgc_em", query_date)
+    request_pacer = AkshareRequestPacer()
+    limit_up_rows = get_sentiment_rows(client, "stock_zt_pool_em", query_date, request_pacer)
+    broken_board_rows = get_sentiment_rows(client, "stock_zt_pool_zbgc_em", query_date, request_pacer)
+    limit_down_rows = get_sentiment_rows(client, "stock_zt_pool_dtgc_em", query_date, request_pacer)
 
     limit_up_count = len(limit_up_rows)
     broken_board_count = len(broken_board_rows)
@@ -155,6 +173,7 @@ def collect_akshare_sentiment_evidence(trade_date: str, ak_client: Any | None = 
 
 def collect_akshare_sector_evidence(trade_date: str, ak_client: Any | None = None) -> dict[str, Any]:
     client = ak_client or import_akshare_client()
+    request_pacer = AkshareRequestPacer()
     events: list[dict[str, str]] = [
         {
             "title": "AKShare 热门板块最小采集",
@@ -163,11 +182,17 @@ def collect_akshare_sector_evidence(trade_date: str, ak_client: Any | None = Non
         }
     ]
     sectors = [
-        *collect_sector_records(client, "stock_board_concept_name_em", "concept", events),
-        *collect_sector_records(client, "stock_board_industry_name_em", "industry", events),
+        *collect_sector_records(client, "stock_board_concept_name_em", "concept", events, request_pacer),
+        *collect_sector_records(client, "stock_board_industry_name_em", "industry", events, request_pacer),
     ]
     if not sectors:
-        sectors = collect_sector_records(client, "stock_board_industry_summary_ths", "industry_ths", events)
+        sectors = collect_sector_records(
+            client,
+            "stock_board_industry_summary_ths",
+            "industry_ths",
+            events,
+            request_pacer,
+        )
     if not sectors:
         raise AkshareSourceError("AKShare 板块接口均未返回有效板块")
 
@@ -189,7 +214,13 @@ def collect_akshare_stock_evidence(
     ak_client: Any | None = None,
 ) -> dict[str, Any]:
     client = ak_client or import_akshare_client()
-    limit_up_rows = get_sentiment_rows(client, "stock_zt_pool_em", trade_date.replace("-", ""))
+    request_pacer = AkshareRequestPacer()
+    limit_up_rows = get_sentiment_rows(
+        client,
+        "stock_zt_pool_em",
+        trade_date.replace("-", ""),
+        request_pacer,
+    )
     stocks = collect_sector_leading_stocks(sectors or [])
     seen_keys = {(stock["code"], stock["name"], stock["role_source"]) for stock in stocks}
 
@@ -275,8 +306,15 @@ def import_akshare_client() -> Any:
     return ak
 
 
-def get_index_rows(client: Any, symbol: str, events: list[dict[str, str]] | None = None) -> list[dict[str, Any]]:
+def get_index_rows(
+    client: Any,
+    symbol: str,
+    events: list[dict[str, str]] | None = None,
+    request_pacer: AkshareRequestPacer | None = None,
+) -> list[dict[str, Any]]:
     try:
+        if request_pacer is not None:
+            request_pacer.wait_before_request()
         frame = client.stock_zh_index_daily_em(symbol=symbol)
     except Exception as error:  # noqa: BLE001
         return get_index_rows_from_fallback_sources(symbol, error, events)
@@ -291,8 +329,14 @@ def get_index_rows(client: Any, symbol: str, events: list[dict[str, str]] | None
     return [row for row in rows if isinstance(row, dict)]
 
 
-def get_sector_rows(client: Any, method_name: str) -> list[dict[str, Any]]:
+def get_sector_rows(
+    client: Any,
+    method_name: str,
+    request_pacer: AkshareRequestPacer | None = None,
+) -> list[dict[str, Any]]:
     try:
+        if request_pacer is not None:
+            request_pacer.wait_before_request()
         frame = getattr(client, method_name)()
     except Exception as error:  # noqa: BLE001
         try:
@@ -300,7 +344,8 @@ def get_sector_rows(client: Any, method_name: str) -> list[dict[str, Any]]:
         except Exception as fallback_error:  # noqa: BLE001
             raise AkshareSourceError(
                 f"AKShare 板块接口调用失败且东方财富直连备用路径也失败：{method_name}："
-                f"akshare={error}；eastmoney={fallback_error}"
+                f"akshare=[{classify_akshare_error(error)}] {error}；"
+                f"eastmoney=[{classify_akshare_error(fallback_error)}] {fallback_error}"
             ) from fallback_error
 
     if hasattr(frame, "to_dict"):
@@ -317,9 +362,10 @@ def collect_sector_records(
     method_name: str,
     source_type: str,
     events: list[dict[str, str]],
+    request_pacer: AkshareRequestPacer,
 ) -> list[dict[str, Any]]:
     try:
-        rows = get_sector_rows(client, method_name)
+        rows = get_sector_rows(client, method_name, request_pacer)
     except AkshareSourceError as error:
         # 概念和行业板块互为补充，单侧失败不阻断另一侧已有板块事实进入快照。
         events.append(
@@ -415,11 +461,20 @@ def select_hot_sector_records(rows: list[dict[str, Any]], source_type: str, limi
     return sectors
 
 
-def get_sentiment_rows(client: Any, method_name: str, query_date: str) -> list[dict[str, Any]]:
+def get_sentiment_rows(
+    client: Any,
+    method_name: str,
+    query_date: str,
+    request_pacer: AkshareRequestPacer | None = None,
+) -> list[dict[str, Any]]:
     try:
+        if request_pacer is not None:
+            request_pacer.wait_before_request()
         frame = getattr(client, method_name)(date=query_date)
     except Exception as error:  # noqa: BLE001
-        raise AkshareSourceError(f"AKShare 短线情绪接口调用失败：{method_name}：{error}") from error
+        raise AkshareSourceError(
+            f"AKShare 短线情绪接口调用失败 [{classify_akshare_error(error)}]：{method_name}：{error}"
+        ) from error
 
     if hasattr(frame, "to_dict"):
         rows = frame.to_dict("records")
@@ -428,6 +483,18 @@ def get_sentiment_rows(client: Any, method_name: str, query_date: str) -> list[d
     else:
         raise AkshareSourceError(f"AKShare 短线情绪接口返回格式不可识别：{method_name}")
     return [row for row in rows if isinstance(row, dict)]
+
+
+def classify_akshare_error(error: Exception) -> str:
+    # 分类只描述当前异常表象，不把单次失败推断为 IP 封禁或数据源永久失效。
+    message = str(error).lower()
+    if any(keyword in message for keyword in ("429", "too many", "rate limit", "频繁")):
+        return "rate_limited"
+    if any(keyword in message for keyword in ("timeout", "timed out", "readtimeout")):
+        return "network_timeout"
+    if any(keyword in message for keyword in ("403", "forbidden", "access denied")):
+        return "access_denied"
+    return "upstream_unavailable"
 
 
 def get_index_rows_from_fallback_sources(
@@ -443,7 +510,9 @@ def get_index_rows_from_fallback_sources(
         except Exception as tencent_error:  # noqa: BLE001
             raise AkshareSourceError(
                 f"AKShare 指数接口调用失败且备用路径也失败：{symbol}："
-                f"akshare={primary_error}；eastmoney={eastmoney_error}；tencent={tencent_error}"
+                f"akshare=[{classify_akshare_error(primary_error)}] {primary_error}；"
+                f"eastmoney=[{classify_akshare_error(eastmoney_error)}] {eastmoney_error}；"
+                f"tencent=[{classify_akshare_error(tencent_error)}] {tencent_error}"
             ) from tencent_error
 
         if events is not None:
@@ -454,7 +523,9 @@ def get_index_rows_from_fallback_sources(
                     "source": "tencent",
                     "note": (
                         "AKShare stock_zh_index_daily_em 和东方财富 K 线直连失败后，"
-                        f"使用腾讯指数 K 线接口；原始错误：{primary_error}；东方财富错误：{eastmoney_error}"
+                        f"使用腾讯指数 K 线接口；原始错误：[{classify_akshare_error(primary_error)}] "
+                        f"{primary_error}；东方财富错误：[{classify_akshare_error(eastmoney_error)}] "
+                        f"{eastmoney_error}"
                     ),
                 }
             )
@@ -466,7 +537,10 @@ def get_index_rows_from_fallback_sources(
             {
                 "title": f"{symbol} 使用东方财富备用路径",
                 "source": "eastmoney",
-                "note": f"AKShare stock_zh_index_daily_em 失败后，使用同源 K 线接口直连；原始错误：{primary_error}",
+                "note": (
+                    "AKShare stock_zh_index_daily_em 失败后，使用同源 K 线接口直连；"
+                    f"原始错误：[{classify_akshare_error(primary_error)}] {primary_error}"
+                ),
             }
         )
     return rows

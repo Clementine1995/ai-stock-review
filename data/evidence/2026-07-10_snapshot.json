@@ -1,0 +1,65 @@
+{
+  "trade_date": "2026-07-10",
+  "source": "akshare",
+  "sample_date": "2026-07-10",
+  "market": {
+    "indices": [
+      {
+        "symbol": "sh000001",
+        "name": "上证指数",
+        "sample_date": "2026-07-10",
+        "close": 3996.16,
+        "change_percent": -1,
+        "amount": 627450065
+      },
+      {
+        "symbol": "sz399001",
+        "name": "深证成指",
+        "sample_date": "2026-07-10",
+        "close": 15046.67,
+        "change_percent": -2.29,
+        "amount": 828811174
+      },
+      {
+        "symbol": "sz399006",
+        "name": "创业板指",
+        "sample_date": "2026-07-10",
+        "close": 3842.73,
+        "change_percent": -4.37,
+        "amount": 248254176
+      }
+    ],
+    "total_amount": 1704515415,
+    "total_amount_source": "tencent_index_kline_amount"
+  },
+  "sentiment": {},
+  "sectors": [],
+  "stocks": [],
+  "events": [
+    {
+      "title": "AKShare 市场层最小采集",
+      "source": "akshare",
+      "note": "当前仅采集指数日线数据；情绪、板块和个股证据仍需后续数据源补齐。"
+    },
+    {
+      "title": "sh000001 使用腾讯行情备用路径",
+      "source": "tencent",
+      "note": "AKShare stock_zh_index_daily_em 和东方财富 K 线直连失败后，使用腾讯指数 K 线接口；原始错误：[upstream_unavailable] HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=1.000001&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=19900101&end=20500101 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；东方财富错误：[upstream_unavailable] Remote end closed connection without response"
+    },
+    {
+      "title": "sz399001 使用腾讯行情备用路径",
+      "source": "tencent",
+      "note": "AKShare stock_zh_index_daily_em 和东方财富 K 线直连失败后，使用腾讯指数 K 线接口；原始错误：[upstream_unavailable] HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=0.399001&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=19900101&end=20500101 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；东方财富错误：[upstream_unavailable] Remote end closed connection without response"
+    },
+    {
+      "title": "sz399006 使用腾讯行情备用路径",
+      "source": "tencent",
+      "note": "AKShare stock_zh_index_daily_em 和东方财富 K 线直连失败后，使用腾讯指数 K 线接口；原始错误：[upstream_unavailable] HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=0.399006&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=19900101&end=20500101 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；东方财富错误：[upstream_unavailable] Remote end closed connection without response"
+    }
+  ],
+  "missing_fields": [
+    "missing_sentiment",
+    "missing_sectors",
+    "missing_stocks"
+  ]
+}

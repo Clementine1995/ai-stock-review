@@ -3,15 +3,21 @@ from tempfile import TemporaryDirectory
 import json
 import unittest
 
+from stock_review.cli import build_parser
 from stock_review.evidence import akshare_source
 from stock_review.evidence.akshare_source import (
+    AkshareRequestPacer,
+    classify_akshare_error,
     collect_akshare_market_evidence,
     collect_akshare_sector_evidence,
     collect_akshare_sentiment_evidence,
     collect_akshare_stock_evidence,
 )
 from stock_review.evidence.evidence_snapshot import build_evidence_snapshot
-from stock_review.evidence.manage_evidence_snapshot import collect_akshare_evidence_snapshot
+from stock_review.evidence.manage_evidence_snapshot import (
+    collect_akshare_evidence_snapshot,
+    is_akshare_scope_covered,
+)
 
 
 class FakeFrame:
@@ -185,6 +191,93 @@ class FakeOpener:
 
 
 class AkshareSourceTest(unittest.TestCase):
+    def test_akshare_request_pacer_waits_between_requests_only(self):
+        delays = []
+        request_pacer = AkshareRequestPacer(sleep=delays.append)
+
+        request_pacer.wait_before_request()
+        request_pacer.wait_before_request()
+        request_pacer.wait_before_request()
+
+        self.assertEqual(delays, [0.3, 0.3])
+
+    def test_akshare_error_classification_does_not_assert_ip_blocking(self):
+        self.assertEqual(classify_akshare_error(RuntimeError("HTTP 429 too many requests")), "rate_limited")
+        self.assertEqual(classify_akshare_error(RuntimeError("ReadTimeout")), "network_timeout")
+        self.assertEqual(classify_akshare_error(RuntimeError("HTTP 403 Forbidden")), "access_denied")
+        self.assertEqual(classify_akshare_error(RuntimeError("connection reset")), "upstream_unavailable")
+
+    def test_existing_akshare_scope_is_reused_only_when_scope_fields_are_complete(self):
+        snapshot_data = {
+            "source": "akshare",
+            "market": {"indices": [{"name": "上证指数"}], "total_amount": 1},
+            "sentiment": {
+                "limit_up_count": 1,
+                "limit_down_count": 0,
+                "broken_board_rate": 0,
+                "highest_board": 1,
+            },
+            "sectors": [{"name": "机器人"}],
+            "stocks": [{"name": "样例股"}],
+        }
+
+        self.assertTrue(is_akshare_scope_covered(snapshot_data, "market"))
+        self.assertTrue(is_akshare_scope_covered(snapshot_data, "sentiment"))
+        self.assertTrue(is_akshare_scope_covered(snapshot_data, "sectors"))
+        self.assertTrue(is_akshare_scope_covered(snapshot_data, "stocks"))
+        snapshot_data["sentiment"]["highest_board"] = None
+        self.assertFalse(is_akshare_scope_covered(snapshot_data, "sentiment"))
+
+    def test_collect_akshare_reuses_existing_scope_without_calling_source(self):
+        with TemporaryDirectory() as temp_path:
+            root = Path(temp_path)
+            snapshot_path = root / "2026-07-06_snapshot.json"
+            snapshot_path.write_text(
+                json.dumps(
+                    {
+                        "source": "akshare",
+                        "market": {"indices": [{"name": "上证指数"}], "total_amount": 1},
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            from stock_review.evidence import manage_evidence_snapshot
+
+            original_collect = manage_evidence_snapshot.collect_akshare_market_evidence
+            manage_evidence_snapshot.collect_akshare_market_evidence = lambda trade_date: self.fail("不应重复调用数据源")
+            try:
+                output_path = collect_akshare_evidence_snapshot("2026-07-06", output_dir=root)
+            finally:
+                manage_evidence_snapshot.collect_akshare_market_evidence = original_collect
+
+            self.assertEqual(output_path, snapshot_path)
+
+    def test_evidence_collect_refresh_requires_explicit_flag(self):
+        parser = build_parser()
+
+        default_args = parser.parse_args(
+            ["evidence", "collect", "--date", "2026-07-06", "--source", "akshare", "--scope", "market", "--output-dir", "data/evidence"]
+        )
+        refresh_args = parser.parse_args(
+            [
+                "evidence",
+                "collect",
+                "--date",
+                "2026-07-06",
+                "--source",
+                "akshare",
+                "--scope",
+                "market",
+                "--output-dir",
+                "data/evidence",
+                "--refresh",
+            ]
+        )
+
+        self.assertFalse(default_args.refresh)
+        self.assertTrue(refresh_args.refresh)
+
     def test_collect_akshare_market_evidence_builds_market_snapshot_input(self):
         raw_data = collect_akshare_market_evidence("2026-07-06", ak_client=FakeAkshareClient())
 

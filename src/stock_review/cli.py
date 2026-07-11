@@ -157,6 +157,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_DATABASE_PATH,
         help="本地 SQLite 数据库路径",
     )
+    evidence_collect_parser.add_argument(
+        "--refresh",
+        action="store_true",
+        help="忽略同交易日已有 AKShare 事实并重新联网采集",
+    )
     evidence_collect_parser.set_defaults(handler=handle_evidence_collect)
 
     evidence_check_parser = evidence_subparsers.add_parser(
@@ -387,6 +392,7 @@ def handle_evidence_collect(args: argparse.Namespace) -> int:
         scope=args.scope,
         output_dir=args.output_dir,
         database_path=args.database,
+        refresh=args.refresh,
     )
     snapshot = check_evidence_snapshot(args.date, snapshot_dir=args.output_dir)
     write_evidence_log(

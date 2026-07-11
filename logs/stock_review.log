@@ -27,3 +27,4 @@
 2026-07-09 21:39:47,371 INFO command=review create trade_date=2026-07-06 framework=stock-review.md evidence=data\evidence\2026-07-06_snapshot.json output=reports\daily\2026-07-06_review.md step_count=10 status=created
 2026-07-09 21:40:32,496 INFO command=evidence collect trade_date=2026-07-06 source_file=akshare:stocks output=data\evidence\2026-07-06_snapshot.json missing_fields=missing_emotion_temperature status=created
 2026-07-09 21:40:32,662 INFO command=review create trade_date=2026-07-06 framework=stock-review.md evidence=data\evidence\2026-07-06_snapshot.json output=reports\daily\2026-07-06_review.md step_count=10 status=created
+2026-07-11 18:58:05,946 INFO command=evidence collect trade_date=2026-07-10 source_file=akshare:market output=data\evidence\2026-07-10_snapshot.json missing_fields=missing_sentiment,missing_sectors,missing_stocks status=created
