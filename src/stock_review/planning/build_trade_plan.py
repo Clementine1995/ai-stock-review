@@ -47,7 +47,7 @@ def create_trade_plan(
         trade_date=normalized_date,
         review_path=resolved_review_path,
         evidence_snapshot=load_plan_evidence(normalized_date, evidence_path),
-        pool_items=tuple(list_pool_items(database_path=database_path)),
+        pool_items=tuple(list_pool_items(record_kind="real", database_path=database_path)),
     )
     content = render_trade_plan(plan_input)
 
@@ -108,6 +108,7 @@ def render_plan_item(index: int, item: PoolItem, evidence_snapshot: EvidenceSnap
         f"### 计划项 {index}: {item.code} {item.name}",
         "",
         f"- 池子类型：{pool_label(item.pool_type)}",
+        f"- 记录类型：{item.record_kind}",
         f"- 交易所：{item.exchange}",
         f"- 板块：{item.sector}",
         f"- 进入原因：{item.reason or '无'}",

@@ -12,9 +12,18 @@ from stock_review.evidence.manage_evidence_snapshot import (
     DEFAULT_EVIDENCE_DIR,
     EvidenceSnapshotError,
     check_evidence_snapshot,
+    collect_akshare_evidence_scopes,
     collect_akshare_evidence_snapshot,
     import_evidence_snapshot,
+    collect_hhxg_evidence_snapshot,
 )
+from stock_review.evidence.summarize_sector_history import create_sector_history_report
+from stock_review.evidence.summarize_market_history import create_market_history_report
+from stock_review.evidence.check_history_readiness import (
+    check_hhxg_history_readiness,
+    render_hhxg_history_readiness,
+)
+from stock_review.evidence.summarize_hhxg_history import create_hhxg_history_report
 from stock_review.learning.summarize_weekly_learning import create_weekly_learning
 from stock_review.observations.manage_observation import (
     ObservationError,
@@ -23,7 +32,15 @@ from stock_review.observations.manage_observation import (
     review_observation,
 )
 from stock_review.planning.build_trade_plan import TradePlanError, create_trade_plan
-from stock_review.pools.manage_pool_item import PoolItemError, add_pool_item, list_pool_items
+from stock_review.pools.manage_pool_item import (
+    PoolItemError,
+    add_pool_item,
+    list_pool_item_status_history,
+    list_pool_items,
+    update_pool_item_record_kind,
+    update_pool_item_status,
+)
+from stock_review.pools.build_pool_candidates import build_pool_candidate_summary, render_pool_candidate_summary
 from stock_review.review_documents.create_daily_review import create_daily_review
 from stock_review.review_framework.parse_framework import (
     FrameworkParseError,
@@ -164,6 +181,43 @@ def build_parser() -> argparse.ArgumentParser:
     )
     evidence_collect_parser.set_defaults(handler=handle_evidence_collect)
 
+    evidence_collect_daily_parser = evidence_subparsers.add_parser(
+        "collect-daily",
+        help="按显式 scope 采集单日市场、情绪、板块和个股证据",
+    )
+    evidence_collect_daily_parser.add_argument("--date", required=True, help="交易日期，格式 YYYY-MM-DD")
+    evidence_collect_daily_parser.add_argument(
+        "--source",
+        required=True,
+        choices=["akshare"],
+        help="数据源名称；当前仅支持 akshare",
+    )
+    evidence_collect_daily_parser.add_argument(
+        "--scope",
+        required=True,
+        action="append",
+        choices=["market", "sentiment", "sectors", "stocks"],
+        help="采集范围；可重复传入，每个 scope 独立执行",
+    )
+    evidence_collect_daily_parser.add_argument(
+        "--output-dir",
+        required=True,
+        type=Path,
+        help="证据快照输出目录",
+    )
+    evidence_collect_daily_parser.add_argument(
+        "--database",
+        type=Path,
+        default=DEFAULT_DATABASE_PATH,
+        help="本地 SQLite 数据库路径",
+    )
+    evidence_collect_daily_parser.add_argument(
+        "--refresh",
+        action="store_true",
+        help="忽略已有有效 scope 并重新联网采集",
+    )
+    evidence_collect_daily_parser.set_defaults(handler=handle_evidence_collect_daily)
+
     evidence_check_parser = evidence_subparsers.add_parser(
         "check",
         help="检查指定交易日 Evidence Snapshot 的缺口",
@@ -180,6 +234,88 @@ def build_parser() -> argparse.ArgumentParser:
         help="证据快照目录",
     )
     evidence_check_parser.set_defaults(handler=handle_evidence_check)
+
+    evidence_sector_history_parser = evidence_subparsers.add_parser(
+        "sector-history",
+        help="汇总本地快照中的当日最强板块事实和近期反复活跃候选",
+    )
+    evidence_sector_history_parser.add_argument("--start", required=True, help="开始日期，格式 YYYY-MM-DD")
+    evidence_sector_history_parser.add_argument("--end", required=True, help="结束日期，格式 YYYY-MM-DD")
+    evidence_sector_history_parser.add_argument(
+        "--snapshot-dir",
+        type=Path,
+        default=DEFAULT_EVIDENCE_DIR,
+        help="证据快照目录",
+    )
+    evidence_sector_history_parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("reports") / "daily",
+        help="板块历史报告输出目录",
+    )
+    evidence_sector_history_parser.set_defaults(handler=handle_evidence_sector_history)
+
+    evidence_collect_hhxg_parser = evidence_subparsers.add_parser(
+        "collect-hhxg",
+        help="采集 hhxg 最近交易日快照；返回日期必须与指定日期一致",
+    )
+    evidence_collect_hhxg_parser.add_argument("--date", required=True, help="交易日期，格式 YYYY-MM-DD")
+    evidence_collect_hhxg_parser.add_argument("--output-dir", required=True, type=Path, help="证据快照输出目录")
+    evidence_collect_hhxg_parser.add_argument(
+        "--database", type=Path, default=DEFAULT_DATABASE_PATH, help="本地 SQLite 数据库路径"
+    )
+    evidence_collect_hhxg_parser.set_defaults(handler=handle_evidence_collect_hhxg)
+
+    evidence_history_readiness_parser = evidence_subparsers.add_parser(
+        "history-readiness",
+        help="检查 hhxg 本地历史是否已积累满 5 个有效交易日",
+    )
+    evidence_history_readiness_parser.add_argument(
+        "--source", required=True, choices=["hhxg"], help="数据源名称；当前仅支持 hhxg"
+    )
+    evidence_history_readiness_parser.add_argument("--start", required=True, help="开始日期，格式 YYYY-MM-DD")
+    evidence_history_readiness_parser.add_argument("--end", required=True, help="结束日期，格式 YYYY-MM-DD")
+    evidence_history_readiness_parser.add_argument(
+        "--snapshot-dir",
+        type=Path,
+        default=DEFAULT_EVIDENCE_DIR,
+        help="证据快照目录",
+    )
+    evidence_history_readiness_parser.set_defaults(handler=handle_evidence_history_readiness)
+
+    evidence_hhxg_history_parser = evidence_subparsers.add_parser(
+        "hhxg-history",
+        help="汇总本地 hhxg 情绪、题材和行业排行历史事实",
+    )
+    evidence_hhxg_history_parser.add_argument("--start", required=True, help="开始日期，格式 YYYY-MM-DD")
+    evidence_hhxg_history_parser.add_argument("--end", required=True, help="结束日期，格式 YYYY-MM-DD")
+    evidence_hhxg_history_parser.add_argument(
+        "--snapshot-dir", type=Path, default=DEFAULT_EVIDENCE_DIR, help="证据快照目录"
+    )
+    evidence_hhxg_history_parser.add_argument(
+        "--output-dir", type=Path, default=Path("reports") / "daily", help="报告输出目录"
+    )
+    evidence_hhxg_history_parser.set_defaults(handler=handle_evidence_hhxg_history)
+
+    evidence_market_history_parser = evidence_subparsers.add_parser(
+        "market-history",
+        help="汇总本地快照中的市场指数和成交额历史事实",
+    )
+    evidence_market_history_parser.add_argument("--start", required=True, help="开始日期，格式 YYYY-MM-DD")
+    evidence_market_history_parser.add_argument("--end", required=True, help="结束日期，格式 YYYY-MM-DD")
+    evidence_market_history_parser.add_argument(
+        "--snapshot-dir",
+        type=Path,
+        default=DEFAULT_EVIDENCE_DIR,
+        help="证据快照目录",
+    )
+    evidence_market_history_parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("reports") / "daily",
+        help="市场历史报告输出目录",
+    )
+    evidence_market_history_parser.set_defaults(handler=handle_evidence_market_history)
 
     pool_parser = subparsers.add_parser("pool", help="关注池和热点池相关命令")
     pool_subparsers = pool_parser.add_subparsers(dest="pool_command")
@@ -204,7 +340,67 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_DATABASE_PATH,
         help="本地 SQLite 数据库路径",
     )
+    pool_list_parser.add_argument("--record-kind", choices=["real", "sample"], help="记录类型筛选")
     pool_list_parser.set_defaults(handler=handle_pool_list)
+
+    pool_update_record_kind_parser = pool_subparsers.add_parser(
+        "update-record-kind",
+        help="标记池子记录为真实或样例，真实计划默认只使用真实记录",
+    )
+    pool_update_record_kind_parser.add_argument("--type", required=True, choices=["watch", "hot"], help="池子类型")
+    pool_update_record_kind_parser.add_argument("--code", required=True, help="股票代码")
+    pool_update_record_kind_parser.add_argument("--record-kind", required=True, choices=["real", "sample"], help="记录类型")
+    pool_update_record_kind_parser.add_argument("--reason", required=True, help="类型变更原因")
+    pool_update_record_kind_parser.add_argument(
+        "--database", type=Path, default=DEFAULT_DATABASE_PATH, help="本地 SQLite 数据库路径"
+    )
+    pool_update_record_kind_parser.set_defaults(handler=handle_pool_update_record_kind)
+
+    pool_candidates_parser = pool_subparsers.add_parser(
+        "candidates",
+        help="从本地 Evidence Snapshot 整理待人工确认的池子候选事实",
+    )
+    pool_candidates_parser.add_argument("--date", required=True, help="交易日期，格式 YYYY-MM-DD")
+    pool_candidates_parser.add_argument(
+        "--snapshot-dir",
+        type=Path,
+        default=DEFAULT_EVIDENCE_DIR,
+        help="证据快照目录",
+    )
+    pool_candidates_parser.set_defaults(handler=handle_pool_candidates)
+
+    pool_update_status_parser = pool_subparsers.add_parser(
+        "update-status",
+        help="更新池子对象状态并保留维护原因",
+    )
+    pool_update_status_parser.add_argument("--type", required=True, choices=["watch", "hot"], help="池子类型")
+    pool_update_status_parser.add_argument("--code", required=True, help="股票代码")
+    pool_update_status_parser.add_argument(
+        "--status",
+        required=True,
+        choices=["active", "paused", "removed"],
+        help="新状态",
+    )
+    pool_update_status_parser.add_argument("--reason", required=True, help="状态变更原因")
+    pool_update_status_parser.add_argument("--note", default="", help="人工备注")
+    pool_update_status_parser.add_argument(
+        "--database",
+        type=Path,
+        default=DEFAULT_DATABASE_PATH,
+        help="本地 SQLite 数据库路径",
+    )
+    pool_update_status_parser.set_defaults(handler=handle_pool_update_status)
+
+    pool_history_parser = pool_subparsers.add_parser("history", help="查看池子对象状态历史")
+    pool_history_parser.add_argument("--type", required=True, choices=["watch", "hot"], help="池子类型")
+    pool_history_parser.add_argument("--code", required=True, help="股票代码")
+    pool_history_parser.add_argument(
+        "--database",
+        type=Path,
+        default=DEFAULT_DATABASE_PATH,
+        help="本地 SQLite 数据库路径",
+    )
+    pool_history_parser.set_defaults(handler=handle_pool_history)
 
     plan_parser = subparsers.add_parser("plan", help="次日观察计划相关命令")
     plan_subparsers = plan_parser.add_subparsers(dest="plan_command")
@@ -409,6 +605,27 @@ def handle_evidence_collect(args: argparse.Namespace) -> int:
     return 0
 
 
+# 单日采集必须由用户明确列出 scope；部分失败时继续其余 scope 并用非零状态提示未完成。
+def handle_evidence_collect_daily(args: argparse.Namespace) -> int:
+    results = collect_akshare_evidence_scopes(
+        args.date,
+        scopes=args.scope,
+        output_dir=args.output_dir,
+        database_path=args.database,
+        refresh=args.refresh,
+    )
+    successful_results = [result for result in results if result.is_successful]
+    failed_results = [result for result in results if not result.is_successful]
+    for result in results:
+        if result.is_successful:
+            print(f"scope={result.scope}：成功，快照={result.output_path}")
+        else:
+            print(f"scope={result.scope}：失败，原因={result.error_message}", file=sys.stderr)
+    write_daily_collection_log(args.date, args.scope, successful_results, failed_results, args.output_dir, args.database)
+    print(f"每日采集汇总：成功 {len(successful_results)} 个，失败 {len(failed_results)} 个")
+    return 1 if failed_results else 0
+
+
 # 检查命令展示标准缺口名称，后续日报可以直接复用这些缺口。
 def handle_evidence_check(args: argparse.Namespace) -> int:
     snapshot = check_evidence_snapshot(args.date, snapshot_dir=args.snapshot_dir)
@@ -419,6 +636,38 @@ def handle_evidence_check(args: argparse.Namespace) -> int:
     for missing_field in snapshot.missing_fields:
         print(f"- {missing_field}")
     return 0
+
+
+def write_daily_collection_log(
+    trade_date: str,
+    requested_scopes: list[str],
+    successful_results: list[object],
+    failed_results: list[object],
+    output_dir: Path,
+    database_path: Path,
+) -> None:
+    log_path = Path("logs") / "stock_review.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    logger = logging.getLogger("stock_review.evidence")
+    logger.setLevel(logging.INFO)
+    handler = logging.FileHandler(log_path, encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    logger.addHandler(handler)
+    try:
+        logger.info(
+            "command=evidence collect-daily trade_date=%s requested_scopes=%s successful_scopes=%s "
+            "failed_scopes=%s output_dir=%s database=%s status=%s",
+            trade_date,
+            ",".join(requested_scopes),
+            ",".join(result.scope for result in successful_results),
+            ",".join(result.scope for result in failed_results),
+            output_dir,
+            database_path,
+            "partial_failed" if failed_results else "created",
+        )
+    finally:
+        logger.removeHandler(handler)
+        handler.close()
 
 
 def write_evidence_log(
@@ -479,7 +728,7 @@ def handle_pool_add(args: argparse.Namespace, pool_type: str) -> int:
 
 
 def handle_pool_list(args: argparse.Namespace) -> int:
-    items = list_pool_items(args.type, database_path=args.database)
+    items = list_pool_items(args.type, record_kind=args.record_kind, database_path=args.database)
     if not items:
         print("暂无池子记录。")
         return 0
@@ -487,8 +736,22 @@ def handle_pool_list(args: argparse.Namespace) -> int:
     for item in items:
         print(
             f"{pool_label_for_output(item.pool_type)} | {item.code} | {item.name} | {item.exchange} | "
-            f"{item.sector} | {item.status} | {item.start_date} | {item.reason or '无'}"
+            f"{item.sector} | {item.status} | {item.record_kind} | {item.start_date} | {item.reason or '无'}"
         )
+    return 0
+
+
+# 类型变更必须留下本地审计日志，避免样例和真实记录在后续计划中再次混用。
+def handle_pool_update_record_kind(args: argparse.Namespace) -> int:
+    item = update_pool_item_record_kind(
+        args.type,
+        args.code,
+        args.record_kind,
+        args.reason,
+        database_path=args.database,
+    )
+    write_pool_record_kind_log(item.pool_type, item.code, item.record_kind, args.reason, args.database)
+    print(f"已更新{pool_label_for_output(item.pool_type)}记录类型：{item.code} {item.name} -> {item.record_kind}")
     return 0
 
 
@@ -515,6 +778,52 @@ def write_pool_log(command: str, pool_type: str, code: str, start_date: str, dat
         handler.close()
 
 
+def write_pool_status_log(pool_type: str, code: str, status: str, reason: str, database_path: Path) -> None:
+    log_path = Path("logs") / "stock_review.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    logger = logging.getLogger("stock_review.pool")
+    logger.setLevel(logging.INFO)
+    handler = logging.FileHandler(log_path, encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    logger.addHandler(handler)
+    try:
+        logger.info(
+            "command=pool update-status pool_type=%s code=%s status=%s reason=%s database=%s",
+            pool_type,
+            code,
+            status,
+            reason,
+            database_path,
+        )
+    finally:
+        logger.removeHandler(handler)
+        handler.close()
+
+
+def write_pool_record_kind_log(
+    pool_type: str, code: str, record_kind: str, reason: str, database_path: Path
+) -> None:
+    log_path = Path("logs") / "stock_review.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    logger = logging.getLogger("stock_review.pool")
+    logger.setLevel(logging.INFO)
+    handler = logging.FileHandler(log_path, encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    logger.addHandler(handler)
+    try:
+        logger.info(
+            "command=pool update-record-kind pool_type=%s code=%s record_kind=%s reason=%s database=%s",
+            pool_type,
+            code,
+            record_kind,
+            reason,
+            database_path,
+        )
+    finally:
+        logger.removeHandler(handler)
+        handler.close()
+
+
 def pool_label_for_output(pool_type: str) -> str:
     return "关注池" if pool_type == "watch" else "热点池"
 
@@ -529,6 +838,114 @@ def handle_plan_create(args: argparse.Namespace) -> int:
         output_dir=args.output_dir,
     )
     print(f"已生成次日观察计划：{output_path}")
+    return 0
+
+
+# 候选命令只读取本地证据事实，最终是否入池仍由用户通过 add-watch 或 add-hot 显式确认。
+def handle_pool_candidates(args: argparse.Namespace) -> int:
+    summary = build_pool_candidate_summary(args.date, args.snapshot_dir)
+    print(render_pool_candidate_summary(summary), end="")
+    return 0
+
+
+# 池子状态只能通过显式 CLI 变更，移出记录仍保留，避免丢失后续复盘证据。
+def handle_pool_update_status(args: argparse.Namespace) -> int:
+    item = update_pool_item_status(
+        pool_type=args.type,
+        code=args.code,
+        status=args.status,
+        reason=args.reason,
+        note=args.note,
+        database_path=args.database,
+    )
+    write_pool_status_log(item.pool_type, item.code, item.status, args.reason, args.database)
+    print(f"已更新{pool_label_for_output(item.pool_type)}：{item.code} {item.name}")
+    print(f"状态：{item.status}")
+    return 0
+
+
+def handle_pool_history(args: argparse.Namespace) -> int:
+    events = list_pool_item_status_history(args.type, args.code, database_path=args.database)
+    if not events:
+        print("暂无状态历史记录。")
+        return 0
+    for event in events:
+        print(f"{event.changed_at} | {event.status} | {event.reason} | {event.note or '无'}")
+    return 0
+
+
+# 板块历史命令只汇总本地快照，不联网、不修改池子，也不认定核心板块。
+def handle_evidence_sector_history(args: argparse.Namespace) -> int:
+    output_path, summary = create_sector_history_report(
+        args.start,
+        args.end,
+        snapshot_dir=args.snapshot_dir,
+        output_dir=args.output_dir,
+    )
+    print(f"已生成板块历史事实报告：{output_path}")
+    print(f"快照日期数：{len(summary.snapshot_dates)}")
+    print(f"有效板块证据日期数：{len(summary.sector_evidence_dates)}")
+    if not summary.has_enough_history:
+        print("近期候选状态：数据不足，不认定核心板块")
+    else:
+        print(f"近期反复活跃候选数：{len(summary.repeated_candidates)}")
+    return 0
+
+
+# hhxg 写入前由应用服务核验返回日期，CLI 不自行解释或修正交易日期。
+def handle_evidence_collect_hhxg(args: argparse.Namespace) -> int:
+    output_path = collect_hhxg_evidence_snapshot(args.date, args.output_dir, args.database)
+    snapshot = check_evidence_snapshot(args.date, snapshot_dir=args.output_dir)
+    write_evidence_log(
+        command="evidence collect-hhxg",
+        trade_date=args.date,
+        source_file=Path("hhxg:latest_snapshot"),
+        output_path=output_path,
+        missing_fields=snapshot.missing_fields,
+    )
+    print(f"已生成 hhxg Evidence Snapshot：{output_path}")
+    return 0
+
+
+# 就绪检查只读取本地快照，明确阻止不足五个有效交易日时提前进行历史分析。
+def handle_evidence_history_readiness(args: argparse.Namespace) -> int:
+    readiness = check_hhxg_history_readiness(args.start, args.end, args.snapshot_dir)
+    print(render_hhxg_history_readiness(readiness), end="")
+    return 0
+
+
+# hhxg 历史报告只输出可追溯事实；五日门槛不足时必须停在数据不足状态。
+def handle_evidence_hhxg_history(args: argparse.Namespace) -> int:
+    output_path, summary = create_hhxg_history_report(
+        args.start,
+        args.end,
+        snapshot_dir=args.snapshot_dir,
+        output_dir=args.output_dir,
+    )
+    print(f"已生成 hhxg 历史事实报告：{output_path}")
+    print(f"已验证有效交易日：{len(summary.daily_facts)}")
+    if not summary.has_enough_history:
+        print("历史分析状态：数据不足，不输出多日历史分析结论")
+    else:
+        print(f"多日重复排行事实数：{len(summary.repeated_rank_facts)}")
+    return 0
+
+
+# 市场历史命令只读取本地快照，不联网、不写 SQLite，也不产生市场阶段结论。
+def handle_evidence_market_history(args: argparse.Namespace) -> int:
+    output_path, summary = create_market_history_report(
+        args.start,
+        args.end,
+        snapshot_dir=args.snapshot_dir,
+        output_dir=args.output_dir,
+    )
+    print(f"已生成市场历史事实报告：{output_path}")
+    print(f"快照日期数：{len(summary.snapshot_dates)}")
+    print(f"有效市场证据日期数：{len(summary.market_facts)}")
+    if not summary.has_enough_history:
+        print("市场阶段状态：数据不足，不判断市场阶段")
+    else:
+        print(f"指数区间事实数：{len(summary.index_range_facts)}")
     return 0
 
 

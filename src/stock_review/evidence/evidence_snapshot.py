@@ -23,6 +23,7 @@ class EvidenceSnapshot:
     sentiment: dict[str, Any]
     sectors: list[dict[str, Any]]
     stocks: list[dict[str, Any]]
+    field_sources: dict[str, str]
     events: list[dict[str, Any]]
     missing_fields: tuple[str, ...]
 
@@ -35,6 +36,7 @@ class EvidenceSnapshot:
             "sentiment": self.sentiment,
             "sectors": self.sectors,
             "stocks": self.stocks,
+            "field_sources": self.field_sources,
             "events": self.events,
             "missing_fields": list(self.missing_fields),
         }
@@ -48,6 +50,7 @@ def build_evidence_snapshot(trade_date: str, raw_data: dict[str, Any]) -> Eviden
     sentiment = as_mapping(raw_data.get("sentiment"))
     sectors = as_list_of_mappings(raw_data.get("sectors"))
     stocks = as_list_of_mappings(raw_data.get("stocks"))
+    field_sources = as_field_sources(raw_data.get("field_sources"))
     events = as_list_of_mappings(raw_data.get("events"))
     missing_fields = tuple(
         identify_missing_fields(
@@ -66,6 +69,7 @@ def build_evidence_snapshot(trade_date: str, raw_data: dict[str, Any]) -> Eviden
         sentiment=sentiment,
         sectors=sectors,
         stocks=stocks,
+        field_sources=field_sources,
         events=events,
         missing_fields=missing_fields,
     )
@@ -106,3 +110,14 @@ def as_list_of_mappings(value: Any) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, dict)]
+
+
+# 字段来源只接受当前标准证据字段；旧快照缺少该元数据时保持为空，由展示层明确标记待确认。
+def as_field_sources(value: Any) -> dict[str, str]:
+    if not isinstance(value, dict):
+        return {}
+    return {
+        field_name: str(source)
+        for field_name, source in value.items()
+        if field_name in {"market", "sentiment", "sectors", "stocks"} and source not in (None, "")
+    }

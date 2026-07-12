@@ -9,6 +9,8 @@ import sqlite3
 
 
 VALID_POOL_TYPES = {"watch", "hot"}
+VALID_POOL_STATUSES = {"active", "paused", "removed"}
+VALID_POOL_RECORD_KINDS = {"real", "sample"}
 DEFAULT_DATABASE_PATH = Path("data") / "stock_review.sqlite"
 
 
@@ -29,6 +31,17 @@ class PoolItem:
     note: str
     created_at: str
     updated_at: str
+    record_kind: str
+
+
+@dataclass(frozen=True)
+class PoolItemStatusEvent:
+    pool_type: str
+    code: str
+    status: str
+    reason: str
+    note: str
+    changed_at: str
 
 
 # 池子记录必须由用户显式给出股票代码和名称，避免系统编造股票身份。
@@ -41,6 +54,7 @@ def add_pool_item(
     exchange: str = "",
     sector: str = "",
     note: str = "",
+    record_kind: str = "real",
     database_path: Path = DEFAULT_DATABASE_PATH,
 ) -> PoolItem:
     validate_pool_type(pool_type)
@@ -50,6 +64,7 @@ def add_pool_item(
         raise PoolItemError("股票代码和股票名称不能为空。")
     if pool_type == "hot" and not reason.strip():
         raise PoolItemError("加入热点池必须填写进入原因。")
+    validate_pool_record_kind(record_kind)
 
     now = datetime.now().isoformat(timespec="seconds")
     item = PoolItem(
@@ -64,6 +79,7 @@ def add_pool_item(
         note=note.strip(),
         created_at=now,
         updated_at=now,
+        record_kind=record_kind,
     )
 
     from stock_review.storage.sqlite_repository import PoolItemRepository
@@ -76,18 +92,106 @@ def add_pool_item(
     return item
 
 
-def list_pool_items(pool_type: str | None = None, database_path: Path = DEFAULT_DATABASE_PATH) -> list[PoolItem]:
+def list_pool_items(
+    pool_type: str | None = None,
+    record_kind: str | None = None,
+    database_path: Path = DEFAULT_DATABASE_PATH,
+) -> list[PoolItem]:
     if pool_type is not None:
         validate_pool_type(pool_type)
+    if record_kind is not None:
+        validate_pool_record_kind(record_kind)
 
     from stock_review.storage.sqlite_repository import PoolItemRepository
 
-    return PoolItemRepository(database_path).list_items(pool_type)
+    return PoolItemRepository(database_path).list_items(pool_type, record_kind)
+
+
+# 记录类型变更会影响是否进入真实计划，必须由用户显式确认并填写原因。
+def update_pool_item_record_kind(
+    pool_type: str,
+    code: str,
+    record_kind: str,
+    reason: str,
+    database_path: Path = DEFAULT_DATABASE_PATH,
+) -> PoolItem:
+    validate_pool_type(pool_type)
+    validate_pool_record_kind(record_kind)
+    normalized_code = code.strip()
+    if not normalized_code:
+        raise PoolItemError("股票代码不能为空。")
+    if not reason.strip():
+        raise PoolItemError("更新记录类型必须填写原因。")
+
+    from stock_review.storage.sqlite_repository import PoolItemRepository
+
+    item = PoolItemRepository(database_path).update_item_record_kind(pool_type, normalized_code, record_kind)
+    if item is None:
+        raise PoolItemError(f"未找到{pool_label(pool_type)}记录：{normalized_code}")
+    return item
+
+
+# 状态变更只记录用户明确给出的维护原因，removed 仍保留历史记录以便复盘回查。
+def update_pool_item_status(
+    pool_type: str,
+    code: str,
+    status: str,
+    reason: str,
+    note: str = "",
+    database_path: Path = DEFAULT_DATABASE_PATH,
+) -> PoolItem:
+    validate_pool_type(pool_type)
+    validate_pool_status(status)
+    normalized_code = code.strip()
+    if not normalized_code:
+        raise PoolItemError("股票代码不能为空。")
+    if not reason.strip():
+        raise PoolItemError("更新池子状态必须填写原因。")
+
+    from stock_review.storage.sqlite_repository import PoolItemRepository
+
+    now = datetime.now().isoformat(timespec="seconds")
+    item = PoolItemRepository(database_path).update_item_status(
+        pool_type=pool_type,
+        code=normalized_code,
+        status=status,
+        reason=reason.strip(),
+        note=note.strip(),
+        changed_at=now,
+    )
+    if item is None:
+        raise PoolItemError(f"未找到{pool_label(pool_type)}记录：{normalized_code}")
+    return item
+
+
+def list_pool_item_status_history(
+    pool_type: str,
+    code: str,
+    database_path: Path = DEFAULT_DATABASE_PATH,
+) -> list[PoolItemStatusEvent]:
+    validate_pool_type(pool_type)
+    normalized_code = code.strip()
+    if not normalized_code:
+        raise PoolItemError("股票代码不能为空。")
+
+    from stock_review.storage.sqlite_repository import PoolItemRepository
+
+    return PoolItemRepository(database_path).list_status_history(pool_type, normalized_code)
 
 
 def validate_pool_type(pool_type: str) -> None:
     if pool_type not in VALID_POOL_TYPES:
         raise PoolItemError("池子类型必须是 watch 或 hot。")
+
+
+def validate_pool_status(status: str) -> None:
+    if status not in VALID_POOL_STATUSES:
+        raise PoolItemError("池子状态必须是 active、paused 或 removed。")
+
+
+def validate_pool_record_kind(record_kind: str) -> None:
+    if record_kind not in VALID_POOL_RECORD_KINDS:
+        raise PoolItemError("记录类型必须是 real 或 sample。")
 
 
 def pool_label(pool_type: str) -> str:

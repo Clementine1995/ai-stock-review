@@ -15,7 +15,7 @@ def render_daily_review(
     evidence_snapshot: EvidenceSnapshot | None = None,
 ) -> str:
     evidence_status = (
-        f"已接入 Evidence Snapshot，来源：{evidence_snapshot.source}，样本日期：{evidence_snapshot.sample_date}。"
+        f"已接入 Evidence Snapshot，快照来源：{evidence_snapshot.source}，样本日期：{evidence_snapshot.sample_date}。"
         if evidence_snapshot
         else "未接入 Evidence Snapshot，自动证据统一标记为待补充。"
     )
@@ -89,7 +89,7 @@ def render_evidence_lines(number: int, snapshot: EvidenceSnapshot | None) -> lis
 
 
 def render_market_lines(snapshot: EvidenceSnapshot) -> list[str]:
-    lines = [f"- 证据来源：{snapshot.source}；样本日期：{snapshot.sample_date}。"]
+    lines = [f"- 证据来源：{field_source(snapshot, 'market')}；样本日期：{snapshot.sample_date}。"]
     indices = snapshot.market.get("indices")
     if isinstance(indices, list) and indices:
         for index_item in indices:
@@ -110,7 +110,7 @@ def render_market_lines(snapshot: EvidenceSnapshot) -> list[str]:
 def render_sentiment_lines(snapshot: EvidenceSnapshot) -> list[str]:
     sentiment = snapshot.sentiment
     return [
-        f"- 证据来源：{snapshot.source}；样本日期：{snapshot.sample_date}。",
+        f"- 证据来源：{field_source(snapshot, 'sentiment')}；样本日期：{snapshot.sample_date}。",
         f"- 涨停数：{format_value(sentiment.get('limit_up_count'))}。",
         f"- 跌停数：{format_value(sentiment.get('limit_down_count'))}。",
         f"- 炸板率：{format_value(sentiment.get('broken_board_rate'))}。",
@@ -120,7 +120,7 @@ def render_sentiment_lines(snapshot: EvidenceSnapshot) -> list[str]:
 
 
 def render_sector_lines(snapshot: EvidenceSnapshot) -> list[str]:
-    lines = [f"- 证据来源：{snapshot.source}；样本日期：{snapshot.sample_date}。"]
+    lines = [f"- 证据来源：{field_source(snapshot, 'sectors')}；样本日期：{snapshot.sample_date}。"]
     for sector in snapshot.sectors:
         name = format_value(sector.get("name"))
         strength = format_value(sector.get("strength"))
@@ -144,7 +144,7 @@ def render_sector_lines(snapshot: EvidenceSnapshot) -> list[str]:
 
 
 def render_stock_lines(snapshot: EvidenceSnapshot) -> list[str]:
-    lines = [f"- 证据来源：{snapshot.source}；样本日期：{snapshot.sample_date}。"]
+    lines = [f"- 证据来源：{field_source(snapshot, 'stocks')}；样本日期：{snapshot.sample_date}。"]
     for stock in snapshot.stocks:
         code = format_value(stock.get("code"))
         name = format_value(stock.get("name"))
@@ -195,3 +195,8 @@ def format_list_value(value: Any) -> str:
     if not isinstance(value, list) or not value:
         return "待确认"
     return "、".join(str(item) for item in value if item not in (None, "")) or "待确认"
+
+
+# 旧快照没有字段来源时不能从顶层 source 反推，必须保留待确认而非制造溯源事实。
+def field_source(snapshot: EvidenceSnapshot, field_name: str) -> str:
+    return snapshot.field_sources.get(field_name, "待确认（旧快照未记录字段来源）")

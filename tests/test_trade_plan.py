@@ -28,6 +28,15 @@ class TradePlanTest(unittest.TestCase):
                 sector="银行",
                 database_path=database_path,
             )
+            add_pool_item(
+                "hot",
+                code="600519",
+                name="贵州茅台",
+                start_date="2026-07-06",
+                reason="系统验收样例",
+                record_kind="sample",
+                database_path=database_path,
+            )
 
             output_path = create_trade_plan(
                 "2026-07-06",
@@ -43,6 +52,7 @@ class TradePlanTest(unittest.TestCase):
             self.assertEqual(output_path, root / "2026-07-06_plan.md")
             self.assertIn("计划边界：本文件只记录观察条件和应对框架，不是买卖指令。", content)
             self.assertIn("计划项 1: 000001 平安银行", content)
+            self.assertNotIn("贵州茅台", content)
             self.assertIn("证据来源：manual_sample / 2026-07-06", content)
             self.assertIn("#### 符合预期", content)
             self.assertIn("#### 超预期", content)

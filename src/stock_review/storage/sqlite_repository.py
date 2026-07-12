@@ -9,7 +9,7 @@ import sqlite3
 
 from stock_review.evidence.evidence_snapshot import EvidenceSnapshot
 from stock_review.observations.manage_observation import Observation
-from stock_review.pools.manage_pool_item import PoolItem
+from stock_review.pools.manage_pool_item import PoolItem, PoolItemStatusEvent
 
 
 class EvidenceSnapshotRepository:
@@ -95,7 +95,7 @@ class PoolItemRepository:
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
         connection = sqlite3.connect(self.database_path)
         try:
-            self.ensure_table(connection)
+            self.ensure_tables(connection)
             connection.execute(
                 """
                 INSERT INTO pool_items (
@@ -109,9 +109,10 @@ class PoolItemRepository:
                     status,
                     note,
                     created_at,
-                    updated_at
+                    updated_at,
+                    record_kind
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     item.pool_type,
@@ -125,6 +126,28 @@ class PoolItemRepository:
                     item.note,
                     item.created_at,
                     item.updated_at,
+                    item.record_kind,
+                ),
+            )
+            connection.execute(
+                """
+                INSERT INTO pool_item_status_history (
+                    pool_type,
+                    code,
+                    status,
+                    reason,
+                    note,
+                    changed_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    item.pool_type,
+                    item.code,
+                    item.status,
+                    item.reason,
+                    item.note,
+                    item.created_at,
                 ),
             )
             connection.commit()
@@ -132,35 +155,32 @@ class PoolItemRepository:
             connection.close()
 
     # 查询按池子类型收敛，不在 SQL 中做核心票、走坏等业务判断。
-    def list_items(self, pool_type: str | None = None) -> list[PoolItem]:
+    def list_items(self, pool_type: str | None = None, record_kind: str | None = None) -> list[PoolItem]:
+        if not self.database_path.exists():
+            return []
         connection = sqlite3.connect(self.database_path)
         try:
             connection.row_factory = sqlite3.Row
-            self.ensure_table(connection)
+            if not self.table_exists(connection, "pool_items"):
+                return []
+            select_columns = self.pool_item_select_columns(connection)
             if pool_type is None:
                 rows = connection.execute(
-                    """
-                    SELECT pool_type, code, name, exchange, sector, reason, start_date, status, note, created_at, updated_at
-                    FROM pool_items
-                    ORDER BY pool_type, start_date, code
-                    """
+                    f"SELECT {select_columns} FROM pool_items ORDER BY pool_type, start_date, code"
                 ).fetchall()
             else:
                 rows = connection.execute(
-                    """
-                    SELECT pool_type, code, name, exchange, sector, reason, start_date, status, note, created_at, updated_at
-                    FROM pool_items
-                    WHERE pool_type = ?
-                    ORDER BY start_date, code
-                    """,
+                    f"SELECT {select_columns} FROM pool_items WHERE pool_type = ? ORDER BY start_date, code",
                     (pool_type,),
                 ).fetchall()
         finally:
             connection.close()
 
-        return [self.row_to_pool_item(row) for row in rows]
+        items = [self.row_to_pool_item(row) for row in rows]
+        return [item for item in items if record_kind is None or item.record_kind == record_kind]
 
-    def ensure_table(self, connection: sqlite3.Connection) -> None:
+    # 池子主表保存当前状态，状态历史表保存每次人工维护原因，removed 不删除主记录。
+    def ensure_tables(self, connection: sqlite3.Connection) -> None:
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS pool_items (
@@ -175,10 +195,148 @@ class PoolItemRepository:
                 note TEXT NOT NULL,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
+                record_kind TEXT NOT NULL DEFAULT 'real',
                 PRIMARY KEY (pool_type, code)
             )
             """
         )
+        if not self.column_exists(connection, "pool_items", "record_kind"):
+            connection.execute("ALTER TABLE pool_items ADD COLUMN record_kind TEXT NOT NULL DEFAULT 'real'")
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS pool_item_status_history (
+                history_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pool_type TEXT NOT NULL,
+                code TEXT NOT NULL,
+                status TEXT NOT NULL,
+                reason TEXT NOT NULL,
+                note TEXT NOT NULL,
+                changed_at TEXT NOT NULL
+            )
+            """
+        )
+
+    def update_item_status(
+        self,
+        pool_type: str,
+        code: str,
+        status: str,
+        reason: str,
+        note: str,
+        changed_at: str,
+    ) -> PoolItem | None:
+        connection = sqlite3.connect(self.database_path)
+        try:
+            connection.row_factory = sqlite3.Row
+            self.ensure_tables(connection)
+            select_columns = self.pool_item_select_columns(connection)
+            row = connection.execute(
+                f"SELECT {select_columns} FROM pool_items WHERE pool_type = ? AND code = ?",
+                (pool_type, code),
+            ).fetchone()
+            if row is None:
+                return None
+            connection.execute(
+                """
+                UPDATE pool_items
+                SET status = ?, updated_at = ?
+                WHERE pool_type = ? AND code = ?
+                """,
+                (status, changed_at, pool_type, code),
+            )
+            connection.execute(
+                """
+                INSERT INTO pool_item_status_history (
+                    pool_type,
+                    code,
+                    status,
+                    reason,
+                    note,
+                    changed_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (pool_type, code, status, reason, note, changed_at),
+            )
+            connection.commit()
+            updated_row = connection.execute(
+                f"SELECT {select_columns} FROM pool_items WHERE pool_type = ? AND code = ?",
+                (pool_type, code),
+            ).fetchone()
+        finally:
+            connection.close()
+
+        return self.row_to_pool_item(updated_row) if updated_row is not None else None
+
+    # 类型迁移只改变样例或真实标记，不改变池子状态、原因或历史状态事件。
+    def update_item_record_kind(self, pool_type: str, code: str, record_kind: str) -> PoolItem | None:
+        connection = sqlite3.connect(self.database_path)
+        try:
+            connection.row_factory = sqlite3.Row
+            self.ensure_tables(connection)
+            connection.execute(
+                "UPDATE pool_items SET record_kind = ? WHERE pool_type = ? AND code = ?",
+                (record_kind, pool_type, code),
+            )
+            connection.commit()
+            row = connection.execute(
+                f"SELECT {self.pool_item_select_columns(connection)} FROM pool_items WHERE pool_type = ? AND code = ?",
+                (pool_type, code),
+            ).fetchone()
+        finally:
+            connection.close()
+        return self.row_to_pool_item(row) if row is not None else None
+
+    # 状态历史按发生时间返回，供用户回查暂停、移出和重新启用的原因。
+    def list_status_history(self, pool_type: str, code: str) -> list[PoolItemStatusEvent]:
+        if not self.database_path.exists():
+            return []
+        connection = sqlite3.connect(self.database_path)
+        try:
+            connection.row_factory = sqlite3.Row
+            if not self.table_exists(connection, "pool_item_status_history"):
+                return []
+            rows = connection.execute(
+                """
+                SELECT pool_type, code, status, reason, note, changed_at
+                FROM pool_item_status_history
+                WHERE pool_type = ? AND code = ?
+                ORDER BY history_id
+                """,
+                (pool_type, code),
+            ).fetchall()
+        finally:
+            connection.close()
+
+        return [
+            PoolItemStatusEvent(
+                pool_type=row["pool_type"],
+                code=row["code"],
+                status=row["status"],
+                reason=row["reason"],
+                note=row["note"],
+                changed_at=row["changed_at"],
+            )
+            for row in rows
+        ]
+
+    @staticmethod
+    def table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
+        row = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+            (table_name,),
+        ).fetchone()
+        return row is not None
+
+    @staticmethod
+    def column_exists(connection: sqlite3.Connection, table_name: str, column_name: str) -> bool:
+        return any(row[1] == column_name for row in connection.execute(f"PRAGMA table_info({table_name})"))
+
+    def pool_item_select_columns(self, connection: sqlite3.Connection) -> str:
+        base_columns = "pool_type, code, name, exchange, sector, reason, start_date, status, note, created_at, updated_at"
+        if self.column_exists(connection, "pool_items", "record_kind"):
+            return f"{base_columns}, record_kind"
+        return f"{base_columns}, '待确认' AS record_kind"
 
     def row_to_pool_item(self, row: sqlite3.Row) -> PoolItem:
         return PoolItem(
@@ -193,6 +351,7 @@ class PoolItemRepository:
             note=row["note"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
+            record_kind=row["record_kind"],
         )
 
 
