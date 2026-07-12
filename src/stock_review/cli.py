@@ -24,6 +24,7 @@ from stock_review.evidence.check_history_readiness import (
     render_hhxg_history_readiness,
 )
 from stock_review.evidence.summarize_hhxg_history import create_hhxg_history_report
+from stock_review.evidence.collect_pool_stock_history import collect_real_pool_stock_history
 from stock_review.learning.summarize_weekly_learning import create_weekly_learning
 from stock_review.observations.manage_observation import (
     ObservationError,
@@ -265,6 +266,20 @@ def build_parser() -> argparse.ArgumentParser:
         "--database", type=Path, default=DEFAULT_DATABASE_PATH, help="本地 SQLite 数据库路径"
     )
     evidence_collect_hhxg_parser.set_defaults(handler=handle_evidence_collect_hhxg)
+
+    evidence_collect_pool_history_parser = evidence_subparsers.add_parser(
+        "collect-pool-history",
+        help="采集真实池个股的 5/20 日历史事实，禁止全市场扫描",
+    )
+    evidence_collect_pool_history_parser.add_argument("--date", required=True, help="交易日期，格式 YYYY-MM-DD")
+    evidence_collect_pool_history_parser.add_argument(
+        "--source", required=True, choices=["akshare"], help="数据源名称；当前仅支持 akshare"
+    )
+    evidence_collect_pool_history_parser.add_argument("--output-dir", required=True, type=Path, help="事实输出目录")
+    evidence_collect_pool_history_parser.add_argument(
+        "--database", type=Path, default=DEFAULT_DATABASE_PATH, help="本地 SQLite 数据库路径"
+    )
+    evidence_collect_pool_history_parser.set_defaults(handler=handle_evidence_collect_pool_history)
 
     evidence_history_readiness_parser = evidence_subparsers.add_parser(
         "history-readiness",
@@ -904,6 +919,13 @@ def handle_evidence_collect_hhxg(args: argparse.Namespace) -> int:
         missing_fields=snapshot.missing_fields,
     )
     print(f"已生成 hhxg Evidence Snapshot：{output_path}")
+    return 0
+
+
+# 真实池历史采集由用户显式指定日期和来源，输出独立事实文件，不修改池子或生成交易结论。
+def handle_evidence_collect_pool_history(args: argparse.Namespace) -> int:
+    output_path = collect_real_pool_stock_history(args.date, args.output_dir, args.database)
+    print(f"已生成真实池个股历史事实：{output_path}")
     return 0
 
 
