@@ -9,7 +9,8 @@ import sqlite3
 
 from stock_review.evidence.evidence_snapshot import EvidenceSnapshot
 from stock_review.observations.manage_observation import Observation
-from stock_review.pools.manage_pool_item import PoolItem, PoolItemStatusEvent
+from stock_review.pools.manage_pool_item import PoolItem, PoolItemError, PoolItemStatusEvent
+from stock_review.review_documents.manage_manual_review import ManualPreview, ManualStepRecord
 
 
 class EvidenceSnapshotRepository:
@@ -103,7 +104,6 @@ class PoolItemRepository:
                     code,
                     name,
                     exchange,
-                    sector,
                     reason,
                     start_date,
                     status,
@@ -112,14 +112,13 @@ class PoolItemRepository:
                     updated_at,
                     record_kind
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     item.pool_type,
                     item.code,
                     item.name,
                     item.exchange,
-                    item.sector,
                     item.reason,
                     item.start_date,
                     item.status,
@@ -129,6 +128,7 @@ class PoolItemRepository:
                     item.record_kind,
                 ),
             )
+            self.save_item_sectors(connection, item)
             connection.execute(
                 """
                 INSERT INTO pool_item_status_history (
@@ -176,11 +176,14 @@ class PoolItemRepository:
         finally:
             connection.close()
 
-        items = [self.row_to_pool_item(row) for row in rows]
+        sector_map = self.load_sector_map(connection=None, rows=rows)
+        items = [self.row_to_pool_item(row, sector_map.get((row["pool_type"], row["code"]), ())) for row in rows]
         return [item for item in items if record_kind is None or item.record_kind == record_kind]
 
-    # 池子主表保存当前状态，状态历史表保存每次人工维护原因，removed 不删除主记录。
+    # 池子主表保存当前状态；板块采用独立关联表，允许同一对象保留最多三条人工确认归属。
     def ensure_tables(self, connection: sqlite3.Connection) -> None:
+        if self.table_exists(connection, "pool_items") and self.column_exists(connection, "pool_items", "sector"):
+            raise PoolItemError("本地池子仍是单板块结构，请先显式执行 pool migrate-sectors。")
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS pool_items (
@@ -188,7 +191,6 @@ class PoolItemRepository:
                 code TEXT NOT NULL,
                 name TEXT NOT NULL,
                 exchange TEXT NOT NULL,
-                sector TEXT NOT NULL,
                 reason TEXT NOT NULL,
                 start_date TEXT NOT NULL,
                 status TEXT NOT NULL,
@@ -197,6 +199,18 @@ class PoolItemRepository:
                 updated_at TEXT NOT NULL,
                 record_kind TEXT NOT NULL DEFAULT 'real',
                 PRIMARY KEY (pool_type, code)
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS pool_item_sectors (
+                pool_type TEXT NOT NULL,
+                code TEXT NOT NULL,
+                sector TEXT NOT NULL,
+                source TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (pool_type, code, sector)
             )
             """
         )
@@ -263,10 +277,11 @@ class PoolItemRepository:
                 f"SELECT {select_columns} FROM pool_items WHERE pool_type = ? AND code = ?",
                 (pool_type, code),
             ).fetchone()
+            sectors = self.load_sector_map(connection, [updated_row]).get((pool_type, code), ()) if updated_row else ()
         finally:
             connection.close()
 
-        return self.row_to_pool_item(updated_row) if updated_row is not None else None
+        return self.row_to_pool_item(updated_row, sectors) if updated_row is not None else None
 
     # 类型迁移只改变样例或真实标记，不改变池子状态、原因或历史状态事件。
     def update_item_record_kind(self, pool_type: str, code: str, record_kind: str) -> PoolItem | None:
@@ -283,9 +298,10 @@ class PoolItemRepository:
                 f"SELECT {self.pool_item_select_columns(connection)} FROM pool_items WHERE pool_type = ? AND code = ?",
                 (pool_type, code),
             ).fetchone()
+            sectors = self.load_sector_map(connection, [row]).get((pool_type, code), ()) if row else ()
         finally:
             connection.close()
-        return self.row_to_pool_item(row) if row is not None else None
+        return self.row_to_pool_item(row, sectors) if row is not None else None
 
     # 状态历史按发生时间返回，供用户回查暂停、移出和重新启用的原因。
     def list_status_history(self, pool_type: str, code: str) -> list[PoolItemStatusEvent]:
@@ -333,18 +349,18 @@ class PoolItemRepository:
         return any(row[1] == column_name for row in connection.execute(f"PRAGMA table_info({table_name})"))
 
     def pool_item_select_columns(self, connection: sqlite3.Connection) -> str:
-        base_columns = "pool_type, code, name, exchange, sector, reason, start_date, status, note, created_at, updated_at"
+        base_columns = "pool_type, code, name, exchange, reason, start_date, status, note, created_at, updated_at"
         if self.column_exists(connection, "pool_items", "record_kind"):
             return f"{base_columns}, record_kind"
         return f"{base_columns}, '待确认' AS record_kind"
 
-    def row_to_pool_item(self, row: sqlite3.Row) -> PoolItem:
+    def row_to_pool_item(self, row: sqlite3.Row, sectors: tuple[str, ...]) -> PoolItem:
         return PoolItem(
             pool_type=row["pool_type"],
             code=row["code"],
             name=row["name"],
             exchange=row["exchange"],
-            sector=row["sector"],
+            sectors=sectors,
             reason=row["reason"],
             start_date=row["start_date"],
             status=row["status"],
@@ -353,6 +369,243 @@ class PoolItemRepository:
             updated_at=row["updated_at"],
             record_kind=row["record_kind"],
         )
+
+    def save_item_sectors(self, connection: sqlite3.Connection, item: PoolItem) -> None:
+        connection.executemany(
+            """
+            INSERT INTO pool_item_sectors (pool_type, code, sector, source, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            [(item.pool_type, item.code, sector, "人工确认", item.created_at) for sector in item.sectors],
+        )
+
+    def load_sector_map(
+        self, connection: sqlite3.Connection | None, rows: list[sqlite3.Row]
+    ) -> dict[tuple[str, str], tuple[str, ...]]:
+        if not rows:
+            return {}
+        local_connection = connection or sqlite3.connect(self.database_path)
+        try:
+            if not self.table_exists(local_connection, "pool_item_sectors"):
+                return {}
+            sector_rows = local_connection.execute(
+                "SELECT pool_type, code, sector FROM pool_item_sectors ORDER BY rowid"
+            ).fetchall()
+        finally:
+            if connection is None:
+                local_connection.close()
+        values: dict[tuple[str, str], list[str]] = {}
+        for pool_type, code, sector in sector_rows:
+            values.setdefault((pool_type, code), []).append(sector)
+        return {key: tuple(sectors) for key, sectors in values.items()}
+
+    # 显式迁移保留原有单板块字段为第一条人工确认关联，完成后删除废弃列，避免新旧双轨。
+    def migrate_legacy_sector_schema(self) -> int:
+        if not self.database_path.exists():
+            return 0
+        connection = sqlite3.connect(self.database_path)
+        try:
+            if not self.table_exists(connection, "pool_items") or not self.column_exists(connection, "pool_items", "sector"):
+                return 0
+            rows = connection.execute(
+                """
+                SELECT pool_type, code, name, exchange, sector, reason, start_date,
+                       status, note, created_at, updated_at, record_kind
+                FROM pool_items
+                """
+            ).fetchall()
+            connection.execute(
+                """
+                CREATE TABLE pool_items_rebuilt (
+                    pool_type TEXT NOT NULL, code TEXT NOT NULL, name TEXT NOT NULL,
+                    exchange TEXT NOT NULL, reason TEXT NOT NULL, start_date TEXT NOT NULL,
+                    status TEXT NOT NULL, note TEXT NOT NULL, created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL, record_kind TEXT NOT NULL DEFAULT 'real',
+                    PRIMARY KEY (pool_type, code)
+                )
+                """
+            )
+            connection.executemany(
+                """
+                INSERT INTO pool_items_rebuilt (
+                    pool_type, code, name, exchange, reason, start_date, status,
+                    note, created_at, updated_at, record_kind
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [(row[0], row[1], row[2], row[3], row[5], row[6], row[7], row[8], row[9], row[10], row[11]) for row in rows],
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS pool_item_sectors (
+                    pool_type TEXT NOT NULL, code TEXT NOT NULL, sector TEXT NOT NULL,
+                    source TEXT NOT NULL, created_at TEXT NOT NULL,
+                    PRIMARY KEY (pool_type, code, sector)
+                )
+                """
+            )
+            connection.executemany(
+                """
+                INSERT OR IGNORE INTO pool_item_sectors (pool_type, code, sector, source, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                [(row[0], row[1], row[4] or "待确认", "迁移自旧单板块字段", row[9]) for row in rows],
+            )
+            connection.execute("DROP TABLE pool_items")
+            connection.execute("ALTER TABLE pool_items_rebuilt RENAME TO pool_items")
+            connection.commit()
+            return len(rows)
+        finally:
+            connection.close()
+
+
+class ManualReviewRepository:
+    def __init__(self, database_path: Path) -> None:
+        self.database_path = Path(database_path)
+
+    # 人工复盘表只保存用户显式输入；不与池子、计划或 Observation 做隐式联动。
+    def add_step_record(self, record: ManualStepRecord) -> None:
+        self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        connection = sqlite3.connect(self.database_path)
+        try:
+            self.ensure_tables(connection)
+            connection.execute(
+                """
+                INSERT INTO manual_step_records (
+                    record_id, review_date, step_number, judgment, hypothesis,
+                    evidence_reference, note, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    record.record_id, record.review_date, record.step_number, record.judgment,
+                    record.hypothesis, record.evidence_reference, record.note, record.created_at,
+                ),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+    # STEP 8 预演独立保存四类条件，必须由上层服务完成用户确认后才能写入。
+    def add_preview(self, preview: ManualPreview) -> None:
+        self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        connection = sqlite3.connect(self.database_path)
+        try:
+            self.ensure_tables(connection)
+            connection.execute(
+                """
+                INSERT INTO manual_previews (
+                    preview_id, review_date, target, expectation, over_expectation,
+                    under_expectation, abandon_condition, evidence_reference, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    preview.preview_id, preview.review_date, preview.target, preview.expectation,
+                    preview.over_expectation, preview.under_expectation, preview.abandon_condition,
+                    preview.evidence_reference, preview.created_at,
+                ),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+    # ID 按复盘日期递增，便于未来由用户明确选择记录与计划或 Observation 建立关联。
+    def next_step_record_id(self, review_date: str, step_number: int) -> str:
+        prefix = f"STEP-{review_date.replace('-', '')}-{step_number:02d}-"
+        return self.next_id("manual_step_records", "record_id", prefix)
+
+    def next_preview_id(self, review_date: str) -> str:
+        prefix = f"PREVIEW-{review_date.replace('-', '')}-"
+        return self.next_id("manual_previews", "preview_id", prefix)
+
+    def next_id(self, table_name: str, id_column: str, prefix: str) -> str:
+        connection = sqlite3.connect(self.database_path)
+        try:
+            self.ensure_tables(connection)
+            row = connection.execute(
+                f"SELECT {id_column} FROM {table_name} WHERE {id_column} LIKE ? ORDER BY {id_column} DESC LIMIT 1",
+                (f"{prefix}%",),
+            ).fetchone()
+        finally:
+            connection.close()
+        sequence = int(row[0].removeprefix(prefix)) + 1 if row else 1
+        return f"{prefix}{sequence:03d}"
+
+    # 读取只按复盘日期返回人工原始记录，不在 Repository 层推导交易判断。
+    def list_step_records(self, review_date: str) -> list[ManualStepRecord]:
+        return [
+            ManualStepRecord(*row)
+            for row in self.read_rows(
+                """
+                SELECT record_id, review_date, step_number, judgment, hypothesis,
+                       evidence_reference, note, created_at
+                FROM manual_step_records WHERE review_date = ? ORDER BY step_number
+                """,
+                review_date,
+            )
+        ]
+
+    def list_previews(self, review_date: str) -> list[ManualPreview]:
+        return [
+            ManualPreview(*row)
+            for row in self.read_rows(
+                """
+                SELECT preview_id, review_date, target, expectation, over_expectation,
+                       under_expectation, abandon_condition, evidence_reference, created_at
+                FROM manual_previews WHERE review_date = ? ORDER BY preview_id
+                """,
+                review_date,
+            )
+        ]
+
+    def read_rows(self, statement: str, review_date: str) -> list[tuple[object, ...]]:
+        if not self.database_path.exists():
+            return []
+        connection = sqlite3.connect(self.database_path)
+        try:
+            if not self.table_exists(connection, "manual_step_records"):
+                return []
+            return connection.execute(statement, (review_date,)).fetchall()
+        finally:
+            connection.close()
+
+    def ensure_tables(self, connection: sqlite3.Connection) -> None:
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS manual_step_records (
+                record_id TEXT PRIMARY KEY,
+                review_date TEXT NOT NULL,
+                step_number INTEGER NOT NULL,
+                judgment TEXT NOT NULL,
+                hypothesis TEXT NOT NULL,
+                evidence_reference TEXT NOT NULL,
+                note TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE (review_date, step_number)
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS manual_previews (
+                preview_id TEXT PRIMARY KEY,
+                review_date TEXT NOT NULL,
+                target TEXT NOT NULL,
+                expectation TEXT NOT NULL,
+                over_expectation TEXT NOT NULL,
+                under_expectation TEXT NOT NULL,
+                abandon_condition TEXT NOT NULL,
+                evidence_reference TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE (review_date, target)
+            )
+            """
+        )
+
+    @staticmethod
+    def table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
+        row = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (table_name,)
+        ).fetchone()
+        return row is not None
 
 
 class ObservationRepository:

@@ -25,7 +25,7 @@ class TradePlanTest(unittest.TestCase):
                 start_date="2026-07-06",
                 reason="样例关注",
                 exchange="SZSE",
-                sector="银行",
+                sectors=("银行",),
                 database_path=database_path,
             )
             add_pool_item(

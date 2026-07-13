@@ -72,6 +72,9 @@ flowchart TD
 - M10.1 已完成池子生命周期子闭环：可显式暂停、移出或重新启用池子对象，并保留每次状态变更原因与历史。
 - M10.1 已完成单日多 scope 采集子闭环：用户显式指定 scope 后可顺序采集市场、情绪、板块和个股；部分失败不会覆盖已有事实，并按非零状态和日志提示。
 - M10.1 已接入 hhxg 最近交易日快照：自动补充涨跌停、炸板、连板梯队与板块排行；返回日期必须等于指定日期，连续采集满 5 个交易日后才启用其历史分析。
+- M10.2 已完成最小 STEP 1-7 证据事实归纳：只读取本地快照和真实池历史事实，输出字段来源、缺口与反向证据；固定保留待确认或不可判定，不判断阶段、核心票或买点。
+- M10.3 已完成首个结构化人工复盘闭环：可保存人工 STEP 判断和经用户确认的 STEP 8 四类预演，并只读构建当天复盘上下文；尚未实现 STEP 10 正式输出、计划项关联或 LLM 草案。
+- 池子对象已支持最多 3 个人工确认板块；旧单板块本地库需显式执行 `pool migrate-sectors` 后才可写入新结构。
 - 后续计划：M10 按 10 个 STEP 补齐时序证据、事实归纳、结构化人工复盘、模式核验、真实样本学习和框架版本演进。具体边界见 `docs/PRODUCT_REQUIREMENTS.md`。
 - 当前 `stock-review.md` 实际包含 `STEP 1` 到 `STEP 10`，命令会按文件内容动态识别，不硬编码 STEP 数量。
 - 当前已在本地开发环境完成 2026-07-06 的真实联网采集验证；MVP 暂不建设 WebUI。
@@ -92,6 +95,10 @@ $env:PYTHONDONTWRITEBYTECODE='1'
 python -m stock_review.cli framework check --file stock-review.md
 python -m stock_review.cli review create --date 2026-07-06 --framework stock-review.md
 python -m stock_review.cli review create --date 2026-07-06 --framework stock-review.md --evidence data/evidence/2026-07-06_snapshot.json
+python -m stock_review.cli review record-step --date 2026-07-06 --step 1 --judgment "市场阶段待确认" --evidence-reference data/evidence/2026-07-06_snapshot.json
+python -m stock_review.cli review record-preview --date 2026-07-06 --target "机器人板块" --expectation "板块延续强势" --over-expectation "板块放量强化" --under-expectation "板块明显走弱" --abandon-condition "证据缺失时放弃观察" --evidence-reference data/evidence/2026-07-06_snapshot.json --confirmed
+python -m stock_review.cli review list-records --date 2026-07-06
+python -m stock_review.cli review build-context --date 2026-07-06 --snapshot-dir data/evidence --database data/stock_review.sqlite
 python -m stock_review.cli evidence import --date 2026-07-06 --file data/evidence/2026-07-06_sample.json
 python -m stock_review.cli evidence check --date 2026-07-06
 python -m stock_review.cli evidence sector-history --start 2026-07-06 --end 2026-07-10 --snapshot-dir data/evidence --output-dir reports/daily
@@ -99,8 +106,10 @@ python -m stock_review.cli evidence market-history --start 2026-07-06 --end 2026
 python -m stock_review.cli evidence collect-hhxg --date 2026-07-10 --output-dir data/evidence
 python -m stock_review.cli evidence collect-pool-history --date 2026-07-10 --source akshare --output-dir data/evidence
 python -m stock_review.cli evidence history-readiness --source hhxg --start 2026-07-06 --end 2026-07-10 --snapshot-dir data/evidence
+python -m stock_review.cli evidence summarize-review --date 2026-07-10 --snapshot-dir data/evidence --pool-history-dir data/evidence --output-dir reports/daily
 python -m stock_review.cli pool add-watch --code 000001 --name 平安银行 --date 2026-07-06 --reason 样例关注 --exchange SZSE --sector 银行
-python -m stock_review.cli pool add-hot --code 600519 --name 贵州茅台 --date 2026-07-06 --reason 样例热点 --exchange SSE --sector 白酒
+python -m stock_review.cli pool add-hot --code 600519 --name 贵州茅台 --date 2026-07-06 --reason 样例热点 --exchange SSE --sector 白酒 --sector 消费
+python -m stock_review.cli pool migrate-sectors --database data/stock_review.sqlite
 python -m stock_review.cli pool list
 python -m stock_review.cli pool list --record-kind real
 python -m stock_review.cli pool update-record-kind --type hot --code 600519 --record-kind sample --reason 系统验收样例
@@ -134,12 +143,17 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m stock_review.cli framework check --file stock-review.md
 .\.venv\Scripts\python.exe -m stock_review.cli review create --date 2026-07-06 --framework stock-review.md
 .\.venv\Scripts\python.exe -m stock_review.cli review create --date 2026-07-06 --framework stock-review.md --evidence data/evidence/2026-07-06_snapshot.json
+.\.venv\Scripts\python.exe -m stock_review.cli review record-step --date 2026-07-06 --step 1 --judgment "市场阶段待确认" --evidence-reference data/evidence/2026-07-06_snapshot.json
+.\.venv\Scripts\python.exe -m stock_review.cli review record-preview --date 2026-07-06 --target "机器人板块" --expectation "板块延续强势" --over-expectation "板块放量强化" --under-expectation "板块明显走弱" --abandon-condition "证据缺失时放弃观察" --evidence-reference data/evidence/2026-07-06_snapshot.json --confirmed
+.\.venv\Scripts\python.exe -m stock_review.cli review list-records --date 2026-07-06
+.\.venv\Scripts\python.exe -m stock_review.cli review build-context --date 2026-07-06 --snapshot-dir data/evidence --database data/stock_review.sqlite
 .\.venv\Scripts\python.exe -m stock_review.cli evidence import --date 2026-07-06 --file data/evidence/2026-07-06_sample.json
 .\.venv\Scripts\python.exe -m stock_review.cli evidence check --date 2026-07-06
 .\.venv\Scripts\python.exe -m stock_review.cli evidence sector-history --start 2026-07-06 --end 2026-07-10 --snapshot-dir data/evidence --output-dir reports/daily
 .\.venv\Scripts\python.exe -m stock_review.cli evidence market-history --start 2026-07-06 --end 2026-07-10 --snapshot-dir data/evidence --output-dir reports/daily
 .\.venv\Scripts\python.exe -m stock_review.cli pool add-watch --code 000001 --name 平安银行 --date 2026-07-06 --reason 样例关注 --exchange SZSE --sector 银行
-.\.venv\Scripts\python.exe -m stock_review.cli pool add-hot --code 600519 --name 贵州茅台 --date 2026-07-06 --reason 样例热点 --exchange SSE --sector 白酒
+.\.venv\Scripts\python.exe -m stock_review.cli pool add-hot --code 600519 --name 贵州茅台 --date 2026-07-06 --reason 样例热点 --exchange SSE --sector 白酒 --sector 消费
+.\.venv\Scripts\python.exe -m stock_review.cli pool migrate-sectors --database data/stock_review.sqlite
 .\.venv\Scripts\python.exe -m stock_review.cli pool list
 .\.venv\Scripts\python.exe -m stock_review.cli pool list --record-kind real
 .\.venv\Scripts\python.exe -m stock_review.cli pool update-record-kind --type hot --code 600519 --record-kind sample --reason 系统验收样例
@@ -154,6 +168,7 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m stock_review.cli evidence collect-daily --date 2026-07-06 --source akshare --scope market --scope sentiment --scope sectors --scope stocks --output-dir data/evidence
 .\.venv\Scripts\python.exe -m stock_review.cli evidence collect-pool-history --date 2026-07-10 --source akshare --output-dir data/evidence
 .\.venv\Scripts\python.exe -m stock_review.cli evidence history-readiness --source hhxg --start 2026-07-06 --end 2026-07-10 --snapshot-dir data/evidence
+.\.venv\Scripts\python.exe -m stock_review.cli evidence summarize-review --date 2026-07-10 --snapshot-dir data/evidence --pool-history-dir data/evidence --output-dir reports/daily
 .\.venv\Scripts\python.exe -m stock_review.cli evidence collect --date 2026-07-06 --source akshare --scope sentiment --output-dir data/evidence --refresh
 .\.venv\Scripts\python.exe -m stock_review.cli observation add --date 2026-07-06 --topic 机器人板块延续性 --target 机器人板块 --hypothesis 机器人板块次日保持强势 --confirmation 板块次日继续放量 --invalidation "板块跌幅超过 2%" --evidence-source "2026-07-06 Evidence Snapshot"
 .\.venv\Scripts\python.exe -m stock_review.cli observation list --date 2026-07-06 --status pending
@@ -178,7 +193,7 @@ python -m unittest discover -s tests
 - `docs/LOCAL_DATA_OPERATIONS.md`：本地数据分类、离线验证、备份、恢复和清理边界。
 - `PRD.md`：上一版失败项目材料，仅作为经验教训和背景参考，不作为当前定版需求。
 - `stock-review.md`：用户维护的盘后复盘框架，是系统主流程来源。
-- `src/stock_review/`：主工程源码，当前包含 CLI、复盘框架解析、带证据日报生成、次日计划生成、周度学习总结、Markdown 渲染、Evidence Snapshot、AKShare source、池子管理、Observation 管理和 SQLite repository。
+- `src/stock_review/`：主工程源码，当前包含 CLI、复盘框架解析、带证据日报生成、人工复盘记录、次日计划生成、周度学习总结、Markdown 渲染、Evidence Snapshot、AKShare source、池子管理、Observation 管理和 SQLite repository。
 - `tests/`：自动化测试目录，当前覆盖 STEP 识别、日报生成、证据接入、AKShare 标准化、SQLite 保存、池子管理、计划生成、Observation 闭环和周度学习总结。
 - `data/`：本地样例数据、证据快照、池子记录和本地 SQLite，当前 `data/evidence/` 保存离线样例和标准化快照。
 - `reports/`：Markdown 输出目录，`reports/daily/` 用于日报和计划，`reports/weekly/` 用于周度学习总结。

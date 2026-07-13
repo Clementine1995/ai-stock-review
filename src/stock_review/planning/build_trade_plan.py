@@ -110,7 +110,7 @@ def render_plan_item(index: int, item: PoolItem, evidence_snapshot: EvidenceSnap
         f"- 池子类型：{pool_label(item.pool_type)}",
         f"- 记录类型：{item.record_kind}",
         f"- 交易所：{item.exchange}",
-        f"- 板块：{item.sector}",
+        f"- 板块：{'、'.join(item.sectors)}",
         f"- 进入原因：{item.reason or '无'}",
         f"- 证据来源：{evidence_source}",
         "",

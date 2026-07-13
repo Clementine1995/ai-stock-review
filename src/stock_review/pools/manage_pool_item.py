@@ -24,7 +24,7 @@ class PoolItem:
     code: str
     name: str
     exchange: str
-    sector: str
+    sectors: tuple[str, ...]
     reason: str
     start_date: str
     status: str
@@ -52,7 +52,7 @@ def add_pool_item(
     start_date: str,
     reason: str,
     exchange: str = "",
-    sector: str = "",
+    sectors: tuple[str, ...] = (),
     note: str = "",
     record_kind: str = "real",
     database_path: Path = DEFAULT_DATABASE_PATH,
@@ -72,7 +72,7 @@ def add_pool_item(
         code=normalized_code,
         name=normalized_name,
         exchange=exchange.strip() or "待确认",
-        sector=sector.strip() or "待确认",
+        sectors=normalize_sectors(sectors),
         reason=reason.strip(),
         start_date=start_date,
         status="active",
@@ -105,6 +105,13 @@ def list_pool_items(
     from stock_review.storage.sqlite_repository import PoolItemRepository
 
     return PoolItemRepository(database_path).list_items(pool_type, record_kind)
+
+
+# 板块结构迁移必须由用户显式触发，避免普通读取或新增操作在不知情时改写本地库。
+def migrate_pool_item_sectors(database_path: Path = DEFAULT_DATABASE_PATH) -> int:
+    from stock_review.storage.sqlite_repository import PoolItemRepository
+
+    return PoolItemRepository(database_path).migrate_legacy_sector_schema()
 
 
 # 记录类型变更会影响是否进入真实计划，必须由用户显式确认并填写原因。
@@ -192,6 +199,13 @@ def validate_pool_status(status: str) -> None:
 def validate_pool_record_kind(record_kind: str) -> None:
     if record_kind not in VALID_POOL_RECORD_KINDS:
         raise PoolItemError("记录类型必须是 real 或 sample。")
+
+
+def normalize_sectors(sectors: tuple[str, ...]) -> tuple[str, ...]:
+    normalized = tuple(dict.fromkeys(sector.strip() for sector in sectors if sector.strip()))
+    if len(normalized) > 3:
+        raise PoolItemError("短线视角下每个池子对象最多关联 3 个板块。")
+    return normalized or ("待确认",)
 
 
 def pool_label(pool_type: str) -> str:

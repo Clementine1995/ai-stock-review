@@ -8,6 +8,7 @@ from stock_review.pools.manage_pool_item import (
     add_pool_item,
     list_pool_item_status_history,
     list_pool_items,
+    migrate_pool_item_sectors,
     update_pool_item_record_kind,
     update_pool_item_status,
 )
@@ -25,7 +26,7 @@ class PoolItemTest(unittest.TestCase):
                 start_date="2026-07-06",
                 reason="样例关注",
                 exchange="SZSE",
-                sector="银行",
+                sectors=("银行",),
                 database_path=database_path,
             )
             items = list_pool_items("watch", database_path=database_path)
@@ -34,7 +35,7 @@ class PoolItemTest(unittest.TestCase):
             self.assertEqual(item.record_kind, "real")
             self.assertEqual(len(items), 1)
             self.assertEqual(items[0].code, "000001")
-            self.assertEqual(items[0].sector, "银行")
+            self.assertEqual(items[0].sectors, ("银行",))
 
     def test_hot_pool_requires_reason(self):
         with TemporaryDirectory() as temp_path:
@@ -95,6 +96,56 @@ class PoolItemTest(unittest.TestCase):
             items = list_pool_items(database_path=database_path)
 
             self.assertEqual([item.pool_type for item in items], ["hot", "watch"])
+
+    def test_pool_item_accepts_at_most_three_sectors(self):
+        with TemporaryDirectory() as temp_path:
+            database_path = Path(temp_path) / "stock_review.sqlite"
+            item = add_pool_item(
+                "hot", "002829", "星网宇达", "2026-07-13", "人工确认",
+                sectors=("商业航天", "卫星导航", "军工"), database_path=database_path,
+            )
+
+            self.assertEqual(item.sectors, ("商业航天", "卫星导航", "军工"))
+            with self.assertRaisesRegex(PoolItemError, "最多关联 3 个板块"):
+                add_pool_item(
+                    "hot", "000001", "平安银行", "2026-07-13", "人工确认",
+                    sectors=("银行", "金融", "红利", "低估值"), database_path=database_path,
+                )
+
+    def test_legacy_single_sector_is_preserved_by_explicit_migration(self):
+        with TemporaryDirectory() as temp_path:
+            database_path = Path(temp_path) / "stock_review.sqlite"
+            connection = sqlite3.connect(database_path)
+            try:
+                connection.execute(
+                    """
+                    CREATE TABLE pool_items (
+                        pool_type TEXT NOT NULL, code TEXT NOT NULL, name TEXT NOT NULL,
+                        exchange TEXT NOT NULL, sector TEXT NOT NULL, reason TEXT NOT NULL,
+                        start_date TEXT NOT NULL, status TEXT NOT NULL, note TEXT NOT NULL,
+                        created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+                        record_kind TEXT NOT NULL DEFAULT 'real', PRIMARY KEY (pool_type, code)
+                    )
+                    """
+                )
+                connection.execute(
+                    """
+                    INSERT INTO pool_items VALUES (
+                        'hot', '002829', '星网宇达', 'SZSE', '航天装备', '人工确认',
+                        '2026-07-13', 'active', '', '2026-07-13T20:00:00', '2026-07-13T20:00:00', 'real'
+                    )
+                    """
+                )
+                connection.commit()
+            finally:
+                connection.close()
+
+            migrated_count = migrate_pool_item_sectors(database_path)
+            items = list_pool_items(database_path=database_path)
+
+            self.assertEqual(migrated_count, 1)
+            self.assertEqual(items[0].code, "002829")
+            self.assertEqual(items[0].sectors, ("航天装备",))
 
     def test_pool_status_update_keeps_item_and_history(self):
         with TemporaryDirectory() as temp_path:

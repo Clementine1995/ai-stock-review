@@ -47,7 +47,7 @@ def collect_real_pool_stock_history(
         except Exception as error:  # noqa: BLE001
             records.append({"code": item.code, "name": item.name, "error": str(error), "missing_fields": ["history_unavailable"]})
             continue
-        records.append(build_history_record(item.code, item.name, item.sector, target_date, frame))
+        records.append(build_history_record(item.code, item.name, item.sectors, target_date, frame))
 
     payload = {
         "trade_date": trade_date,
@@ -64,7 +64,7 @@ def collect_real_pool_stock_history(
     return output_path
 
 
-def build_history_record(code: str, name: str, sector: str, target_date: date, frame: Any) -> dict[str, Any]:
+def build_history_record(code: str, name: str, sectors: tuple[str, ...], target_date: date, frame: Any) -> dict[str, Any]:
     rows = frame.to_dict("records") if hasattr(frame, "to_dict") else frame if isinstance(frame, list) else []
     normalized_rows = [row for row in rows if isinstance(row, dict) and parse_row_date(row) is not None and parse_row_date(row) <= target_date]
     normalized_rows.sort(key=parse_row_date)
@@ -73,7 +73,7 @@ def build_history_record(code: str, name: str, sector: str, target_date: date, f
     record = {
         "code": code,
         "name": name,
-        "sector": sector,
+        "sectors": list(sectors),
         "sample_date": parse_row_date(latest).isoformat() if latest else None,
         "close": close,
         "change_percent": number_value(latest.get("涨跌幅", latest.get("change_percent"))),

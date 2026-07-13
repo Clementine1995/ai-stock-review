@@ -25,6 +25,7 @@ from stock_review.evidence.check_history_readiness import (
 )
 from stock_review.evidence.summarize_hhxg_history import create_hhxg_history_report
 from stock_review.evidence.collect_pool_stock_history import collect_real_pool_stock_history
+from stock_review.evidence.summarize_review_facts import create_review_facts_report
 from stock_review.learning.summarize_weekly_learning import create_weekly_learning
 from stock_review.observations.manage_observation import (
     ObservationError,
@@ -38,11 +39,20 @@ from stock_review.pools.manage_pool_item import (
     add_pool_item,
     list_pool_item_status_history,
     list_pool_items,
+    migrate_pool_item_sectors,
     update_pool_item_record_kind,
     update_pool_item_status,
 )
 from stock_review.pools.build_pool_candidates import build_pool_candidate_summary, render_pool_candidate_summary
 from stock_review.review_documents.create_daily_review import create_daily_review
+from stock_review.review_documents.manage_manual_review import (
+    ManualReviewError,
+    add_manual_preview,
+    add_manual_step_record,
+    list_manual_review_records,
+    write_manual_review_log,
+)
+from stock_review.review_documents.build_review_context import build_review_context, render_review_context
 from stock_review.review_framework.parse_framework import (
     FrameworkParseError,
     parse_framework_file,
@@ -61,7 +71,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         return args.handler(args)
-    except (EvidenceSnapshotError, FrameworkParseError, ObservationError, PoolItemError, TradePlanError) as error:
+    except (EvidenceSnapshotError, FrameworkParseError, ManualReviewError, ObservationError, PoolItemError, TradePlanError) as error:
         print(f"错误：{error}", file=sys.stderr)
         return 1
     except OSError as error:
@@ -114,6 +124,63 @@ def build_parser() -> argparse.ArgumentParser:
         help="可选 Evidence Snapshot JSON 文件路径",
     )
     review_create_parser.set_defaults(handler=handle_review_create)
+
+    review_record_step_parser = review_subparsers.add_parser(
+        "record-step",
+        help="保存用户的单个 STEP 人工判断和证据引用",
+    )
+    review_record_step_parser.add_argument("--date", required=True, help="复盘日期，格式 YYYY-MM-DD")
+    review_record_step_parser.add_argument("--step", required=True, type=int, help="STEP 编号")
+    review_record_step_parser.add_argument("--judgment", required=True, help="人工判断")
+    review_record_step_parser.add_argument("--evidence-reference", required=True, help="Evidence Snapshot 或人工证据引用")
+    review_record_step_parser.add_argument("--hypothesis", default="", help="可选待验证假设")
+    review_record_step_parser.add_argument("--note", default="", help="可选人工备注")
+    review_record_step_parser.add_argument(
+        "--database", type=Path, default=DEFAULT_DATABASE_PATH, help="本地 SQLite 数据库路径"
+    )
+    review_record_step_parser.add_argument("--log-path", type=Path, default=Path("logs") / "stock_review.log", help="本地日志路径")
+    review_record_step_parser.set_defaults(handler=handle_review_record_step)
+
+    review_record_preview_parser = review_subparsers.add_parser(
+        "record-preview",
+        help="保存用户确认的 STEP 8 四类预演条件",
+    )
+    review_record_preview_parser.add_argument("--date", required=True, help="复盘日期，格式 YYYY-MM-DD")
+    review_record_preview_parser.add_argument("--target", required=True, help="预演对象")
+    review_record_preview_parser.add_argument("--expectation", required=True, help="符合预期条件")
+    review_record_preview_parser.add_argument("--over-expectation", required=True, help="超预期条件")
+    review_record_preview_parser.add_argument("--under-expectation", required=True, help="不及预期条件")
+    review_record_preview_parser.add_argument("--abandon-condition", required=True, help="放弃条件")
+    review_record_preview_parser.add_argument("--evidence-reference", required=True, help="Evidence Snapshot 或人工证据引用")
+    review_record_preview_parser.add_argument("--confirmed", action="store_true", help="确认这是用户本人输入的预演")
+    review_record_preview_parser.add_argument(
+        "--database", type=Path, default=DEFAULT_DATABASE_PATH, help="本地 SQLite 数据库路径"
+    )
+    review_record_preview_parser.add_argument("--log-path", type=Path, default=Path("logs") / "stock_review.log", help="本地日志路径")
+    review_record_preview_parser.set_defaults(handler=handle_review_record_preview)
+
+    review_list_records_parser = review_subparsers.add_parser(
+        "list-records",
+        help="按复盘日期查看人工 STEP 判断和 STEP 8 预演",
+    )
+    review_list_records_parser.add_argument("--date", required=True, help="复盘日期，格式 YYYY-MM-DD")
+    review_list_records_parser.add_argument(
+        "--database", type=Path, default=DEFAULT_DATABASE_PATH, help="本地 SQLite 数据库路径"
+    )
+    review_list_records_parser.set_defaults(handler=handle_review_list_records)
+
+    review_build_context_parser = review_subparsers.add_parser(
+        "build-context",
+        help="只读汇总复盘证据、人工记录和有效真实池对象",
+    )
+    review_build_context_parser.add_argument("--date", required=True, help="复盘日期，格式 YYYY-MM-DD")
+    review_build_context_parser.add_argument(
+        "--snapshot-dir", type=Path, default=DEFAULT_EVIDENCE_DIR, help="Evidence Snapshot 目录"
+    )
+    review_build_context_parser.add_argument(
+        "--database", type=Path, default=DEFAULT_DATABASE_PATH, help="本地 SQLite 数据库路径"
+    )
+    review_build_context_parser.set_defaults(handler=handle_review_build_context)
 
     evidence_parser = subparsers.add_parser("evidence", help="证据快照相关命令")
     evidence_subparsers = evidence_parser.add_subparsers(dest="evidence_command")
@@ -332,6 +399,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     evidence_market_history_parser.set_defaults(handler=handle_evidence_market_history)
 
+    evidence_summarize_review_parser = evidence_subparsers.add_parser(
+        "summarize-review",
+        help="按 STEP 1-7 汇总本地证据事实，不生成交易结论",
+    )
+    evidence_summarize_review_parser.add_argument("--date", required=True, help="交易日期，格式 YYYY-MM-DD")
+    evidence_summarize_review_parser.add_argument(
+        "--snapshot-dir", type=Path, default=DEFAULT_EVIDENCE_DIR, help="Evidence Snapshot 目录"
+    )
+    evidence_summarize_review_parser.add_argument(
+        "--pool-history-dir", type=Path, default=DEFAULT_EVIDENCE_DIR, help="真实池历史事实目录"
+    )
+    evidence_summarize_review_parser.add_argument(
+        "--output-dir", type=Path, default=Path("reports") / "daily", help="事实归纳报告输出目录"
+    )
+    evidence_summarize_review_parser.set_defaults(handler=handle_evidence_summarize_review)
+
     pool_parser = subparsers.add_parser("pool", help="关注池和热点池相关命令")
     pool_subparsers = pool_parser.add_subparsers(dest="pool_command")
 
@@ -357,6 +440,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     pool_list_parser.add_argument("--record-kind", choices=["real", "sample"], help="记录类型筛选")
     pool_list_parser.set_defaults(handler=handle_pool_list)
+
+    pool_migrate_sectors_parser = pool_subparsers.add_parser(
+        "migrate-sectors",
+        help="将旧单板块池子结构显式迁移为多板块关联结构",
+    )
+    pool_migrate_sectors_parser.add_argument(
+        "--database", type=Path, default=DEFAULT_DATABASE_PATH, help="本地 SQLite 数据库路径"
+    )
+    pool_migrate_sectors_parser.set_defaults(handler=handle_pool_migrate_sectors)
 
     pool_update_record_kind_parser = pool_subparsers.add_parser(
         "update-record-kind",
@@ -542,7 +634,7 @@ def add_pool_arguments(parser: argparse.ArgumentParser, require_reason: bool) ->
     parser.add_argument("--date", required=True, help="进入池子的日期，格式 YYYY-MM-DD")
     parser.add_argument("--reason", required=require_reason, default="", help="进入池子的原因")
     parser.add_argument("--exchange", default="", help="交易所，缺失时标记为待确认")
-    parser.add_argument("--sector", default="", help="所属板块，缺失时标记为待确认")
+    parser.add_argument("--sector", action="append", default=[], help="所属板块；可重复传入，最多 3 个")
     parser.add_argument("--note", default="", help="人工备注")
     parser.add_argument(
         "--database",
@@ -565,6 +657,64 @@ def handle_framework_check(args: argparse.Namespace) -> int:
 def handle_review_create(args: argparse.Namespace) -> int:
     output_path = create_daily_review(args.date, args.framework, evidence_path=args.evidence)
     print(f"已生成每日复盘：{output_path}")
+    return 0
+
+
+# 单个 STEP 判断只保存用户填写的原文和证据引用，不根据快照自动补写结论。
+def handle_review_record_step(args: argparse.Namespace) -> int:
+    record = add_manual_step_record(
+        args.date,
+        args.step,
+        args.judgment,
+        args.evidence_reference,
+        hypothesis=args.hypothesis,
+        note=args.note,
+        database_path=args.database,
+    )
+    write_manual_review_log(
+        "review record-step", record.review_date, record.record_id, record.evidence_reference, args.database, args.log_path
+    )
+    print(f"已保存人工 STEP 判断：{record.record_id}")
+    return 0
+
+
+# STEP 8 必须显式确认后才保存，四类条件只供人工观察和后续回查，不生成买卖指令。
+def handle_review_record_preview(args: argparse.Namespace) -> int:
+    preview = add_manual_preview(
+        args.date,
+        args.target,
+        args.expectation,
+        args.over_expectation,
+        args.under_expectation,
+        args.abandon_condition,
+        args.evidence_reference,
+        user_confirmed=args.confirmed,
+        database_path=args.database,
+    )
+    write_manual_review_log(
+        "review record-preview", preview.review_date, preview.preview_id, preview.evidence_reference, args.database, args.log_path
+    )
+    print(f"已保存 STEP 8 人工预演：{preview.preview_id}")
+    return 0
+
+
+# 查询只回显已保存的人工记录，不将其自动关联至计划或 Observation。
+def handle_review_list_records(args: argparse.Namespace) -> int:
+    records, previews = list_manual_review_records(args.date, database_path=args.database)
+    if not records and not previews:
+        print("暂无人工复盘记录。")
+        return 0
+    for record in records:
+        print(f"{record.record_id} | STEP {record.step_number} | {record.judgment} | {record.evidence_reference}")
+    for preview in previews:
+        print(f"{preview.preview_id} | STEP 8 | {preview.target} | {preview.evidence_reference}")
+    return 0
+
+
+# 上下文构建只读取本地事实和人工记录，空池或缺少判断时明确返回待补状态。
+def handle_review_build_context(args: argparse.Namespace) -> int:
+    context = build_review_context(args.date, snapshot_dir=args.snapshot_dir, database_path=args.database)
+    print(render_review_context(context), end="")
     return 0
 
 
@@ -731,7 +881,7 @@ def handle_pool_add(args: argparse.Namespace, pool_type: str) -> int:
         start_date=args.date,
         reason=args.reason,
         exchange=args.exchange,
-        sector=args.sector,
+        sectors=tuple(args.sector),
         note=args.note,
         database_path=args.database,
     )
@@ -751,8 +901,16 @@ def handle_pool_list(args: argparse.Namespace) -> int:
     for item in items:
         print(
             f"{pool_label_for_output(item.pool_type)} | {item.code} | {item.name} | {item.exchange} | "
-            f"{item.sector} | {item.status} | {item.record_kind} | {item.start_date} | {item.reason or '无'}"
+            f"{'、'.join(item.sectors)} | {item.status} | {item.record_kind} | {item.start_date} | {item.reason or '无'}"
         )
+    return 0
+
+
+# 迁移只保留已有对象及其原板块为第一条人工确认关联，不新增股票、不修改状态或记录类型。
+def handle_pool_migrate_sectors(args: argparse.Namespace) -> int:
+    migrated_count = migrate_pool_item_sectors(database_path=args.database)
+    write_pool_migration_log(migrated_count, args.database)
+    print(f"已完成池子多板块结构迁移：{migrated_count} 条对象记录。")
     return 0
 
 
@@ -810,6 +968,21 @@ def write_pool_status_log(pool_type: str, code: str, status: str, reason: str, d
             reason,
             database_path,
         )
+    finally:
+        logger.removeHandler(handler)
+        handler.close()
+
+
+def write_pool_migration_log(migrated_count: int, database_path: Path) -> None:
+    log_path = Path("logs") / "stock_review.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    logger = logging.getLogger("stock_review.pool")
+    logger.setLevel(logging.INFO)
+    handler = logging.FileHandler(log_path, encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    logger.addHandler(handler)
+    try:
+        logger.info("command=pool migrate-sectors database=%s migrated_count=%s status=completed", database_path, migrated_count)
     finally:
         logger.removeHandler(handler)
         handler.close()
@@ -968,6 +1141,20 @@ def handle_evidence_market_history(args: argparse.Namespace) -> int:
         print("市场阶段状态：数据不足，不判断市场阶段")
     else:
         print(f"指数区间事实数：{len(summary.index_range_facts)}")
+    return 0
+
+
+# STEP 1-7 归纳只读取本地文件；报告固定保留待确认和不可判定，不触发任何业务状态变更。
+def handle_evidence_summarize_review(args: argparse.Namespace) -> int:
+    output_path, summary = create_review_facts_report(
+        args.date,
+        snapshot_dir=args.snapshot_dir,
+        pool_history_dir=args.pool_history_dir,
+        output_dir=args.output_dir,
+    )
+    print(f"已生成 STEP 1-7 证据事实归纳报告：{output_path}")
+    print(f"Evidence Snapshot 标准缺口数：{len(summary.missing_fields)}")
+    print("归纳状态：仅事实与待确认，不判断阶段、核心票或买点")
     return 0
 
 
