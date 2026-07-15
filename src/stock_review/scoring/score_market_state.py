@@ -8,6 +8,7 @@ from pathlib import Path
 from stock_review.evidence.evidence_snapshot import EvidenceSnapshot, build_evidence_snapshot
 from stock_review.evidence.manage_evidence_snapshot import read_json_mapping
 from stock_review.scoring.match_trade_patterns import match_stock_patterns
+from stock_review.scoring.verify_step9_patterns import Step9PatternCheck, verify_step9_patterns
 
 
 @dataclass(frozen=True)
@@ -128,6 +129,7 @@ def create_scoring_report(trade_date: str, evidence_path: Path, output_dir: Path
     market_result = score_market_state(snapshot)
     sector_results = [score_sector_strength(sector) for sector in snapshot.sectors]
     stock_results = match_stock_patterns(snapshot)
+    step9_checks = verify_step9_patterns(snapshot)
     lines = [
         f"# {trade_date} 可解释规则评分",
         "",
@@ -162,6 +164,9 @@ def create_scoring_report(trade_date: str, evidence_path: Path, output_dir: Path
         lines.extend(f"- 规则证据：{line}" for line in result.evidence_lines)
         lines.extend(f"- 缺口：{field}" for field in result.missing_fields)
         lines.append("")
+    lines.extend(["## STEP 9 模式逐项核验", ""])
+    for check in step9_checks:
+        lines.extend(render_step9_pattern_check(check))
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"{trade_date}_scoring.md"
     output_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
@@ -178,3 +183,16 @@ def render_score_result(result: ScoreResult) -> list[str]:
     lines.extend(f"- 规则证据：{line}" for line in result.evidence_lines)
     lines.extend(f"- 缺口：{field}" for field in result.missing_fields)
     return [*lines, ""]
+
+
+def render_step9_pattern_check(check: Step9PatternCheck) -> list[str]:
+    return [
+        f"### 模式 {check.pattern_number}：{check.name}",
+        "",
+        f"- 状态：{check.status}",
+        f"- 已有事实类别：{', '.join(check.available_evidence) or '无'}",
+        f"- 硬缺口：{', '.join(check.missing_evidence) or '无'}",
+        f"- 失效边界：{check.invalidation_boundary}",
+        "- 边界：本项只核验证据是否齐全，不确认买点、不生成交易指令。",
+        "",
+    ]

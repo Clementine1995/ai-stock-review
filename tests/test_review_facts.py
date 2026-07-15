@@ -4,7 +4,7 @@ import json
 import unittest
 
 from stock_review.evidence.manage_evidence_snapshot import EvidenceSnapshotError
-from stock_review.evidence.summarize_review_facts import create_review_facts_report, summarize_review_facts
+from stock_review.evidence.summarize_review_facts import build_step_evidence, create_review_facts_report, summarize_review_facts
 
 
 class ReviewFactsTest(unittest.TestCase):
@@ -24,6 +24,8 @@ class ReviewFactsTest(unittest.TestCase):
             self.assertIn("市场字段来源：akshare", content)
             self.assertIn("002829 星网宇达：5 日 4.2%，20 日 12.5%", content)
             self.assertIn("炸板率比例 0.3", content)
+            self.assertIn("本地允许事实字段：指数事实、成交额事实", content)
+            self.assertIn("真实池 5 日涨跌幅", content)
             self.assertIn("归纳结果：不可判定", content)
             self.assertIn("不能认定核心票", content)
             self.assertIn("不自动加入、暂停、移出或修改任何池子", content)
@@ -37,6 +39,19 @@ class ReviewFactsTest(unittest.TestCase):
 
             self.assertTrue(summary.pool_history_missing)
             self.assertEqual(summary.pool_history_records, ())
+
+    def test_step_mapping_limits_pool_history_to_step_six_and_step_seven(self):
+        with TemporaryDirectory() as temp_path:
+            root = Path(temp_path)
+            self.write_snapshot(root, "2026-07-13")
+            self.write_pool_history(root, "2026-07-13")
+
+            step_evidence = build_step_evidence(summarize_review_facts("2026-07-13", root, root))
+
+            self.assertNotIn("pool_history.return_5d_percent", step_evidence[5].allowed_field_keys)
+            self.assertIn("pool_history.return_5d_percent", step_evidence[6].allowed_field_keys)
+            self.assertIn("pool_history.return_20d_percent", step_evidence[7].allowed_field_keys)
+            self.assertIn("missing_stock_identity", step_evidence[6].hard_missing_fields)
 
     def test_summary_rejects_snapshot_with_different_sample_date(self):
         with TemporaryDirectory() as temp_path:

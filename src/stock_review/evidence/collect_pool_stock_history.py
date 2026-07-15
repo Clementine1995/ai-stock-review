@@ -35,27 +35,31 @@ def collect_real_pool_stock_history(
     pacer = AkshareRequestPacer()
     records: list[dict[str, Any]] = []
     for item in pool_items:
-        pacer.wait_before_request()
         try:
-            frame = client.stock_zh_a_hist(
-                symbol=item.code,
-                period="daily",
-                start_date=start_date,
-                end_date=end_date,
-                adjust="",
+            rows, source, source_note = fetch_pool_history_rows(client, item.code, start_date, end_date, pacer)
+        except AkshareSourceError as error:
+            records.append(
+                {
+                    "code": item.code,
+                    "name": item.name,
+                    "error": str(error),
+                    "missing_fields": ["history_unavailable"],
+                }
             )
-        except Exception as error:  # noqa: BLE001
-            records.append({"code": item.code, "name": item.name, "error": str(error), "missing_fields": ["history_unavailable"]})
             continue
-        records.append(build_history_record(item.code, item.name, item.sectors, target_date, frame))
+        record = build_history_record(item.code, item.name, item.sectors, target_date, rows)
+        record["source"] = source
+        if source_note:
+            record["source_note"] = source_note
+        records.append(record)
 
     payload = {
         "trade_date": trade_date,
-        "source": "akshare:stock_zh_a_hist",
+        "source": "akshare:pool_stock_history",
         "sample_date": trade_date,
         "scope": "real_pool_stocks",
         "records": records,
-        "note": "仅覆盖真实池记录；5/20 日字段不足时保留待确认，不认定核心票或买点。",
+        "note": "仅覆盖真实池记录；主日线失败时可降级到 AKShare 的腾讯日线。该备用源的 amount 单位为手，只写入成交量，不伪装成成交额；5/20 日字段不足时保留待确认，不认定核心票或买点。",
     }
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"{trade_date}_real_pool_stock_history.json"
@@ -64,8 +68,74 @@ def collect_real_pool_stock_history(
     return output_path
 
 
-def build_history_record(code: str, name: str, sectors: tuple[str, ...], target_date: date, frame: Any) -> dict[str, Any]:
+def fetch_pool_history_rows(
+    client: Any,
+    code: str,
+    start_date: str,
+    end_date: str,
+    pacer: AkshareRequestPacer,
+) -> tuple[list[dict[str, Any]], str, str]:
+    try:
+        pacer.wait_before_request()
+        frame = client.stock_zh_a_hist(
+            symbol=code,
+            period="daily",
+            start_date=start_date,
+            end_date=end_date,
+            adjust="",
+        )
+    except Exception as primary_error:  # noqa: BLE001
+        try:
+            pacer.wait_before_request()
+            fallback_frame = client.stock_zh_a_hist_tx(
+                symbol=to_tencent_symbol(code),
+                start_date=start_date,
+                end_date=end_date,
+                adjust="",
+            )
+        except Exception as fallback_error:  # noqa: BLE001
+            raise AkshareSourceError(
+                f"个股日线采集失败：primary={primary_error}；fallback={fallback_error}"
+            ) from fallback_error
+        return normalize_tencent_history_rows(fallback_frame), "akshare:stock_zh_a_hist_tx", "主日线接口失败，已使用腾讯日线备用路径。"
+    return normalize_history_rows(frame), "akshare:stock_zh_a_hist", ""
+
+
+# 腾讯日线要求带交易所前缀；范围只覆盖沪深京 A 股代码，不接受无法确定交易所的代码。
+def to_tencent_symbol(code: str) -> str:
+    if code.startswith(("6",)):
+        return f"sh{code}"
+    if code.startswith(("0", "2", "3")):
+        return f"sz{code}"
+    if code.startswith(("4", "8", "9")):
+        return f"bj{code}"
+    raise AkshareSourceError(f"无法确定腾讯日线交易所前缀：{code}")
+
+
+def normalize_history_rows(frame: Any) -> list[dict[str, Any]]:
     rows = frame.to_dict("records") if hasattr(frame, "to_dict") else frame if isinstance(frame, list) else []
+    return [row for row in rows if isinstance(row, dict)]
+
+
+# 腾讯日线的 amount 单位是手，只能映射为成交量；成交额字段必须保留为空并由缺口标识。
+def normalize_tencent_history_rows(frame: Any) -> list[dict[str, Any]]:
+    normalized_rows: list[dict[str, Any]] = []
+    for row in normalize_history_rows(frame):
+        normalized_rows.append(
+            {
+                "date": row.get("date"),
+                "open": row.get("open"),
+                "close": row.get("close"),
+                "high": row.get("high"),
+                "low": row.get("low"),
+                "volume": row.get("amount"),
+            }
+        )
+    return normalized_rows
+
+
+def build_history_record(code: str, name: str, sectors: tuple[str, ...], target_date: date, frame: Any) -> dict[str, Any]:
+    rows = normalize_history_rows(frame)
     normalized_rows = [row for row in rows if isinstance(row, dict) and parse_row_date(row) is not None and parse_row_date(row) <= target_date]
     normalized_rows.sort(key=parse_row_date)
     latest = normalized_rows[-1] if normalized_rows else {}
@@ -90,6 +160,10 @@ def build_history_record(code: str, name: str, sectors: tuple[str, ...], target_
         record["missing_fields"].append("missing_20d_history")
     if close is None:
         record["missing_fields"].append("missing_latest_close")
+    if record["volume"] is None:
+        record["missing_fields"].append("missing_latest_volume")
+    if record["amount"] is None:
+        record["missing_fields"].append("missing_latest_amount")
     return record
 
 

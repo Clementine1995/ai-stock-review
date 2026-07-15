@@ -28,8 +28,6 @@ class ReviewContext:
     def focus_input_status(self) -> str:
         if not self.active_real_pool_items:
             return "暂无有效真实池对象；不形成重点关注候选。"
-        if 7 in self.missing_step_numbers:
-            return "缺少 STEP 7 人工判断；等待用户确认重点关注。"
         if not self.previews:
             return "缺少 STEP 8 用户确认预演；等待补充条件。"
         return "输入已齐备，仍需用户确认最终重点关注。"

@@ -10,7 +10,7 @@ import sqlite3
 from stock_review.evidence.evidence_snapshot import EvidenceSnapshot
 from stock_review.observations.manage_observation import Observation
 from stock_review.pools.manage_pool_item import PoolItem, PoolItemError, PoolItemStatusEvent
-from stock_review.review_documents.manage_manual_review import ManualPreview, ManualStepRecord
+from stock_review.review_documents.manage_manual_review import ManualFinalResponse, ManualPreview, ManualStepRecord
 
 
 class EvidenceSnapshotRepository:
@@ -507,6 +507,41 @@ class ManualReviewRepository:
         finally:
             connection.close()
 
+    # 最终应对及其关联在同一事务保存，避免出现已确认应对但缺失对象或 Observation 关联的半成品记录。
+    def add_final_response(self, final_response: ManualFinalResponse) -> None:
+        self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        connection = sqlite3.connect(self.database_path)
+        try:
+            self.ensure_tables(connection)
+            connection.execute(
+                """
+                INSERT INTO manual_final_responses (
+                    final_id, review_date, response, risk_boundary, evidence_reference,
+                    plan_reference, plan_item, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    final_response.final_id, final_response.review_date, final_response.response,
+                    final_response.risk_boundary, final_response.evidence_reference,
+                    final_response.plan_reference, final_response.plan_item, final_response.created_at,
+                ),
+            )
+            connection.executemany(
+                "INSERT INTO manual_final_pool_links (final_id, code) VALUES (?, ?)",
+                [(final_response.final_id, code) for code in final_response.pool_codes],
+            )
+            connection.executemany(
+                "INSERT INTO manual_final_preview_links (final_id, preview_id) VALUES (?, ?)",
+                [(final_response.final_id, preview_id) for preview_id in final_response.preview_ids],
+            )
+            connection.executemany(
+                "INSERT INTO manual_final_observation_links (final_id, observation_id) VALUES (?, ?)",
+                [(final_response.final_id, observation_id) for observation_id in final_response.observation_ids],
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
     # ID 按复盘日期递增，便于未来由用户明确选择记录与计划或 Observation 建立关联。
     def next_step_record_id(self, review_date: str, step_number: int) -> str:
         prefix = f"STEP-{review_date.replace('-', '')}-{step_number:02d}-"
@@ -515,6 +550,10 @@ class ManualReviewRepository:
     def next_preview_id(self, review_date: str) -> str:
         prefix = f"PREVIEW-{review_date.replace('-', '')}-"
         return self.next_id("manual_previews", "preview_id", prefix)
+
+    def next_final_id(self, review_date: str) -> str:
+        prefix = f"FINAL-{review_date.replace('-', '')}-"
+        return self.next_id("manual_final_responses", "final_id", prefix)
 
     def next_id(self, table_name: str, id_column: str, prefix: str) -> str:
         connection = sqlite3.connect(self.database_path)
@@ -556,6 +595,35 @@ class ManualReviewRepository:
             )
         ]
 
+    def list_final_responses(self, review_date: str) -> list[ManualFinalResponse]:
+        if not self.database_path.exists():
+            return []
+        connection = sqlite3.connect(self.database_path)
+        try:
+            if not self.table_exists(connection, "manual_final_responses"):
+                return []
+            rows = connection.execute(
+                """
+                SELECT final_id, review_date, response, risk_boundary, evidence_reference,
+                       plan_reference, plan_item, created_at
+                FROM manual_final_responses WHERE review_date = ? ORDER BY final_id
+                """,
+                (review_date,),
+            ).fetchall()
+            return [
+                ManualFinalResponse(
+                    final_id=row[0], review_date=row[1], response=row[2], risk_boundary=row[3],
+                    evidence_reference=row[4], plan_reference=row[5], plan_item=row[6],
+                    pool_codes=tuple(item[0] for item in connection.execute("SELECT code FROM manual_final_pool_links WHERE final_id = ? ORDER BY code", (row[0],))),
+                    preview_ids=tuple(item[0] for item in connection.execute("SELECT preview_id FROM manual_final_preview_links WHERE final_id = ? ORDER BY preview_id", (row[0],))),
+                    observation_ids=tuple(item[0] for item in connection.execute("SELECT observation_id FROM manual_final_observation_links WHERE final_id = ? ORDER BY observation_id", (row[0],))),
+                    created_at=row[7],
+                )
+                for row in rows
+            ]
+        finally:
+            connection.close()
+
     def read_rows(self, statement: str, review_date: str) -> list[tuple[object, ...]]:
         if not self.database_path.exists():
             return []
@@ -580,6 +648,44 @@ class ManualReviewRepository:
                 note TEXT NOT NULL,
                 created_at TEXT NOT NULL,
                 UNIQUE (review_date, step_number)
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS manual_final_responses (
+                final_id TEXT PRIMARY KEY,
+                review_date TEXT NOT NULL,
+                response TEXT NOT NULL,
+                risk_boundary TEXT NOT NULL,
+                evidence_reference TEXT NOT NULL,
+                plan_reference TEXT NOT NULL,
+                plan_item TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS manual_final_pool_links (
+                final_id TEXT NOT NULL, code TEXT NOT NULL,
+                PRIMARY KEY (final_id, code)
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS manual_final_preview_links (
+                final_id TEXT NOT NULL, preview_id TEXT NOT NULL,
+                PRIMARY KEY (final_id, preview_id)
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS manual_final_observation_links (
+                final_id TEXT NOT NULL, observation_id TEXT NOT NULL,
+                PRIMARY KEY (final_id, observation_id)
             )
             """
         )

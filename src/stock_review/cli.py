@@ -47,12 +47,16 @@ from stock_review.pools.build_pool_candidates import build_pool_candidate_summar
 from stock_review.review_documents.create_daily_review import create_daily_review
 from stock_review.review_documents.manage_manual_review import (
     ManualReviewError,
+    add_manual_final_response,
     add_manual_preview,
     add_manual_step_record,
+    list_manual_final_responses,
     list_manual_review_records,
     write_manual_review_log,
 )
 from stock_review.review_documents.build_review_context import build_review_context, render_review_context
+from stock_review.review_documents.create_final_draft import FinalDraftError, create_final_draft, render_final_draft
+from stock_review.llm.openai_compatible_client import LLMClientError
 from stock_review.review_framework.parse_framework import (
     FrameworkParseError,
     parse_framework_file,
@@ -71,7 +75,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         return args.handler(args)
-    except (EvidenceSnapshotError, FrameworkParseError, ManualReviewError, ObservationError, PoolItemError, TradePlanError) as error:
+    except (EvidenceSnapshotError, FinalDraftError, FrameworkParseError, LLMClientError, ManualReviewError, ObservationError, PoolItemError, TradePlanError) as error:
         print(f"错误：{error}", file=sys.stderr)
         return 1
     except OSError as error:
@@ -159,6 +163,26 @@ def build_parser() -> argparse.ArgumentParser:
     review_record_preview_parser.add_argument("--log-path", type=Path, default=Path("logs") / "stock_review.log", help="本地日志路径")
     review_record_preview_parser.set_defaults(handler=handle_review_record_preview)
 
+    review_record_final_parser = review_subparsers.add_parser(
+        "record-final",
+        help="保存用户确认的 STEP 10 最终应对及显式关联",
+    )
+    review_record_final_parser.add_argument("--date", required=True, help="复盘日期，格式 YYYY-MM-DD")
+    review_record_final_parser.add_argument("--response", required=True, help="用户确认的最终应对")
+    review_record_final_parser.add_argument("--risk-boundary", required=True, help="风险边界")
+    review_record_final_parser.add_argument("--evidence-reference", required=True, help="Evidence Snapshot 或人工证据引用")
+    review_record_final_parser.add_argument("--plan-reference", required=True, type=Path, help="已存在的计划 Markdown 路径")
+    review_record_final_parser.add_argument("--plan-item", required=True, help="计划 Markdown 中的计划项标题，例如 计划项 1: 002829 星网宇达")
+    review_record_final_parser.add_argument("--pool-code", required=True, action="append", help="关联的有效真实池代码，可重复传入")
+    review_record_final_parser.add_argument("--preview-id", required=True, action="append", help="关联的 STEP 8 预演 ID，可重复传入")
+    review_record_final_parser.add_argument("--observation-id", required=True, action="append", help="关联的同日 Observation ID，可重复传入")
+    review_record_final_parser.add_argument("--confirmed", action="store_true", help="确认这是用户本人确认的 STEP 10 最终应对")
+    review_record_final_parser.add_argument(
+        "--database", type=Path, default=DEFAULT_DATABASE_PATH, help="本地 SQLite 数据库路径"
+    )
+    review_record_final_parser.add_argument("--log-path", type=Path, default=Path("logs") / "stock_review.log", help="本地日志路径")
+    review_record_final_parser.set_defaults(handler=handle_review_record_final)
+
     review_list_records_parser = review_subparsers.add_parser(
         "list-records",
         help="按复盘日期查看人工 STEP 判断和 STEP 8 预演",
@@ -181,6 +205,19 @@ def build_parser() -> argparse.ArgumentParser:
         "--database", type=Path, default=DEFAULT_DATABASE_PATH, help="本地 SQLite 数据库路径"
     )
     review_build_context_parser.set_defaults(handler=handle_review_build_context)
+
+    review_draft_final_parser = review_subparsers.add_parser(
+        "draft-final",
+        help="调用已配置 LLM 生成只读的 STEP 1-10 待确认草案",
+    )
+    review_draft_final_parser.add_argument("--date", required=True, help="复盘日期，格式 YYYY-MM-DD")
+    review_draft_final_parser.add_argument(
+        "--snapshot-dir", type=Path, default=DEFAULT_EVIDENCE_DIR, help="Evidence Snapshot 目录"
+    )
+    review_draft_final_parser.add_argument(
+        "--database", type=Path, default=DEFAULT_DATABASE_PATH, help="本地 SQLite 数据库路径"
+    )
+    review_draft_final_parser.set_defaults(handler=handle_review_draft_final)
 
     evidence_parser = subparsers.add_parser("evidence", help="证据快照相关命令")
     evidence_subparsers = evidence_parser.add_subparsers(dest="evidence_command")
@@ -698,16 +735,45 @@ def handle_review_record_preview(args: argparse.Namespace) -> int:
     return 0
 
 
+# STEP 10 写入前逐项校验关联对象，避免草案或不存在的池子、预演、Observation 被写成正式记录。
+def handle_review_record_final(args: argparse.Namespace) -> int:
+    final_response = add_manual_final_response(
+        review_date=args.date,
+        response=args.response,
+        risk_boundary=args.risk_boundary,
+        evidence_reference=args.evidence_reference,
+        plan_reference=args.plan_reference,
+        plan_item=args.plan_item,
+        pool_codes=tuple(args.pool_code),
+        preview_ids=tuple(args.preview_id),
+        observation_ids=tuple(args.observation_id),
+        user_confirmed=args.confirmed,
+        database_path=args.database,
+    )
+    write_manual_review_log(
+        "review record-final", final_response.review_date, final_response.final_id,
+        final_response.evidence_reference, args.database, args.log_path,
+    )
+    print(f"已保存 STEP 10 最终应对：{final_response.final_id}")
+    return 0
+
+
 # 查询只回显已保存的人工记录，不将其自动关联至计划或 Observation。
 def handle_review_list_records(args: argparse.Namespace) -> int:
     records, previews = list_manual_review_records(args.date, database_path=args.database)
-    if not records and not previews:
+    final_responses = list_manual_final_responses(args.date, database_path=args.database)
+    if not records and not previews and not final_responses:
         print("暂无人工复盘记录。")
         return 0
     for record in records:
         print(f"{record.record_id} | STEP {record.step_number} | {record.judgment} | {record.evidence_reference}")
     for preview in previews:
         print(f"{preview.preview_id} | STEP 8 | {preview.target} | {preview.evidence_reference}")
+    for final_response in final_responses:
+        print(
+            f"{final_response.final_id} | STEP 10 | 池：{','.join(final_response.pool_codes)} | "
+            f"预演：{','.join(final_response.preview_ids)} | Observation：{','.join(final_response.observation_ids)}"
+        )
     return 0
 
 
@@ -715,6 +781,13 @@ def handle_review_list_records(args: argparse.Namespace) -> int:
 def handle_review_build_context(args: argparse.Namespace) -> int:
     context = build_review_context(args.date, snapshot_dir=args.snapshot_dir, database_path=args.database)
     print(render_review_context(context), end="")
+    return 0
+
+
+# 草案命令只读取本地上下文并向用户配置的 LLM 发送请求；结果仅打印，不落库或修改业务对象。
+def handle_review_draft_final(args: argparse.Namespace) -> int:
+    draft = create_final_draft(args.date, snapshot_dir=args.snapshot_dir, database_path=args.database)
+    print(render_final_draft(draft), end="")
     return 0
 
 

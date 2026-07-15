@@ -30,6 +30,100 @@ class ReviewFactsSummary:
     pool_history_missing: bool
 
 
+@dataclass(frozen=True)
+class StepEvidence:
+    step_number: int
+    allowed_field_keys: tuple[str, ...]
+    hard_missing_fields: tuple[str, ...]
+
+    @property
+    def status(self) -> str:
+        return "unavailable" if self.hard_missing_fields else "pending_confirmation"
+
+
+STEP_EVIDENCE_FIELDS = {
+    1: ("market.indices", "market.total_amount"),
+    2: ("sentiment.limit_up_count", "sentiment.highest_board"),
+    3: (
+        "sentiment.limit_up_count",
+        "sentiment.limit_down_count",
+        "sentiment.broken_board_rate",
+        "sentiment.highest_board",
+        "sentiment.emotion_temperature",
+    ),
+    4: ("sectors.rankings",),
+    5: ("sectors.rankings",),
+    6: (
+        "stocks.current",
+        "pool_history.latest",
+        "pool_history.return_5d_percent",
+        "pool_history.return_20d_percent",
+    ),
+    7: (
+        "pool.active_real",
+        "stocks.current",
+        "pool_history.latest",
+        "pool_history.return_5d_percent",
+        "pool_history.return_20d_percent",
+    ),
+}
+
+FIELD_LABELS = {
+    "market.indices": "指数事实",
+    "market.total_amount": "成交额事实",
+    "sentiment.limit_up_count": "涨停数",
+    "sentiment.limit_down_count": "跌停数",
+    "sentiment.broken_board_rate": "炸板率",
+    "sentiment.highest_board": "最高连板",
+    "sentiment.emotion_temperature": "情绪温度",
+    "sectors.rankings": "板块排行",
+    "stocks.current": "当日个股事实",
+    "pool.active_real": "有效真实池对象",
+    "pool_history.latest": "真实池当日行情",
+    "pool_history.return_5d_percent": "真实池 5 日涨跌幅",
+    "pool_history.return_20d_percent": "真实池 20 日涨跌幅",
+}
+
+HARD_GAP_LABELS = {
+    "missing_indices": "缺少指数事实",
+    "missing_total_amount": "缺少成交额事实",
+    "missing_sentiment": "缺少短线情绪事实",
+    "missing_emotion_temperature": "缺少情绪温度",
+    "missing_sectors": "缺少板块排行事实",
+    "missing_stocks": "缺少可确认代码的个股事实",
+    "missing_market_history": "缺少连续市场历史",
+    "missing_advance_decline": "缺少涨跌家数",
+    "missing_overseas_market": "缺少外围市场事实",
+    "missing_large_cap_trend": "缺少大市值趋势",
+    "missing_board_ladder": "缺少连板梯队",
+    "missing_capital_flow": "缺少活跃资金流向",
+    "missing_promotion_rate": "缺少晋级率",
+    "missing_previous_day_feedback": "缺少昨日涨停或连板反馈",
+    "missing_auction": "缺少竞价事实",
+    "missing_sector_history": "缺少连续板块历史",
+    "missing_sector_kline": "缺少板块连续 K 线和量能",
+    "missing_sector_diffusion": "缺少板块内部扩散事实",
+    "missing_real_pool_history": "缺少真实池历史文件",
+    "missing_pool_latest": "缺少真实池当日行情",
+    "missing_pool_5d_return": "缺少真实池 5 日涨跌幅",
+    "missing_pool_20d_return": "缺少真实池 20 日涨跌幅",
+    "missing_stock_identity": "缺少个股身份验证",
+    "missing_relative_strength": "缺少逆势表现",
+    "missing_continuous_comparison": "缺少连续比较证据",
+}
+
+SNAPSHOT_GAP_CODES = frozenset(
+    {
+        "missing_indices",
+        "missing_total_amount",
+        "missing_sentiment",
+        "missing_emotion_temperature",
+        "missing_sectors",
+        "missing_stocks",
+    }
+)
+
+
 # 只读取指定交易日的快照和同日真实池事实文件；日期或范围不一致时不把记录作为当日事实使用。
 def summarize_review_facts(trade_date: str, snapshot_dir: Path, pool_history_dir: Path) -> ReviewFactsSummary:
     try:
@@ -76,8 +170,60 @@ def read_pool_history_records(pool_history_path: Path, trade_date: str) -> tuple
     return tuple(record for record in records if isinstance(record, dict))
 
 
+def build_step_evidence(summary: ReviewFactsSummary) -> dict[int, StepEvidence]:
+    missing_fields = set(summary.missing_fields)
+    step_gaps = {
+        1: required_gaps(
+            missing_fields,
+            ("missing_indices", "missing_total_amount", "missing_market_history", "missing_advance_decline", "missing_overseas_market"),
+        ),
+        2: required_gaps(
+            missing_fields,
+            ("missing_sentiment", "missing_large_cap_trend", "missing_board_ladder", "missing_capital_flow"),
+        ),
+        3: required_gaps(
+            missing_fields,
+            ("missing_sentiment", "missing_emotion_temperature", "missing_promotion_rate", "missing_previous_day_feedback", "missing_auction"),
+        ),
+        4: required_gaps(missing_fields, ("missing_sectors", "missing_sector_history")),
+        5: required_gaps(missing_fields, ("missing_sectors", "missing_sector_kline", "missing_sector_diffusion")),
+        6: required_gaps(
+            missing_fields,
+            ("missing_stocks", "missing_stock_identity", "missing_relative_strength", "missing_continuous_comparison"),
+        ),
+        7: [],
+    }
+    pool_history_gaps = pool_history_gap_codes(summary)
+    step_gaps[6].extend(pool_history_gaps)
+    step_gaps[7].extend(pool_history_gaps)
+    return {
+        step_number: StepEvidence(step_number, STEP_EVIDENCE_FIELDS[step_number], tuple(step_gaps[step_number]))
+        for step_number in range(1, 8)
+    }
+
+
+def required_gaps(existing_gaps: set[str], required_codes: tuple[str, ...]) -> list[str]:
+    return [code for code in required_codes if code not in SNAPSHOT_GAP_CODES or code in existing_gaps]
+
+
+def pool_history_gap_codes(summary: ReviewFactsSummary) -> list[str]:
+    if summary.pool_history_missing:
+        return ["missing_real_pool_history"]
+    if not summary.pool_history_records:
+        return ["missing_pool_latest", "missing_pool_5d_return", "missing_pool_20d_return"]
+    gaps: list[str] = []
+    if not any(record.get("close") not in (None, "") for record in summary.pool_history_records):
+        gaps.append("missing_pool_latest")
+    if not any(record.get("return_5d_percent") not in (None, "") for record in summary.pool_history_records):
+        gaps.append("missing_pool_5d_return")
+    if not any(record.get("return_20d_percent") not in (None, "") for record in summary.pool_history_records):
+        gaps.append("missing_pool_20d_return")
+    return gaps
+
+
 # 报告只转述输入事实、缺口和反向证据；五日门槛前不输出阶段、核心票或买点结论。
 def render_review_facts(summary: ReviewFactsSummary) -> str:
+    step_evidence = build_step_evidence(summary)
     lines = [
         f"# {summary.trade_date} STEP 1-7 证据事实归纳",
         "",
@@ -92,6 +238,7 @@ def render_review_facts(summary: ReviewFactsSummary) -> str:
         f"- 指数事实：{render_indices(summary.market)}",
         f"- 成交额事实：{render_value(summary.market.get('total_amount'))}；来源：{summary.market.get('total_amount_source') or '待确认'}。",
         "- 归纳结果：不可判定。",
+        *render_step_evidence_contract(step_evidence[1]),
         f"- 反向证据：缺少至少 {MINIMUM_HISTORY_DAYS} 个有效交易日的连续市场事实、涨跌家数和外围市场字段。",
         "",
         "## STEP 2 市场风格",
@@ -99,12 +246,14 @@ def render_review_facts(summary: ReviewFactsSummary) -> str:
         f"- 可用事实：最高连板 {render_value(summary.sentiment.get('highest_board'))}；涨停数 {render_value(summary.sentiment.get('limit_up_count'))}。",
         f"- 情绪字段来源：{source_name(summary, 'sentiment')}。",
         "- 归纳结果：不可判定。",
+        *render_step_evidence_contract(step_evidence[2]),
         "- 反向证据：缺少大市值趋势、容量中军、连板梯队完整性和活跃资金流向的可验证字段。",
         "",
         "## STEP 3 情绪周期",
         "",
         f"- 可用事实：涨停 {render_value(summary.sentiment.get('limit_up_count'))}；跌停 {render_value(summary.sentiment.get('limit_down_count'))}；炸板率比例 {render_value(summary.sentiment.get('broken_board_rate'))}；最高连板 {render_value(summary.sentiment.get('highest_board'))}；情绪温度 {render_value(summary.sentiment.get('emotion_temperature'))}。",
         "- 归纳结果：不可判定。",
+        *render_step_evidence_contract(step_evidence[3]),
         "- 反向证据：缺少晋级率、昨日涨停/连板反馈、竞价和连续情绪样本，不能判断情绪周期。",
         "",
         "## STEP 4 核心板块",
@@ -112,12 +261,14 @@ def render_review_facts(summary: ReviewFactsSummary) -> str:
         f"- 板块字段来源：{source_name(summary, 'sectors')}。",
         f"- 当日排行事实：{render_sectors(summary.sectors)}",
         "- 归纳结果：待确认。",
+        *render_step_evidence_contract(step_evidence[4]),
         f"- 反向证据：缺少至少 {MINIMUM_HISTORY_DAYS} 个有效板块交易日的反复活跃、量能和内部表现证据，不能认定核心板块。",
         "",
         "## STEP 5 主升板块阶段",
         "",
         "- 可用事实：仅沿用 STEP 4 的当日板块排行与字段来源。",
         "- 归纳结果：不可判定。",
+        *render_step_evidence_contract(step_evidence[5]),
         "- 反向证据：缺少连续 K 线、量能、启动/回调节点和板块内部扩散证据，不能判断启动、主升、轮动或破位。",
         "",
         "## STEP 6 核心票",
@@ -125,12 +276,14 @@ def render_review_facts(summary: ReviewFactsSummary) -> str:
         f"- 快照个股事实：{render_stock_candidates(summary.stocks)}",
         f"- 真实池历史事实：{render_pool_history(summary.pool_history_records, summary.pool_history_missing)}",
         "- 归纳结果：待确认。",
+        *render_step_evidence_contract(step_evidence[6]),
         "- 反向证据：角色来源、5/20 日表现和当日事实只能作为候选；缺少身份验证、逆势表现和连续比较证据，不能认定核心票。",
         "",
         "## STEP 7 重点关注",
         "",
         "- 可用对象：仅展示 STEP 6 的已采集候选和真实池历史事实，不自动加入、暂停、移出或修改任何池子。",
         "- 归纳结果：待用户人工确认。",
+        *render_step_evidence_contract(step_evidence[7]),
         "- 反向证据：缺少用户当日复盘判断、符合预期/超预期/不及预期/放弃条件，不能生成次日重点关注或交易计划。",
         "",
         "## 统一证据缺口",
@@ -141,6 +294,15 @@ def render_review_facts(summary: ReviewFactsSummary) -> str:
     else:
         lines.append("- 当前 Evidence Snapshot 的标准字段缺口为 0；这不表示 STEP 1-7 所需时序和判断字段齐全。")
     return "\n".join(lines).rstrip() + "\n"
+
+
+def render_step_evidence_contract(step_evidence: StepEvidence) -> list[str]:
+    field_labels = "、".join(FIELD_LABELS[field_name] for field_name in step_evidence.allowed_field_keys)
+    hard_gap_labels = "、".join(HARD_GAP_LABELS[gap] for gap in step_evidence.hard_missing_fields) or "无"
+    return [
+        f"- 本地允许事实字段：{field_labels}。",
+        f"- 本地状态：{step_evidence.status}；硬缺口：{hard_gap_labels}。",
+    ]
 
 
 # 输出文件只由显式 CLI 调用创建，归纳过程本身不写 SQLite、不调用外部数据源。

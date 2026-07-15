@@ -42,6 +42,21 @@ class ManualPreview:
     created_at: str
 
 
+@dataclass(frozen=True)
+class ManualFinalResponse:
+    final_id: str
+    review_date: str
+    response: str
+    risk_boundary: str
+    evidence_reference: str
+    plan_reference: str
+    plan_item: str
+    pool_codes: tuple[str, ...]
+    preview_ids: tuple[str, ...]
+    observation_ids: tuple[str, ...]
+    created_at: str
+
+
 # STEP 判断由用户显式输入；每个交易日每个 STEP 只保存一条当前人工判断，避免静默合并不同结论。
 def add_manual_step_record(
     review_date: str,
@@ -124,6 +139,75 @@ def add_manual_preview(
     return preview
 
 
+# STEP 10 只能由用户确认后保存，并显式关联真实池、已确认预演、计划项和同日 Observation。
+def add_manual_final_response(
+    review_date: str,
+    response: str,
+    risk_boundary: str,
+    evidence_reference: str,
+    plan_reference: Path,
+    plan_item: str,
+    pool_codes: tuple[str, ...],
+    preview_ids: tuple[str, ...],
+    observation_ids: tuple[str, ...],
+    user_confirmed: bool,
+    database_path: Path = DEFAULT_DATABASE_PATH,
+) -> ManualFinalResponse:
+    normalized_date = normalize_review_date(review_date)
+    validate_required_fields(
+        {
+            "最终应对": response,
+            "风险边界": risk_boundary,
+            "证据引用": evidence_reference,
+            "计划项": plan_item,
+        }
+    )
+    if not user_confirmed:
+        raise ManualReviewError("STEP 10 最终应对必须由用户显式确认。")
+    if not plan_reference.exists():
+        raise ManualReviewError(f"计划 Markdown 不存在：{plan_reference}")
+    if f"### {plan_item.strip()}" not in plan_reference.read_text(encoding="utf-8"):
+        raise ManualReviewError(f"计划 Markdown 中未找到计划项：{plan_item.strip()}")
+
+    normalized_pool_codes = normalize_identifiers(pool_codes, "真实池代码")
+    normalized_preview_ids = normalize_identifiers(preview_ids, "STEP 8 预演 ID")
+    normalized_observation_ids = normalize_identifiers(observation_ids, "Observation ID")
+    from stock_review.observations.manage_observation import list_observations
+    from stock_review.pools.manage_pool_item import list_pool_items
+
+    real_pool_codes = {item.code for item in list_pool_items(record_kind="real", database_path=database_path) if item.status == "active"}
+    if not set(normalized_pool_codes).issubset(real_pool_codes):
+        raise ManualReviewError("STEP 10 关联的真实池代码不存在或未激活。")
+    _, previews = list_manual_review_records(normalized_date, database_path=database_path)
+    if not set(normalized_preview_ids).issubset({preview.preview_id for preview in previews}):
+        raise ManualReviewError("STEP 10 关联的 STEP 8 预演 ID 不属于该复盘日期。")
+    observations = list_observations(review_date=normalized_date, database_path=database_path)
+    selected_observations = [item for item in observations if item.observation_id in normalized_observation_ids]
+    if len(selected_observations) != len(normalized_observation_ids):
+        raise ManualReviewError("STEP 10 关联的 Observation ID 不属于该复盘日期。")
+    if any(item.plan_item != plan_item.strip() for item in selected_observations):
+        raise ManualReviewError("STEP 10 关联的 Observation 计划项与指定计划项不一致。")
+
+    from stock_review.storage.sqlite_repository import ManualReviewRepository
+
+    repository = ManualReviewRepository(database_path)
+    final_response = ManualFinalResponse(
+        final_id=repository.next_final_id(normalized_date),
+        review_date=normalized_date,
+        response=response.strip(),
+        risk_boundary=risk_boundary.strip(),
+        evidence_reference=evidence_reference.strip(),
+        plan_reference=str(plan_reference),
+        plan_item=plan_item.strip(),
+        pool_codes=normalized_pool_codes,
+        preview_ids=normalized_preview_ids,
+        observation_ids=normalized_observation_ids,
+        created_at=datetime.now().isoformat(timespec="seconds"),
+    )
+    repository.add_final_response(final_response)
+    return final_response
+
+
 # 查询只返回用户已保存的记录，供后续计划与 Observation 显式关联；本函数不创建任何业务记录。
 def list_manual_review_records(
     review_date: str,
@@ -134,6 +218,14 @@ def list_manual_review_records(
 
     repository = ManualReviewRepository(database_path)
     return repository.list_step_records(normalized_date), repository.list_previews(normalized_date)
+
+
+# 最终应对只回显已保存的显式关联，供用户回查而不生成新的计划或 Observation。
+def list_manual_final_responses(review_date: str, database_path: Path = DEFAULT_DATABASE_PATH) -> list[ManualFinalResponse]:
+    normalized_date = normalize_review_date(review_date)
+    from stock_review.storage.sqlite_repository import ManualReviewRepository
+
+    return ManualReviewRepository(database_path).list_final_responses(normalized_date)
 
 
 def normalize_review_date(review_date: str) -> str:
@@ -147,6 +239,13 @@ def validate_required_fields(values: dict[str, str]) -> None:
     for label, value in values.items():
         if not value.strip():
             raise ManualReviewError(f"{label}不能为空。")
+
+
+def normalize_identifiers(values: tuple[str, ...], label: str) -> tuple[str, ...]:
+    normalized = tuple(dict.fromkeys(value.strip() for value in values if value.strip()))
+    if not normalized:
+        raise ManualReviewError(f"至少关联一个{label}。")
+    return normalized
 
 
 # 正式 CLI 写操作记录必要审计字段，供用户按复盘日期、证据引用和记录 ID 回查。

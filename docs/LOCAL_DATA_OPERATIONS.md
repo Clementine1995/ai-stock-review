@@ -10,10 +10,12 @@
 | --- | --- | --- |
 | 离线输入样例 | `data/evidence/2026-07-06_sample.json` | 只用于无网络测试，不代表真实行情 |
 | 真实采集快照 | `data/evidence/YYYY-MM-DD_snapshot.json` | 记录数据来源、样本日期和缺口；历史文件不代表当前行情 |
-| 本地业务库 | `data/stock_review.sqlite` | 保存 Evidence Snapshot、池子及其多板块关联、人工 STEP 判断、STEP 8 预演、Observation 和回填记录 |
+| 本地业务库 | `data/stock_review.sqlite` | 保存 Evidence Snapshot、池子及其多板块关联、人工 STEP 判断、STEP 8/STEP 10 记录、Observation 和回填记录 |
 | 日报与计划 | `reports/daily/` | 由明确交易日期、框架和证据生成；是否为真实复盘取决于人工内容和证据完整度 |
 | 周度学习 | `reports/weekly/` | 只汇总已保存 Observation；验收样例不代表真实经验 |
 | 本地日志 | `logs/stock_review.log` | 记录正式 CLI 写操作及其对象、日期、输出和状态 |
+
+`review draft-final` 会把当天只读上下文发送至用户配置的 OpenAI-compatible 服务，并只向终端打印待确认草案；不写入 SQLite、报告或日志。`.env` 仅保存在本机且已被 Git 忽略，不得提交或粘贴密钥。
 
 当前 `2026-07-10` 日报、计划、周报和 `OBS-20260710-001` 是 M8 系统验收样例。该 Observation 状态为 `invalid`，不进入经验候选。它们证明链路可运行，不证明真实复盘效果已经可用。
 
