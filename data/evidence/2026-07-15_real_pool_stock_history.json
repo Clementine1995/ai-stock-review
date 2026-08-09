@@ -1,0 +1,33 @@
+{
+  "trade_date": "2026-07-15",
+  "source": "akshare:stock_zh_a_hist",
+  "sample_date": "2026-07-15",
+  "scope": "real_pool_stocks",
+  "records": [
+    {
+      "code": "002829",
+      "name": "星网宇达",
+      "error": "HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61%2Cf116&ut=7eea3edcaed734bea9cbfc24409ed989&klt=101&fqt=0&secid=0.002829&beg=20260531&end=20260715 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))",
+      "missing_fields": [
+        "history_unavailable"
+      ]
+    },
+    {
+      "code": "000977",
+      "name": "浪潮信息",
+      "error": "HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61%2Cf116&ut=7eea3edcaed734bea9cbfc24409ed989&klt=101&fqt=0&secid=0.000977&beg=20260531&end=20260715 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))",
+      "missing_fields": [
+        "history_unavailable"
+      ]
+    },
+    {
+      "code": "002384",
+      "name": "东山精密",
+      "error": "HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61%2Cf116&ut=7eea3edcaed734bea9cbfc24409ed989&klt=101&fqt=0&secid=0.002384&beg=20260531&end=20260715 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))",
+      "missing_fields": [
+        "history_unavailable"
+      ]
+    }
+  ],
+  "note": "仅覆盖真实池记录；5/20 日字段不足时保留待确认，不认定核心票或买点。"
+}

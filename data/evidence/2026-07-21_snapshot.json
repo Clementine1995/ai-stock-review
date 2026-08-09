@@ -1,0 +1,287 @@
+{
+  "trade_date": "2026-07-21",
+  "source": "akshare",
+  "sample_date": "2026-07-21",
+  "market": {
+    "indices": [
+      {
+        "symbol": "sh000001",
+        "name": "上证指数",
+        "sample_date": "2026-07-21",
+        "close": 3864.37,
+        "change_percent": 1.79
+      },
+      {
+        "symbol": "sz399001",
+        "name": "深证成指",
+        "sample_date": "2026-07-21",
+        "close": 14264.29,
+        "change_percent": 4.81
+      },
+      {
+        "symbol": "sz399006",
+        "name": "创业板指",
+        "sample_date": "2026-07-21",
+        "close": 3685.97,
+        "change_percent": 7.05
+      }
+    ]
+  },
+  "sentiment": {
+    "limit_up_count": 121,
+    "limit_down_count": 21,
+    "highest_board": 4,
+    "broken_board_rate": 0.062
+  },
+  "sectors": [
+    {
+      "name": "贵金属",
+      "code": "",
+      "source_type": "industry_ths",
+      "strength": "按涨跌幅排序",
+      "change_percent": 5.7,
+      "market_value": null,
+      "turnover": 443,
+      "net_inflow": 22.46,
+      "total_volume": 1700.35,
+      "turnover_rate": null,
+      "up_count": 14,
+      "down_count": 0,
+      "leading_stock": "山金国际",
+      "leading_stock_change_percent": 10.02
+    },
+    {
+      "name": "油气开采及服务",
+      "code": "",
+      "source_type": "industry_ths",
+      "strength": "按涨跌幅排序",
+      "change_percent": 4.03,
+      "market_value": null,
+      "turnover": 120.57,
+      "net_inflow": 2.46,
+      "total_volume": 1338.69,
+      "turnover_rate": null,
+      "up_count": 17,
+      "down_count": 1,
+      "leading_stock": "中曼石油",
+      "leading_stock_change_percent": 10
+    },
+    {
+      "name": "煤炭开采加工",
+      "code": "",
+      "source_type": "industry_ths",
+      "strength": "按涨跌幅排序",
+      "change_percent": 3.17,
+      "market_value": null,
+      "turnover": 186.13,
+      "net_inflow": 12.07,
+      "total_volume": 2160.67,
+      "turnover_rate": null,
+      "up_count": 31,
+      "down_count": 3,
+      "leading_stock": "大有能源",
+      "leading_stock_change_percent": 10.04
+    },
+    {
+      "name": "电力",
+      "code": "",
+      "source_type": "industry_ths",
+      "strength": "按涨跌幅排序",
+      "change_percent": 2.25,
+      "market_value": null,
+      "turnover": 702.29,
+      "net_inflow": 25.01,
+      "total_volume": 9663.79,
+      "turnover_rate": null,
+      "up_count": 85,
+      "down_count": 23,
+      "leading_stock": "九洲集团",
+      "leading_stock_change_percent": 11.88
+    },
+    {
+      "name": "保险",
+      "code": "",
+      "source_type": "industry_ths",
+      "strength": "按涨跌幅排序",
+      "change_percent": 2.11,
+      "market_value": null,
+      "turnover": 131.35,
+      "net_inflow": 11.29,
+      "total_volume": 382.5,
+      "turnover_rate": null,
+      "up_count": 5,
+      "down_count": 0,
+      "leading_stock": "中国太保",
+      "leading_stock_change_percent": 3.54
+    }
+  ],
+  "stocks": [
+    {
+      "code": "待确认",
+      "name": "山金国际",
+      "exchange": "待确认",
+      "sector": "贵金属",
+      "role": "板块领涨事实候选",
+      "role_source": "industry_ths 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": 10.02,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "中曼石油",
+      "exchange": "待确认",
+      "sector": "油气开采及服务",
+      "role": "板块领涨事实候选",
+      "role_source": "industry_ths 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": 10,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "大有能源",
+      "exchange": "待确认",
+      "sector": "煤炭开采加工",
+      "role": "板块领涨事实候选",
+      "role_source": "industry_ths 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": 10.04,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "九洲集团",
+      "exchange": "待确认",
+      "sector": "电力",
+      "role": "板块领涨事实候选",
+      "role_source": "industry_ths 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": 11.88,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "中国太保",
+      "exchange": "待确认",
+      "sector": "保险",
+      "role": "板块领涨事实候选",
+      "role_source": "industry_ths 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": 3.54,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "001258",
+      "name": "立新能源",
+      "exchange": "待确认",
+      "sector": "电力",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（4板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10,
+      "reason": "涨停池记录的连板数为 4，仅作为可追溯事实。"
+    },
+    {
+      "code": "000815",
+      "name": "美利云",
+      "exchange": "待确认",
+      "sector": "IT服务Ⅱ",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 9.9775,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。"
+    },
+    {
+      "code": "000889",
+      "name": "中嘉博创",
+      "exchange": "待确认",
+      "sector": "通信服务",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10.1449,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。"
+    },
+    {
+      "code": "002036",
+      "name": "联创电子",
+      "exchange": "待确认",
+      "sector": "光学光电",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10.0763,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。"
+    },
+    {
+      "code": "600744",
+      "name": "华银电力",
+      "exchange": "待确认",
+      "sector": "电力",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（3板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10.061,
+      "reason": "涨停池记录的连板数为 3，仅作为可追溯事实。"
+    }
+  ],
+  "field_sources": {
+    "market": "tencent",
+    "sentiment": "akshare",
+    "sectors": "akshare",
+    "stocks": "akshare"
+  },
+  "events": [
+    {
+      "title": "AKShare 市场层最小采集",
+      "source": "akshare",
+      "note": "当前仅采集指数日线数据；情绪、板块和个股证据仍需后续数据源补齐。"
+    },
+    {
+      "title": "sh000001 使用腾讯行情备用路径",
+      "source": "tencent",
+      "note": "AKShare stock_zh_index_daily_em 和东方财富 K 线直连失败后，使用腾讯指数 K 线接口；原始错误：[upstream_unavailable] HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=1.000001&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=19900101&end=20500101 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；东方财富错误：[upstream_unavailable] Remote end closed connection without response"
+    },
+    {
+      "title": "sz399001 使用腾讯行情备用路径",
+      "source": "tencent",
+      "note": "AKShare stock_zh_index_daily_em 和东方财富 K 线直连失败后，使用腾讯指数 K 线接口；原始错误：[upstream_unavailable] HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=0.399001&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=19900101&end=20500101 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；东方财富错误：[upstream_unavailable] Remote end closed connection without response"
+    },
+    {
+      "title": "sz399006 使用腾讯行情备用路径",
+      "source": "tencent",
+      "note": "AKShare stock_zh_index_daily_em 和东方财富 K 线直连失败后，使用腾讯指数 K 线接口；原始错误：[upstream_unavailable] HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=0.399006&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=19900101&end=20500101 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；东方财富错误：[upstream_unavailable] Remote end closed connection without response"
+    },
+    {
+      "title": "AKShare 短线情绪最小采集",
+      "source": "akshare",
+      "note": "当前仅采集涨停数、跌停数、炸板率和连板高度；情绪温度、板块和个股证据仍需后续数据源补齐。"
+    },
+    {
+      "title": "AKShare 热门板块最小采集",
+      "source": "akshare",
+      "note": "当前仅采集概念和行业板块涨跌幅、总市值、换手率、涨跌家数和领涨股；不写入核心票列表。"
+    },
+    {
+      "title": "concept 板块采集失败",
+      "source": "akshare",
+      "note": "AKShare 板块接口调用失败且东方财富直连备用路径也失败：stock_board_concept_name_em：akshare=[upstream_unavailable] HTTPSConnectionPool(host='79.push2.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/clist/get?pn=1&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f12&fs=m%3A90+t%3A3+f%3A%2150&fields=f2%2Cf3%2Cf4%2Cf8%2Cf12%2Cf14%2Cf15%2Cf16%2Cf17%2Cf18%2Cf20%2Cf21%2Cf24%2Cf25%2Cf22%2Cf33%2Cf11%2Cf62%2Cf128%2Cf124%2Cf107%2Cf104%2Cf105%2Cf136 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；eastmoney=[upstream_unavailable] Remote end closed connection without response"
+    },
+    {
+      "title": "industry 板块采集失败",
+      "source": "akshare",
+      "note": "AKShare 板块接口调用失败且东方财富直连备用路径也失败：stock_board_industry_name_em：akshare=[upstream_unavailable] HTTPSConnectionPool(host='17.push2.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/clist/get?pn=1&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f3&fs=m%3A90+t%3A2+f%3A%2150&fields=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6%2Cf7%2Cf8%2Cf9%2Cf10%2Cf12%2Cf13%2Cf14%2Cf15%2Cf16%2Cf17%2Cf18%2Cf20%2Cf21%2Cf23%2Cf24%2Cf25%2Cf26%2Cf22%2Cf33%2Cf11%2Cf62%2Cf128%2Cf136%2Cf115%2Cf152%2Cf124%2Cf107%2Cf104%2Cf105%2Cf140%2Cf141%2Cf207%2Cf208%2Cf209%2Cf222 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；eastmoney=[upstream_unavailable] Remote end closed connection without response"
+    },
+    {
+      "title": "AKShare 个股事实最小采集",
+      "source": "akshare",
+      "note": "仅提取已有板块领涨股和涨停池连板股事实；不认定核心票，不修改池子，不生成买卖建议。"
+    }
+  ],
+  "missing_fields": [
+    "missing_total_amount",
+    "missing_emotion_temperature"
+  ]
+}

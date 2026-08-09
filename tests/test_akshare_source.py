@@ -207,7 +207,7 @@ class AkshareSourceTest(unittest.TestCase):
         self.assertEqual(classify_akshare_error(RuntimeError("HTTP 403 Forbidden")), "access_denied")
         self.assertEqual(classify_akshare_error(RuntimeError("connection reset")), "upstream_unavailable")
 
-    def test_existing_akshare_scope_is_reused_only_when_scope_fields_are_complete(self):
+    def test_existing_akshare_scope_reuses_complete_or_documented_tencent_market(self):
         snapshot_data = {
             "source": "akshare",
             "market": {"indices": [{"name": "上证指数"}], "total_amount": 1},
@@ -227,6 +227,14 @@ class AkshareSourceTest(unittest.TestCase):
         self.assertTrue(is_akshare_scope_covered(snapshot_data, "stocks"))
         snapshot_data["sentiment"]["highest_board"] = None
         self.assertFalse(is_akshare_scope_covered(snapshot_data, "sentiment"))
+        snapshot_data["market"].pop("total_amount")
+        snapshot_data["field_sources"] = {"market": "tencent"}
+        self.assertTrue(is_akshare_scope_covered(snapshot_data, "market"))
+        snapshot_data["field_sources"] = {}
+        self.assertFalse(is_akshare_scope_covered(snapshot_data, "market"))
+        snapshot_data["market"]["total_amount"] = 1
+        snapshot_data["market"]["total_amount_source"] = "tencent_index_kline_amount"
+        self.assertFalse(is_akshare_scope_covered(snapshot_data, "market"))
 
     def test_collect_akshare_reuses_existing_scope_without_calling_source(self):
         with TemporaryDirectory() as temp_path:
@@ -291,6 +299,7 @@ class AkshareSourceTest(unittest.TestCase):
             raw_data["market"]["total_amount_source"],
             "akshare_stock_zh_index_daily_em_amount_sum",
         )
+        self.assertEqual(raw_data["field_sources"]["market"], "akshare:stock_zh_index_daily_em")
 
     def test_akshare_market_snapshot_keeps_non_market_gaps(self):
         raw_data = collect_akshare_market_evidence("2026-07-06", ak_client=FakeAkshareClient())
@@ -434,6 +443,7 @@ class AkshareSourceTest(unittest.TestCase):
         self.assertEqual(raw_data["market"]["indices"][0]["change_percent"], 5)
         self.assertEqual(raw_data["market"]["total_amount"], 36)
         self.assertEqual(raw_data["market"]["total_amount_source"], "eastmoney_index_kline_amount")
+        self.assertEqual(raw_data["field_sources"]["market"], "eastmoney")
         self.assertTrue(any(event["source"] == "eastmoney" for event in raw_data["events"]))
 
     def test_collect_akshare_market_evidence_uses_tencent_fallback_after_eastmoney_failure(self):
@@ -448,14 +458,10 @@ class AkshareSourceTest(unittest.TestCase):
                 {
                     "date": "2026-07-03",
                     "close": "100",
-                    "amount": "10",
-                    "__amount_source": "tencent_index_kline_amount",
                 },
                 {
                     "date": "2026-07-06",
                     "close": "103",
-                    "amount": "11",
-                    "__amount_source": "tencent_index_kline_amount",
                 },
             ]
 
@@ -469,11 +475,14 @@ class AkshareSourceTest(unittest.TestCase):
 
         self.assertEqual(len(raw_data["market"]["indices"]), 3)
         self.assertEqual(raw_data["market"]["indices"][0]["change_percent"], 3)
-        self.assertEqual(raw_data["market"]["total_amount"], 33)
-        self.assertEqual(raw_data["market"]["total_amount_source"], "tencent_index_kline_amount")
+        self.assertNotIn("total_amount", raw_data["market"])
+        self.assertNotIn("total_amount_source", raw_data["market"])
+        self.assertEqual(raw_data["field_sources"]["market"], "tencent")
+        snapshot = build_evidence_snapshot("2026-07-06", raw_data)
+        self.assertIn("missing_total_amount", snapshot.missing_fields)
         self.assertTrue(any(event["source"] == "tencent" for event in raw_data["events"]))
 
-    def test_tencent_fallback_treats_sixth_kline_field_as_amount(self):
+    def test_tencent_fallback_does_not_treat_hand_count_as_turnover_amount(self):
         original_request_json = akshare_source.request_json_without_environment_proxy
 
         def fake_request_json(url):
@@ -494,8 +503,9 @@ class AkshareSourceTest(unittest.TestCase):
         finally:
             akshare_source.request_json_without_environment_proxy = original_request_json
 
-        self.assertEqual(rows[-1]["amount"], "12")
-        self.assertEqual(rows[-1]["__amount_source"], "tencent_index_kline_amount")
+        self.assertNotIn("amount", rows[-1])
+        self.assertNotIn("__amount_source", rows[-1])
+        self.assertEqual(rows[-1]["__market_source"], "tencent")
 
     def test_eastmoney_fallback_ignores_environment_proxy(self):
         original_build_opener = akshare_source.urllib.request.build_opener
@@ -537,6 +547,11 @@ class AkshareSourceTest(unittest.TestCase):
 
             self.assertEqual(output_path, root / "2026-07-06_snapshot.json")
             self.assertTrue(output_path.exists())
+            snapshot_data = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(
+                snapshot_data["field_sources"]["market"],
+                "akshare:stock_zh_index_daily_em",
+            )
 
     def test_collect_akshare_sentiment_writes_standard_snapshot_path(self):
         with TemporaryDirectory() as temp_path:

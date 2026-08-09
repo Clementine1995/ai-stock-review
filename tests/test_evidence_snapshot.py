@@ -71,6 +71,28 @@ class EvidenceSnapshotTest(unittest.TestCase):
         self.assertNotIn("missing_sentiment", snapshot.missing_fields)
         self.assertIn("missing_emotion_temperature", snapshot.missing_fields)
 
+    def test_legacy_hhxg_sentiment_index_is_reinterpreted_as_profit_effect_on_read(self):
+        snapshot = build_evidence_snapshot(
+            "2026-07-17",
+            {
+                "sentiment": {
+                    "limit_up_count": 20,
+                    "limit_down_count": 50,
+                    "broken_board_rate": 0.3,
+                    "highest_board": 3,
+                    "emotion_temperature": 9.4,
+                },
+                "field_sources": {"sentiment": "hhxg"},
+            },
+        )
+
+        self.assertEqual(snapshot.sentiment["profit_effect_percent"], 9.4)
+        self.assertNotIn("emotion_temperature", snapshot.sentiment)
+        self.assertEqual(
+            snapshot.sentiment["profit_effect_calculation"],
+            "source_provided_formula_unverified",
+        )
+
     def test_check_evidence_snapshot_reads_existing_snapshot(self):
         with TemporaryDirectory() as temp_path:
             snapshot_dir = Path(temp_path)
@@ -126,12 +148,18 @@ class EvidenceSnapshotTest(unittest.TestCase):
                 "source": "hhxg",
                 "sentiment": {"limit_up_count": 92},
                 "sectors": [{"name": "军工", "source_type": "hhxg_hot_theme"}],
+                "field_sources": {"sentiment": "hhxg:snapshot", "sectors": "hhxg:snapshot"},
             },
         )
 
         self.assertEqual(
             merged["field_sources"],
-            {"market": "akshare", "stocks": "akshare", "sentiment": "hhxg", "sectors": "hhxg"},
+            {
+                "market": "akshare",
+                "stocks": "akshare",
+                "sentiment": "hhxg:snapshot",
+                "sectors": "hhxg:snapshot",
+            },
         )
 
     def test_render_marks_old_snapshot_field_source_as_unconfirmed(self):
@@ -141,6 +169,23 @@ class EvidenceSnapshotTest(unittest.TestCase):
         )
 
         self.assertIn("待确认（旧快照未记录字段来源）", render_sentiment_lines(snapshot)[0])
+
+    def test_snapshot_rejects_legacy_tencent_hand_count_as_total_amount(self):
+        snapshot = build_evidence_snapshot(
+            "2026-07-17",
+            {
+                "source": "akshare",
+                "market": {
+                    "indices": [{"name": "上证指数", "close": 3764.15}],
+                    "total_amount": 1644442622,
+                    "total_amount_source": "tencent_index_kline_amount",
+                },
+            },
+        )
+
+        self.assertNotIn("total_amount", snapshot.market)
+        self.assertNotIn("total_amount_source", snapshot.market)
+        self.assertIn("missing_total_amount", snapshot.missing_fields)
 
 
 if __name__ == "__main__":

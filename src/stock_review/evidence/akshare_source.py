@@ -71,6 +71,7 @@ def collect_akshare_market_evidence(trade_date: str, ak_client: Any | None = Non
     total_amount = Decimal("0")
     amount_count = 0
     amount_sources: set[str] = set()
+    market_sources: set[str] = set()
     events: list[dict[str, str]] = [
         {
             "title": "AKShare 市场层最小采集",
@@ -107,6 +108,7 @@ def collect_akshare_market_evidence(trade_date: str, ak_client: Any | None = Non
             )
 
         indices.append(index_record)
+        market_sources.add(str(selected_row.get("__market_source", "akshare:stock_zh_index_daily_em")))
         if row_date:
             sample_dates.append(row_date)
 
@@ -124,6 +126,7 @@ def collect_akshare_market_evidence(trade_date: str, ak_client: Any | None = Non
         "sentiment": {},
         "sectors": [],
         "stocks": [],
+        "field_sources": {"market": "+".join(sorted(market_sources))} if market_sources else {},
         "events": events,
     }
 
@@ -326,7 +329,11 @@ def get_index_rows(
     else:
         raise AkshareSourceError(f"AKShare 指数接口返回格式不可识别：{symbol}")
 
-    return [row for row in rows if isinstance(row, dict)]
+    # 主接口名必须保留到字段来源，不能只用顶层 akshare 掩盖实际东方财富接口。
+    normalized_rows = [row for row in rows if isinstance(row, dict)]
+    for row in normalized_rows:
+        row.setdefault("__market_source", "akshare:stock_zh_index_daily_em")
+    return normalized_rows
 
 
 def get_sector_rows(
@@ -529,6 +536,8 @@ def get_index_rows_from_fallback_sources(
                     ),
                 }
             )
+        for row in rows:
+            row.setdefault("__market_source", "tencent")
         return rows
 
     if events is not None:
@@ -543,6 +552,8 @@ def get_index_rows_from_fallback_sources(
                 ),
             }
         )
+    for row in rows:
+        row.setdefault("__market_source", "eastmoney")
     return rows
 
 
@@ -581,6 +592,7 @@ def request_eastmoney_index_rows(symbol: str) -> list[dict[str, Any]]:
                 "volume": parts[5],
                 "amount": parts[6],
                 "__amount_source": "eastmoney_index_kline_amount",
+                "__market_source": "eastmoney",
             }
         )
 
@@ -612,10 +624,9 @@ def request_tencent_index_rows(symbol: str) -> list[dict[str, Any]]:
             "close": item[2],
             "high": item[3],
             "low": item[4],
-            # 腾讯指数日线第 6 列是成交额，用于补齐市场层总成交额缺口。
-            "amount": item[5],
-            "__amount_source": "tencent_index_kline_amount",
+            "__market_source": "tencent",
         }
+        # 官方口径中第 6 列 amount 的单位是“手”，不能作为人民币成交额写入市场事实。
         if len(item) >= 7:
             row["volume"] = item[6]
         rows.append(row)

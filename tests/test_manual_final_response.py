@@ -23,7 +23,7 @@ class ManualFinalResponseTest(unittest.TestCase):
                 "2026-07-14", "星网宇达", "符合", "超预期", "不及预期", "放弃", "snapshot", True, database_path
             )
             observation = add_observation(
-                "2026-07-14", "次日反馈", "仅观察", "符合", "放弃", "snapshot",
+                "2026-07-14", "次日反馈", "仅观察", "符合", "放弃", "snapshot", "2026-07-16",
                 related_target="星网宇达", plan_item="计划项 1: 002829 星网宇达", database_path=database_path,
             )
 

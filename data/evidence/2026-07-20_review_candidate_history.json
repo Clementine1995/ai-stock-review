@@ -1,0 +1,229 @@
+{
+  "trade_date": "2026-07-20",
+  "source": "akshare:review_candidate_history",
+  "sample_date": "2026-07-20",
+  "scope": "snapshot_and_real_pool_candidates",
+  "records": [
+    {
+      "code": "001258",
+      "name": "立新能源",
+      "sectors": [
+        "电力"
+      ],
+      "sample_date": "2026-07-20",
+      "close": 9.1,
+      "change_percent": null,
+      "volume": 82136135.0,
+      "amount": 733892672.0,
+      "average_5d_amount": 354455160.0,
+      "outstanding_share": 933323584.0,
+      "circulating_market_value": 8493244614.4,
+      "turnover": 0.08800392104952959,
+      "history_days": 31,
+      "return_5d_percent": 38.9313,
+      "return_20d_percent": 23.4735,
+      "missing_fields": [],
+      "origin": "system_snapshot",
+      "source": "akshare:stock_zh_a_daily"
+    },
+    {
+      "code": "600644",
+      "name": "乐山电力",
+      "sectors": [
+        "电力"
+      ],
+      "sample_date": "2026-07-20",
+      "close": 9.91,
+      "change_percent": null,
+      "volume": 69210540.0,
+      "amount": 670536380.0,
+      "average_5d_amount": 284869063.0,
+      "outstanding_share": 578320818.0,
+      "circulating_market_value": 5731159306.38,
+      "turnover": 0.11967499326645371,
+      "history_days": 31,
+      "return_5d_percent": 25.443,
+      "return_20d_percent": 9.5028,
+      "missing_fields": [],
+      "origin": "system_snapshot",
+      "source": "akshare:stock_zh_a_daily"
+    },
+    {
+      "code": "600744",
+      "name": "华银电力",
+      "sectors": [
+        "电力"
+      ],
+      "sample_date": "2026-07-20",
+      "close": 6.56,
+      "change_percent": null,
+      "volume": 174373548.0,
+      "amount": 1125606761.0,
+      "average_5d_amount": 476135881.6,
+      "outstanding_share": 2031124273.9999998,
+      "circulating_market_value": 13324175237.44,
+      "turnover": 0.08585075282301512,
+      "history_days": 31,
+      "return_5d_percent": 21.2569,
+      "return_20d_percent": -7.3446,
+      "missing_fields": [],
+      "origin": "system_snapshot",
+      "source": "akshare:stock_zh_a_daily"
+    },
+    {
+      "code": "600722",
+      "name": "金牛化工",
+      "sectors": [
+        "化学原料"
+      ],
+      "sample_date": "2026-07-20",
+      "close": 9.38,
+      "change_percent": null,
+      "volume": 49089828.0,
+      "amount": 451616168.0,
+      "average_5d_amount": 485720131.2,
+      "outstanding_share": 680319676.0,
+      "circulating_market_value": 6381398560.88,
+      "turnover": 0.07215700167401891,
+      "history_days": 31,
+      "return_5d_percent": 14.951,
+      "return_20d_percent": 2.6258,
+      "missing_fields": [],
+      "origin": "system_snapshot",
+      "source": "akshare:stock_zh_a_daily"
+    },
+    {
+      "code": "600236",
+      "name": "桂冠电力",
+      "sectors": [
+        "电力"
+      ],
+      "sample_date": "2026-07-20",
+      "close": 11.68,
+      "change_percent": null,
+      "volume": 74289879.0,
+      "amount": 848869979.0,
+      "average_5d_amount": 342209424.0,
+      "outstanding_share": 7882377802.0,
+      "circulating_market_value": 92066172727.36,
+      "turnover": 0.009424805669825974,
+      "history_days": 31,
+      "return_5d_percent": 17.6234,
+      "return_20d_percent": 25.7266,
+      "missing_fields": [],
+      "origin": "system_snapshot",
+      "source": "akshare:stock_zh_a_daily"
+    },
+    {
+      "code": "000722",
+      "name": "湖南发展",
+      "sectors": [
+        "电力"
+      ],
+      "sample_date": "2026-07-20",
+      "close": 15.21,
+      "change_percent": null,
+      "volume": 75355637.0,
+      "amount": 1100838182.0,
+      "average_5d_amount": 536742226.2,
+      "outstanding_share": 464158282.00000006,
+      "circulating_market_value": 7059847469.22,
+      "turnover": 0.16234900878058658,
+      "history_days": 31,
+      "return_5d_percent": 39.4134,
+      "return_20d_percent": 12.5833,
+      "missing_fields": [],
+      "origin": "system_snapshot",
+      "source": "akshare:stock_zh_a_daily"
+    },
+    {
+      "code": "000037",
+      "name": "深南电A",
+      "sectors": [
+        "电力"
+      ],
+      "sample_date": "2026-07-20",
+      "close": 10.12,
+      "change_percent": null,
+      "volume": 76636275.0,
+      "amount": 746615016.0,
+      "average_5d_amount": 270739937.4,
+      "outstanding_share": 338908150.0,
+      "circulating_market_value": 3429750478.0,
+      "turnover": 0.2261269757012335,
+      "history_days": 31,
+      "return_5d_percent": 21.1976,
+      "return_20d_percent": 1.9134,
+      "missing_fields": [],
+      "origin": "system_snapshot",
+      "source": "akshare:stock_zh_a_daily"
+    },
+    {
+      "code": "002829",
+      "name": "星网宇达",
+      "sectors": [
+        "航天装备"
+      ],
+      "sample_date": "2026-07-20",
+      "close": 20.02,
+      "change_percent": null,
+      "volume": 31911416.0,
+      "amount": 646141349.0,
+      "average_5d_amount": 392877389.0,
+      "outstanding_share": 146052524.0,
+      "circulating_market_value": 2923971530.48,
+      "turnover": 0.21849273895465168,
+      "history_days": 31,
+      "return_5d_percent": 8.5683,
+      "return_20d_percent": 8.3333,
+      "missing_fields": [],
+      "origin": "real_pool",
+      "source": "akshare:stock_zh_a_daily"
+    },
+    {
+      "code": "000977",
+      "name": "浪潮信息",
+      "sectors": [
+        "国产算例"
+      ],
+      "sample_date": "2026-07-20",
+      "close": 81.29,
+      "change_percent": null,
+      "volume": 171314722.0,
+      "amount": 14116566420.0,
+      "average_5d_amount": 13256376105.8,
+      "outstanding_share": 1466831804.0000002,
+      "circulating_market_value": 119238757347.16,
+      "turnover": 0.11679234219821973,
+      "history_days": 31,
+      "return_5d_percent": -4.3084,
+      "return_20d_percent": 27.0156,
+      "missing_fields": [],
+      "origin": "real_pool",
+      "source": "akshare:stock_zh_a_daily"
+    },
+    {
+      "code": "002384",
+      "name": "东山精密",
+      "sectors": [
+        "CPO"
+      ],
+      "sample_date": "2026-07-20",
+      "close": 217.73,
+      "change_percent": null,
+      "volume": 108824069.0,
+      "amount": 24583739099.0,
+      "average_5d_amount": 28630608748.2,
+      "outstanding_share": 1386321723.0,
+      "circulating_market_value": 301843828748.79,
+      "turnover": 0.0784984229811423,
+      "history_days": 31,
+      "return_5d_percent": -16.3767,
+      "return_20d_percent": -14.6224,
+      "missing_fields": [],
+      "origin": "real_pool",
+      "source": "akshare:stock_zh_a_daily"
+    }
+  ],
+  "note": "仅覆盖同日快照与有效真实池的有限候选；流通市值按收盘价乘流通股本计算，成交容量使用候选自身成交额，不扩展为全市场选股。"
+}

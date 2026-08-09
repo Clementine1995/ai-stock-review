@@ -9,14 +9,14 @@ from stock_review.scoring.verify_step9_patterns import verify_step9_patterns
 
 
 class Step9PatternTest(unittest.TestCase):
-    def test_all_current_step_nine_patterns_keep_missing_intraday_evidence_unavailable(self):
+    def test_step_nine_separates_background_match_from_pending_intraday_trigger(self):
         snapshot = build_evidence_snapshot(
             "2026-07-15",
             {
                 "trade_date": "2026-07-15",
                 "sample_date": "2026-07-15",
                 "market": {"indices": [{"name": "上证指数", "close": 3955.58}]},
-                "sentiment": {"limit_up_count": 72},
+                "sentiment": {"limit_up_count": 20, "limit_down_count": 50},
                 "sectors": [{"name": "创新药"}],
                 "stocks": [{"code": "002829", "name": "星网宇达"}],
             },
@@ -25,7 +25,8 @@ class Step9PatternTest(unittest.TestCase):
         checks = verify_step9_patterns(snapshot)
 
         self.assertEqual(len(checks), 12)
-        self.assertTrue(all(check.status == "unavailable" for check in checks))
+        self.assertEqual(checks[1].status, "background_matched_trigger_pending")
+        self.assertEqual(checks[5].status, "unavailable")
         self.assertIn("intraday", checks[0].missing_evidence)
         self.assertIn("regulatory_event", checks[8].missing_evidence)
 

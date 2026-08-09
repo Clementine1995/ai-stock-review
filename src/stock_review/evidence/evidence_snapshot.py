@@ -46,12 +46,17 @@ class EvidenceSnapshot:
 def build_evidence_snapshot(trade_date: str, raw_data: dict[str, Any]) -> EvidenceSnapshot:
     source = str(raw_data.get("source") or "manual")
     sample_date = str(raw_data.get("sample_date") or trade_date)
-    market = as_mapping(raw_data.get("market"))
-    sentiment = as_mapping(raw_data.get("sentiment"))
+    market = dict(as_mapping(raw_data.get("market")))
+    # 旧快照曾把腾讯指数日线的手数写作人民币成交额；读取时必须拒绝该字段，避免继续进入复盘。
+    if market.get("total_amount_source") == "tencent_index_kline_amount":
+        market.pop("total_amount", None)
+        market.pop("total_amount_source", None)
+    sentiment = dict(as_mapping(raw_data.get("sentiment")))
     sectors = as_list_of_mappings(raw_data.get("sectors"))
     stocks = as_list_of_mappings(raw_data.get("stocks"))
     field_sources = as_field_sources(raw_data.get("field_sources"))
     events = as_list_of_mappings(raw_data.get("events"))
+    normalize_hhxg_profit_effect(sentiment, field_sources, events)
     missing_fields = tuple(
         identify_missing_fields(
             market=market,
@@ -121,3 +126,22 @@ def as_field_sources(value: Any) -> dict[str, str]:
         for field_name, source in value.items()
         if field_name in {"market", "sentiment", "sectors", "stocks"} and source not in (None, "")
     }
+
+
+# hhxg 历史快照曾把页面“赚钱效应”字段解释为情绪温度；读取时纠正语义但不覆盖历史文件。
+def normalize_hhxg_profit_effect(
+    sentiment: dict[str, Any],
+    field_sources: dict[str, str],
+    events: list[dict[str, Any]],
+) -> None:
+    if sentiment.get("profit_effect_percent") not in (None, ""):
+        return
+    sentiment_source = field_sources.get("sentiment", "")
+    has_hhxg_source = "hhxg" in sentiment_source.lower() or any(
+        str(event.get("source") or "").lower() == "hhxg" for event in events
+    )
+    if not has_hhxg_source or sentiment.get("emotion_temperature") in (None, ""):
+        return
+    sentiment["profit_effect_percent"] = sentiment.pop("emotion_temperature")
+    sentiment["profit_effect_source"] = "hhxg:market.sentiment_index"
+    sentiment["profit_effect_calculation"] = "source_provided_formula_unverified"

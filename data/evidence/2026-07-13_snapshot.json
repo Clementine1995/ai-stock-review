@@ -1,0 +1,738 @@
+{
+  "trade_date": "2026-07-13",
+  "source": "akshare",
+  "sample_date": "2026-07-13",
+  "market": {
+    "indices": [
+      {
+        "symbol": "sh000001",
+        "name": "上证指数",
+        "sample_date": "2026-07-13",
+        "close": 3913.79,
+        "change_percent": -2.06,
+        "amount": 1334871933909
+      },
+      {
+        "symbol": "sz399001",
+        "name": "深证成指",
+        "sample_date": "2026-07-13",
+        "close": 14522.85,
+        "change_percent": -3.48,
+        "amount": 1482889150433.43
+      },
+      {
+        "symbol": "sz399006",
+        "name": "创业板指",
+        "sample_date": "2026-07-13",
+        "close": 3723.52,
+        "change_percent": -3.1,
+        "amount": 219895176
+      }
+    ],
+    "total_amount": 2817980979518.43,
+    "total_amount_source": "akshare_stock_zh_index_daily_em_amount_sum+eastmoney_index_kline_amount+tencent_index_kline_amount"
+  },
+  "sentiment": {
+    "limit_up_count": 92,
+    "limit_down_count": 4,
+    "broken_board_rate": 0.3741,
+    "highest_board": 2,
+    "emotion_temperature": 15
+  },
+  "sectors": [
+    {
+      "name": "军民融合",
+      "source_type": "hhxg_hot_theme",
+      "rank": 1,
+      "limit_up_count": 15,
+      "net_inflow_yi": 0.65,
+      "leading_stock": [
+        {
+          "name": "航天发展",
+          "net_yi": 1.72
+        },
+        {
+          "name": "高德红外",
+          "net_yi": 1.27
+        }
+      ]
+    },
+    {
+      "name": "卫星导航",
+      "source_type": "hhxg_hot_theme",
+      "rank": 2,
+      "limit_up_count": 15,
+      "net_inflow_yi": 4.31,
+      "leading_stock": [
+        {
+          "name": "航天发展",
+          "net_yi": 1.72
+        },
+        {
+          "name": "航天环宇",
+          "net_yi": 1.14
+        }
+      ]
+    },
+    {
+      "name": "海工装备",
+      "source_type": "hhxg_hot_theme",
+      "rank": 3,
+      "limit_up_count": 14,
+      "net_inflow_yi": 10.36,
+      "leading_stock": [
+        {
+          "name": "金风科技",
+          "net_yi": 7.47
+        },
+        {
+          "name": "航天发展",
+          "net_yi": 1.72
+        }
+      ]
+    },
+    {
+      "name": "高端装备",
+      "source_type": "hhxg_hot_theme",
+      "rank": 4,
+      "limit_up_count": 13,
+      "net_inflow_yi": 0.04,
+      "leading_stock": [
+        {
+          "name": "海兰信",
+          "net_yi": 1.7
+        },
+        {
+          "name": "高德红外",
+          "net_yi": 1.27
+        }
+      ]
+    },
+    {
+      "name": "无人机",
+      "source_type": "hhxg_hot_theme",
+      "rank": 5,
+      "limit_up_count": 12,
+      "net_inflow_yi": 8.25,
+      "leading_stock": [
+        {
+          "name": "中鼎股份",
+          "net_yi": 3.55
+        },
+        {
+          "name": "航天发展",
+          "net_yi": 1.72
+        }
+      ]
+    },
+    {
+      "name": "风电",
+      "source_type": "hhxg_hot_theme",
+      "rank": 6,
+      "limit_up_count": 13,
+      "net_inflow_yi": 17.58,
+      "leading_stock": [
+        {
+          "name": "金风科技",
+          "net_yi": 7.47
+        },
+        {
+          "name": "神火股份",
+          "net_yi": 1.92
+        }
+      ]
+    },
+    {
+      "name": "医疗服务",
+      "source_type": "hhxg_strong_sector",
+      "rank": 1,
+      "net_inflow_yi": 24,
+      "leading_stock": "益诺思",
+      "bias_percent": 6.2
+    },
+    {
+      "name": "化学制药",
+      "source_type": "hhxg_strong_sector",
+      "rank": 2,
+      "net_inflow_yi": 22,
+      "leading_stock": "常山药业",
+      "bias_percent": 3.9
+    },
+    {
+      "name": "游戏",
+      "source_type": "hhxg_strong_sector",
+      "rank": 3,
+      "net_inflow_yi": 13,
+      "leading_stock": "星辉娱乐",
+      "bias_percent": 3
+    },
+    {
+      "name": "生物制品",
+      "source_type": "hhxg_strong_sector",
+      "rank": 4,
+      "net_inflow_yi": 11,
+      "leading_stock": "欧林生物",
+      "bias_percent": 4.8
+    },
+    {
+      "name": "中药",
+      "source_type": "hhxg_strong_sector",
+      "rank": 5,
+      "net_inflow_yi": 7,
+      "leading_stock": "众生药业",
+      "bias_percent": 1.6
+    },
+    {
+      "name": "光学光电子",
+      "source_type": "hhxg_weak_sector",
+      "rank": 1,
+      "net_inflow_yi": -107,
+      "leading_stock": "乾照光电",
+      "bias_percent": -5.8
+    },
+    {
+      "name": "元件",
+      "source_type": "hhxg_weak_sector",
+      "rank": 2,
+      "net_inflow_yi": -97,
+      "leading_stock": "崇达技术",
+      "bias_percent": -10.2
+    },
+    {
+      "name": "电池",
+      "source_type": "hhxg_weak_sector",
+      "rank": 3,
+      "net_inflow_yi": -75,
+      "leading_stock": "武汉蓝电",
+      "bias_percent": -11.1
+    },
+    {
+      "name": "电子化学品",
+      "source_type": "hhxg_weak_sector",
+      "rank": 4,
+      "net_inflow_yi": -59,
+      "leading_stock": "莱尔科技",
+      "bias_percent": -6.9
+    },
+    {
+      "name": "化学制品",
+      "source_type": "hhxg_weak_sector",
+      "rank": 5,
+      "net_inflow_yi": -46,
+      "leading_stock": "东方材料",
+      "bias_percent": -5.4
+    },
+    {
+      "name": "创新药",
+      "source_type": "hhxg_strong_sector",
+      "rank": 1,
+      "net_inflow_yi": 53,
+      "leading_stock": "益诺思",
+      "bias_percent": 4.4
+    },
+    {
+      "name": "星闪概念",
+      "source_type": "hhxg_strong_sector",
+      "rank": 2,
+      "net_inflow_yi": 27,
+      "leading_stock": "创维数字",
+      "bias_percent": 0.3
+    },
+    {
+      "name": "流感",
+      "source_type": "hhxg_strong_sector",
+      "rank": 3,
+      "net_inflow_yi": 24,
+      "leading_stock": "泓博医药",
+      "bias_percent": 2.2
+    },
+    {
+      "name": "CRO概念",
+      "source_type": "hhxg_strong_sector",
+      "rank": 4,
+      "net_inflow_yi": 19,
+      "leading_stock": "益诺思",
+      "bias_percent": 6.5
+    },
+    {
+      "name": "手机游戏",
+      "source_type": "hhxg_strong_sector",
+      "rank": 5,
+      "net_inflow_yi": 19,
+      "leading_stock": "星辉娱乐",
+      "bias_percent": 1.7
+    },
+    {
+      "name": "芯片概念",
+      "source_type": "hhxg_weak_sector",
+      "rank": 1,
+      "net_inflow_yi": -782,
+      "leading_stock": "托伦斯",
+      "bias_percent": -2.8
+    },
+    {
+      "name": "共封装光学(CPO)",
+      "source_type": "hhxg_weak_sector",
+      "rank": 2,
+      "net_inflow_yi": -435,
+      "leading_stock": "深科达",
+      "bias_percent": -7
+    },
+    {
+      "name": "新能源汽车",
+      "source_type": "hhxg_weak_sector",
+      "rank": 3,
+      "net_inflow_yi": -428,
+      "leading_stock": "星辰科技",
+      "bias_percent": -5.1
+    },
+    {
+      "name": "光伏概念",
+      "source_type": "hhxg_weak_sector",
+      "rank": 4,
+      "net_inflow_yi": -374,
+      "leading_stock": "国林科技",
+      "bias_percent": -5.9
+    },
+    {
+      "name": "汽车电子",
+      "source_type": "hhxg_weak_sector",
+      "rank": 5,
+      "net_inflow_yi": -349,
+      "leading_stock": "乾照光电",
+      "bias_percent": -3.9
+    }
+  ],
+  "stocks": [
+    {
+      "code": "待确认",
+      "name": "[{'name': '航天发展', 'net_yi': 1.72}, {'name': '高德红外', 'net_yi': 1.27}]",
+      "exchange": "待确认",
+      "sector": "军民融合",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_hot_theme 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "[{'name': '航天发展', 'net_yi': 1.72}, {'name': '航天环宇', 'net_yi': 1.14}]",
+      "exchange": "待确认",
+      "sector": "卫星导航",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_hot_theme 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "[{'name': '金风科技', 'net_yi': 7.47}, {'name': '航天发展', 'net_yi': 1.72}]",
+      "exchange": "待确认",
+      "sector": "海工装备",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_hot_theme 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "[{'name': '海兰信', 'net_yi': 1.7}, {'name': '高德红外', 'net_yi': 1.27}]",
+      "exchange": "待确认",
+      "sector": "高端装备",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_hot_theme 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "[{'name': '中鼎股份', 'net_yi': 3.55}, {'name': '航天发展', 'net_yi': 1.72}]",
+      "exchange": "待确认",
+      "sector": "无人机",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_hot_theme 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "[{'name': '金风科技', 'net_yi': 7.47}, {'name': '神火股份', 'net_yi': 1.92}]",
+      "exchange": "待确认",
+      "sector": "风电",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_hot_theme 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "益诺思",
+      "exchange": "待确认",
+      "sector": "医疗服务",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_strong_sector 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "常山药业",
+      "exchange": "待确认",
+      "sector": "化学制药",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_strong_sector 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "星辉娱乐",
+      "exchange": "待确认",
+      "sector": "游戏",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_strong_sector 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "欧林生物",
+      "exchange": "待确认",
+      "sector": "生物制品",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_strong_sector 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "众生药业",
+      "exchange": "待确认",
+      "sector": "中药",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_strong_sector 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "乾照光电",
+      "exchange": "待确认",
+      "sector": "光学光电子",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_weak_sector 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "崇达技术",
+      "exchange": "待确认",
+      "sector": "元件",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_weak_sector 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "武汉蓝电",
+      "exchange": "待确认",
+      "sector": "电池",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_weak_sector 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "莱尔科技",
+      "exchange": "待确认",
+      "sector": "电子化学品",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_weak_sector 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "东方材料",
+      "exchange": "待确认",
+      "sector": "化学制品",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_weak_sector 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "益诺思",
+      "exchange": "待确认",
+      "sector": "创新药",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_strong_sector 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "创维数字",
+      "exchange": "待确认",
+      "sector": "星闪概念",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_strong_sector 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "泓博医药",
+      "exchange": "待确认",
+      "sector": "流感",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_strong_sector 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "益诺思",
+      "exchange": "待确认",
+      "sector": "CRO概念",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_strong_sector 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "星辉娱乐",
+      "exchange": "待确认",
+      "sector": "手机游戏",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_strong_sector 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "托伦斯",
+      "exchange": "待确认",
+      "sector": "芯片概念",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_weak_sector 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "深科达",
+      "exchange": "待确认",
+      "sector": "共封装光学(CPO)",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_weak_sector 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "星辰科技",
+      "exchange": "待确认",
+      "sector": "新能源汽车",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_weak_sector 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "国林科技",
+      "exchange": "待确认",
+      "sector": "光伏概念",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_weak_sector 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "乾照光电",
+      "exchange": "待确认",
+      "sector": "汽车电子",
+      "role": "板块领涨事实候选",
+      "role_source": "hhxg_weak_sector 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": null,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "000004",
+      "name": "国华退",
+      "exchange": "待确认",
+      "sector": "软件开发",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（3板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10.8696,
+      "reason": "涨停池记录的连板数为 3，仅作为可追溯事实。"
+    },
+    {
+      "code": "600992",
+      "name": "贵绳股份",
+      "exchange": "待确认",
+      "sector": "通用设备",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（3板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10.0469,
+      "reason": "涨停池记录的连板数为 3，仅作为可追溯事实。"
+    },
+    {
+      "code": "601608",
+      "name": "中信重工",
+      "exchange": "待确认",
+      "sector": "专用设备",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 9.9206,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。"
+    },
+    {
+      "code": "605090",
+      "name": "九丰能源",
+      "exchange": "待确认",
+      "sector": "燃气Ⅱ",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10.0053,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。"
+    },
+    {
+      "code": "003020",
+      "name": "立方制药",
+      "exchange": "待确认",
+      "sector": "化学制药",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（3板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 9.9787,
+      "reason": "涨停池记录的连板数为 3，仅作为可追溯事实。"
+    },
+    {
+      "code": "600664",
+      "name": "哈药股份",
+      "exchange": "待确认",
+      "sector": "化学制药",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10.089,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。"
+    },
+    {
+      "code": "001395",
+      "name": "亚联机械",
+      "exchange": "待确认",
+      "sector": "专用设备",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（3板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 9.9895,
+      "reason": "涨停池记录的连板数为 3，仅作为可追溯事实。"
+    },
+    {
+      "code": "000920",
+      "name": "沃顿科技",
+      "exchange": "待确认",
+      "sector": "塑料",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10.0392,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。"
+    },
+    {
+      "code": "600629",
+      "name": "华建集团",
+      "exchange": "待确认",
+      "sector": "工程咨询",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10.0392,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。"
+    },
+    {
+      "code": "600513",
+      "name": "联环药业",
+      "exchange": "待确认",
+      "sector": "化学制药",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10.0065,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。"
+    }
+  ],
+  "field_sources": {
+    "sentiment": "hhxg",
+    "sectors": "hhxg",
+    "market": "akshare",
+    "stocks": "akshare"
+  },
+  "events": [
+    {
+      "title": "hhxg 最近交易日快照",
+      "source": "hhxg",
+      "note": "公开接口仅提供最近交易日快照；指数、成交额和可确认股票代码仍为待确认字段。"
+    },
+    {
+      "title": "AKShare 市场层最小采集",
+      "source": "akshare",
+      "note": "当前仅采集指数日线数据；情绪、板块和个股证据仍需后续数据源补齐。"
+    },
+    {
+      "title": "sh000001 使用东方财富备用路径",
+      "source": "eastmoney",
+      "note": "AKShare stock_zh_index_daily_em 失败后，使用同源 K 线接口直连；原始错误：[upstream_unavailable] HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=1.000001&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=19900101&end=20500101 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))"
+    },
+    {
+      "title": "sz399006 使用腾讯行情备用路径",
+      "source": "tencent",
+      "note": "AKShare stock_zh_index_daily_em 和东方财富 K 线直连失败后，使用腾讯指数 K 线接口；原始错误：[upstream_unavailable] HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=0.399006&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=19900101&end=20500101 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；东方财富错误：[upstream_unavailable] Remote end closed connection without response"
+    },
+    {
+      "title": "AKShare 个股事实最小采集",
+      "source": "akshare",
+      "note": "仅提取已有板块领涨股和涨停池连板股事实；不认定核心票，不修改池子，不生成买卖建议。"
+    }
+  ],
+  "missing_fields": []
+}

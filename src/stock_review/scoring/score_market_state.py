@@ -193,6 +193,6 @@ def render_step9_pattern_check(check: Step9PatternCheck) -> list[str]:
         f"- 已有事实类别：{', '.join(check.available_evidence) or '无'}",
         f"- 硬缺口：{', '.join(check.missing_evidence) or '无'}",
         f"- 失效边界：{check.invalidation_boundary}",
-        "- 边界：本项只核验证据是否齐全，不确认买点、不生成交易指令。",
+        "- 边界：状态区分盘后背景与次日触发；即使背景满足也不确认买点、不生成交易指令。",
         "",
     ]

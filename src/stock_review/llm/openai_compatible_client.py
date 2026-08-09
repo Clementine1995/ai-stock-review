@@ -11,6 +11,14 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
+LLM_REQUEST_TIMEOUT_SECONDS = 300
+DEEPSEEK_HYBRID_MODEL_PREFIXES = (
+    "deepseek-v3.1",
+    "deepseek-v3.2",
+    "deepseek-v4-",
+)
+
+
 class LLMClientError(RuntimeError):
     pass
 
@@ -50,8 +58,13 @@ def read_local_env_file(env_path: Path) -> dict[str, str]:
     return values
 
 
-# 兼容接口使用 Chat Completions JSON 模式；业务层仍需本地校验，不能把模型输出直接当作事实。
-def request_json_completion(settings: OpenAICompatibleSettings, system_prompt: str, user_prompt: str) -> dict[str, Any]:
+# 兼容接口按模型能力选择响应模式；无论上游模式如何，业务层仍需本地校验全部事实字段。
+def request_json_completion(
+    settings: OpenAICompatibleSettings,
+    system_prompt: str,
+    user_prompt: str,
+) -> dict[str, Any]:
+    use_deepseek_stream = settings.model.lower().startswith("deepseek-")
     request_body = {
         "model": settings.model,
         "messages": [
@@ -59,8 +72,18 @@ def request_json_completion(settings: OpenAICompatibleSettings, system_prompt: s
             {"role": "user", "content": user_prompt},
         ],
         "temperature": 0,
-        "response_format": {"type": "json_object"},
     }
+    if use_deepseek_stream:
+        # 详细结构化归纳不需要长思考；混合思考模型关闭思考以避免首包和完整响应长时间等待。
+        request_body.update(
+            {
+                "stream": True,
+                "stream_options": {"include_usage": True},
+                "enable_thinking": should_enable_deepseek_thinking(settings.model),
+            }
+        )
+    else:
+        request_body["response_format"] = {"type": "json_object"}
     endpoint = f"{settings.base_url.rstrip('/')}/chat/completions"
     request = Request(
         endpoint,
@@ -69,21 +92,19 @@ def request_json_completion(settings: OpenAICompatibleSettings, system_prompt: s
         method="POST",
     )
     try:
-        with urlopen(request, timeout=60) as response:
-            raw_response = json.loads(response.read().decode("utf-8"))
+        with urlopen(request, timeout=LLM_REQUEST_TIMEOUT_SECONDS) as response:
+            if use_deepseek_stream:
+                content = read_streamed_completion_content(response)
+            else:
+                content = read_completion_content(response)
     except HTTPError as error:
         raise LLMClientError(f"LLM 接口返回 HTTP {error.code}。") from error
+    except TimeoutError as error:
+        raise LLMClientError(
+            f"LLM 接口响应超时（{LLM_REQUEST_TIMEOUT_SECONDS} 秒）。"
+        ) from error
     except URLError as error:
         raise LLMClientError(f"LLM 接口连接失败：{error.reason}。") from error
-    except json.JSONDecodeError as error:
-        raise LLMClientError("LLM 接口响应不是有效 JSON。") from error
-
-    try:
-        content = raw_response["choices"][0]["message"]["content"]
-    except (KeyError, IndexError, TypeError) as error:
-        raise LLMClientError("LLM 接口响应缺少 choices[0].message.content。") from error
-    if not isinstance(content, str):
-        raise LLMClientError("LLM 接口返回的草案内容不是文本。")
     try:
         result = json.loads(content)
     except json.JSONDecodeError as error:
@@ -91,3 +112,50 @@ def request_json_completion(settings: OpenAICompatibleSettings, system_prompt: s
     if not isinstance(result, dict):
         raise LLMClientError("LLM 草案根节点必须是 JSON 对象。")
     return result
+
+
+# R1 等仅思考模型继续保持原有行为；当前已确认支持思考开关的混合模型用于结构化任务时关闭思考。
+def should_enable_deepseek_thinking(model: str) -> bool:
+    normalized_model = model.lower()
+    return not normalized_model.startswith(DEEPSEEK_HYBRID_MODEL_PREFIXES)
+
+
+# 非流式响应沿用 OpenAI Chat Completions 的 message.content 结构。
+def read_completion_content(response: Any) -> str:
+    try:
+        raw_response = json.loads(response.read().decode("utf-8"))
+    except json.JSONDecodeError as error:
+        raise LLMClientError("LLM 接口响应不是有效 JSON。") from error
+    try:
+        content = raw_response["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as error:
+        raise LLMClientError("LLM 接口响应缺少 choices[0].message.content。") from error
+    if not isinstance(content, str):
+        raise LLMClientError("LLM 接口返回的草案内容不是文本。")
+    return content
+
+
+# DeepSeek 流式响应可能同时包含思维链和最终内容；报告只能读取最终 content。
+def read_streamed_completion_content(response: Any) -> str:
+    content_parts: list[str] = []
+    for raw_line in response:
+        line = raw_line.decode("utf-8").strip()
+        if not line.startswith("data:"):
+            continue
+        event_data = line.removeprefix("data:").strip()
+        if event_data == "[DONE]":
+            break
+        try:
+            event = json.loads(event_data)
+        except json.JSONDecodeError as error:
+            raise LLMClientError("LLM 流式响应包含无效 JSON 事件。") from error
+        choices = event.get("choices")
+        if not isinstance(choices, list) or not choices:
+            continue
+        delta = choices[0].get("delta") if isinstance(choices[0], dict) else None
+        content = delta.get("content") if isinstance(delta, dict) else None
+        if isinstance(content, str) and content:
+            content_parts.append(content)
+    if not content_parts:
+        raise LLMClientError("LLM 流式响应未返回最终 content。")
+    return "".join(content_parts)

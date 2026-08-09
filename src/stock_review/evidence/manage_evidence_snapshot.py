@@ -168,7 +168,16 @@ def is_akshare_scope_covered(snapshot_data: dict[str, Any], scope: str) -> bool:
         return False
     if scope == "market":
         market = snapshot_data.get("market")
-        return isinstance(market, dict) and bool(market.get("indices")) and market.get("total_amount") is not None
+        if isinstance(market, dict) and market.get("total_amount_source") == "tencent_index_kline_amount":
+            return False
+        market_source = read_field_sources(snapshot_data).get("market", "")
+        # 腾讯备用路径的成交手数不能写作金额；已有指数和明确来源即视为有效降级结果，避免无刷新重复请求。
+        has_supported_tencent_gap = "tencent" in market_source.split("+")
+        return (
+            isinstance(market, dict)
+            and bool(market.get("indices"))
+            and (market.get("total_amount") is not None or has_supported_tencent_gap)
+        )
     if scope == "sentiment":
         sentiment = snapshot_data.get("sentiment")
         required_fields = ("limit_up_count", "limit_down_count", "broken_board_rate", "highest_board")
@@ -185,17 +194,18 @@ def merge_evidence_data(existing_data: dict[str, Any], incoming_data: dict[str, 
     merged_data["source"] = incoming_data.get("source") or existing_data.get("source") or "manual"
     merged_data["sample_date"] = incoming_data.get("sample_date") or existing_data.get("sample_date")
     field_sources = read_field_sources(existing_data)
+    incoming_field_sources = read_field_sources(incoming_data)
     incoming_source = str(incoming_data.get("source") or "manual")
     for field_name in ("market", "sentiment"):
         incoming_mapping = incoming_data.get(field_name)
         if isinstance(incoming_mapping, dict) and incoming_mapping:
             merged_data[field_name] = incoming_mapping
-            field_sources[field_name] = incoming_source
+            field_sources[field_name] = incoming_field_sources.get(field_name, incoming_source)
     for field_name in ("sectors", "stocks"):
         incoming_items = incoming_data.get(field_name)
         if isinstance(incoming_items, list) and incoming_items:
             merged_data[field_name] = incoming_items
-            field_sources[field_name] = incoming_source
+            field_sources[field_name] = incoming_field_sources.get(field_name, incoming_source)
 
     existing_events = existing_data.get("events") if isinstance(existing_data.get("events"), list) else []
     incoming_events = incoming_data.get("events") if isinstance(incoming_data.get("events"), list) else []
@@ -212,10 +222,10 @@ def attach_field_sources(raw_data: dict[str, Any]) -> dict[str, Any]:
     source = str(raw_data.get("source") or "manual")
     for field_name in ("market", "sentiment"):
         if isinstance(raw_data.get(field_name), dict) and raw_data[field_name]:
-            field_sources[field_name] = source
+            field_sources.setdefault(field_name, source)
     for field_name in ("sectors", "stocks"):
         if isinstance(raw_data.get(field_name), list) and raw_data[field_name]:
-            field_sources[field_name] = source
+            field_sources.setdefault(field_name, source)
     normalized_data["field_sources"] = field_sources
     return normalized_data
 

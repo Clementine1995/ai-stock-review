@@ -2,9 +2,11 @@
 
 一个以 `stock-review.md` 为主流程、以有限股票池和必要行情/情绪数据为证据输入的 A 股短线盘后复盘与次日计划系统。
 
+当前产品主线不是继续增加数据和功能，而是把已经积累的当日事实、5 日历史、真实池与模式核验，严格按 `stock-review.md` 的 STEP 1-10 编排成一份详细、可追溯、可用于次日预演的复盘文档。
+
 ## 项目负责
 
-- 读取用户维护的 `stock-review.md`，按 `STEP N` 顺序生成每日复盘工作流。
+- 读取用户维护的 `stock-review.md`，严格按 `STEP N` 顺序生成每日详细复盘，不用其它总览结构替代原框架。
 - 围绕复盘步骤补齐必要证据，包括市场环境、短线情绪、热点板块、核心个股和事件催化。
 - 维护关注池、热点池、趋势强势池和潜在机会池，范围默认收敛在用户关注的 100-200 个股票内。
 - 生成下一个交易日的观察计划，明确符合预期、超预期、不及预期和放弃条件。
@@ -18,6 +20,8 @@
 - 不做全市场行情平台。
 - 不做纯机器选股候选池。
 - 不做普通资讯摘要工具。
+- 不以数据源数量、字段数量或报告篇幅衡量复盘质量。
+- 不默认堆叠资金流、龙虎榜、宏观新闻等信息；只有它们反复影响具体 STEP 判断时才单独评估。
 - 不让 LLM 替代事实证据和人工判断。
 - MVP 不做 WebUI。
 
@@ -26,7 +30,7 @@
 ```mermaid
 flowchart TD
     A["维护 stock-review.md"] --> B["读取 STEP 复盘框架"]
-    C["采集或导入必要证据"] --> D["生成每日复盘工作流"]
+    C["采集或导入够用证据"] --> D["生成 STEP 1-10 详细复盘"]
     B --> D
     D --> E["人工完成判断和备注"]
     E --> F["更新关注池和热点池"]
@@ -71,24 +75,28 @@ flowchart TD
 - M10.1 已完成市场历史事实子闭环：可从本地快照输出每日指数、成交额和区间涨跌事实；少于 5 个有效市场交易日时不判断市场阶段。
 - M10.1 已完成池子生命周期子闭环：可显式暂停、移出或重新启用池子对象，并保留每次状态变更原因与历史。
 - M10.1 已完成单日多 scope 采集子闭环：用户显式指定 scope 后可顺序采集市场、情绪、板块和个股；部分失败不会覆盖已有事实，并按非零状态和日志提示。
-- M10.1 已接入 hhxg 最近交易日快照：自动补充涨跌停、炸板、连板梯队与板块排行；返回日期必须等于指定日期，连续采集满 5 个交易日后才启用其历史分析。
+- M10.1 已接入 hhxg 最近交易日快照：自动补充涨跌停、炸板、连板梯队与板块排行；截至 2026-07-16 已积累 5/5 个有效交易日，可展示多日事实，来源不可比字段继续保留缺口。
 - M10.1 已为真实池日线增加腾讯备用路径：主日线失败时可补齐收盘、成交量和 5/20 日涨跌幅；备用源的手数不写作成交额，真实联网可用性仍需逐日验证。
-- M10.2 已完成 STEP 1-7 固定字段映射与硬缺口：真实池 5/20 日事实仅进入 STEP 6/7；缺口固定保留为 `unavailable` 或待确认，不判断阶段、核心票或买点。
+- M10.2 已完成 STEP 1-7 固定字段映射与硬缺口：多日市场与 hhxg 历史事实仅进入 STEP 1-4，真实池 5/20 日事实仅进入 STEP 6/7；缺口固定保留为 `unavailable` 或待确认，不判断阶段、核心票或买点。
 - M10.3 已完成结构化人工复盘链路：可保存人工 STEP 判断、经用户确认的 STEP 8 预演和 STEP 10 最终应对，并显式关联真实池、计划 Markdown 项和 Observation；`review draft-final` 可通过本地 `.env` 配置的 OpenAI-compatible LLM 生成不落库的待确认草案。
 - 2026-07-14 已完成百炼 LLM 草案真实调用验证：快照事实和真实池由本地固定渲染，模型只能选择当前 STEP 允许的字段与对象关联；草案不写入业务数据、不构成买卖建议。
-- M10.4 已完成 STEP 9 模式核验清单：当前 12 项模式逐项展示必要证据、硬缺口和失效边界；竞价、分时、日线形态等事实未接入时固定为 `unavailable`。
+- M10.4 已完成 STEP 9 模式核验清单：当前 12 项模式逐项展示盘后背景、次日触发事实和失效边界；背景满足但缺竞价/分时时标记 `background_matched_trigger_pending`，不再把整项误报为不可用。
+- M10.4.1 已完成详细复盘报告编排及真实使用修正：`review create-detailed` 复用现有事实、历史、系统发现候选、真实池、人工记录和模式核验，按 `stock-review.md` 的 STEP 1-10 输出；证据字段由本地按 STEP 白名单和事实可用性固定，STEP 1-7 的精确历史事实只由本地证据链渲染，额外模型字段键不会参与业务判断。
+- M10.4.2 已完成真实可用性修正：hhxg `sentiment_index` 按页面口径记录为赚钱效应且明确公式未公开；有限系统候选与真实池可补采 5/20 日、5 日均成交额和流通市值，逐只进入 STEP 2/6/7；STEP 8 先给主情景和值博率方向，四类条件改为相对分支和否决线。
+- M10.4.3 已完成直接行动计划边界：详细复盘各 STEP 均允许条件买卖、低吸、打板和仓位表达，不再维护动作词黑名单；STEP 8/10 可输出 AI 条件阈值、参与结论、总仓位及逐候选行动，STEP 8 的大盘、板块和个股三类输出及证据路由由本地固定。风险由用户自行承担但不保证市场结果；候选代码仍限于本地有限范围，身份未验证时不得认定龙头、中军或核心票；STEP 9 逐项展示全部 12 种模式。
+- M10.5.1 已完成 Observation 回填治理代码闭环：新建记录必须指定最晚回填日期，逾期 `pending` 只提示不改状态，`miss/invalid` 必须选择固定原因分类，周报展示分类计数和 Observation ID；现有真实库尚未执行结构迁移。
 - 池子对象已支持最多 3 个人工确认板块；旧单板块本地库需显式执行 `pool migrate-sectors` 后才可写入新结构。
-- 后续计划：M10 按 10 个 STEP 补齐时序证据、事实归纳、结构化人工复盘、模式核验、真实样本学习和框架版本演进。具体边界见 `docs/PRODUCT_REQUIREMENTS.md`。
+- 后续顺序：先完成详细复盘报告并投入每日使用，再根据真实使用中反复出现的硬缺口决定是否补数据，最后积累真实 Observation 样本并进入学习和框架演进。具体边界见 `docs/PRODUCT_REQUIREMENTS.md`。
 - 当前 `stock-review.md` 实际包含 `STEP 1` 到 `STEP 10`，命令会按文件内容动态识别，不硬编码 STEP 数量。
 - 当前已在本地开发环境完成 2026-07-06 的真实联网采集验证；MVP 暂不建设 WebUI。
 - 个股角色标签和买点模式疑似匹配只基于数据源明确给出的板块领涨、连板等事实，不能认定核心票、龙头或确认买点。
 - 当前日报只展示 Evidence Snapshot 中已有字段，禁止生成没有证据支持的市场、板块或个股结论。
-- 当前计划只记录观察条件和应对框架，不是买卖指令。
+- 当前详细复盘可以输出 AI 条件买卖与仓位方案，但不会自动交易或写入业务数据；历史事实准确性仍由本地证据链约束。
 - 当前已在本地开发环境完成 2026-07-06 的 M4.7 真实联网个股采集，快照只剩 `missing_emotion_temperature`。
 
 ## 最小启动
 
-如需使用 `review draft-final`，在仓库根目录的 `.env` 填写 `LLM_BASE_URL`、`LLM_API_KEY` 和 `LLM_MODEL`。该文件已被 Git 忽略，系统环境变量同名值优先；不要提交或在对话中粘贴密钥。
+如需使用 `review draft-final` 或 `review create-detailed`，在仓库根目录的 `.env` 填写 `LLM_BASE_URL`、`LLM_API_KEY` 和 `LLM_MODEL`。该文件已被 Git 忽略，系统环境变量同名值优先；不要提交或在对话中粘贴密钥。`deepseek-*` 模型使用百炼流式接口；v3.1、v3.2 和 v4 混合思考模型在结构化复盘中关闭思考，R1 等仅思考模型保持思考并只解析最终回答。其他支持 JSON Mode 的模型继续请求 JSON 对象。两种模式的结果都必须通过本地事实字段和业务边界校验后才能进入报告。
 
 当前仓库已创建最小源码包；首次使用请按下方命令创建虚拟环境并以 `.venv\Scripts\python.exe` 运行 CLI。
 
@@ -111,6 +119,7 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m stock_review.cli review list-records --date 2026-07-06
 .\.venv\Scripts\python.exe -m stock_review.cli review build-context --date 2026-07-06 --snapshot-dir data/evidence --database data/stock_review.sqlite
 .\.venv\Scripts\python.exe -m stock_review.cli review draft-final --date 2026-07-06 --snapshot-dir data/evidence --database data/stock_review.sqlite
+.\.venv\Scripts\python.exe -m stock_review.cli review create-detailed --date 2026-07-06 --framework stock-review.md --snapshot-dir data/evidence --database data/stock_review.sqlite --output-dir reports/daily
 .\.venv\Scripts\python.exe -m stock_review.cli evidence import --date 2026-07-06 --file data/evidence/2026-07-06_sample.json
 .\.venv\Scripts\python.exe -m stock_review.cli evidence check --date 2026-07-06
 .\.venv\Scripts\python.exe -m stock_review.cli evidence sector-history --start 2026-07-06 --end 2026-07-10 --snapshot-dir data/evidence --output-dir reports/daily
@@ -131,15 +140,31 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m stock_review.cli evidence collect --date 2026-07-06 --source akshare --scope stocks --output-dir data/evidence
 .\.venv\Scripts\python.exe -m stock_review.cli evidence collect-daily --date 2026-07-06 --source akshare --scope market --scope sentiment --scope sectors --scope stocks --output-dir data/evidence
 .\.venv\Scripts\python.exe -m stock_review.cli evidence collect-pool-history --date 2026-07-10 --source akshare --output-dir data/evidence
+.\.venv\Scripts\python.exe -m stock_review.cli evidence collect-review-history --date 2026-07-10 --source akshare --snapshot-dir data/evidence --output-dir data/evidence
 .\.venv\Scripts\python.exe -m stock_review.cli evidence history-readiness --source hhxg --start 2026-07-06 --end 2026-07-10 --snapshot-dir data/evidence
 .\.venv\Scripts\python.exe -m stock_review.cli evidence summarize-review --date 2026-07-10 --snapshot-dir data/evidence --pool-history-dir data/evidence --output-dir reports/daily
 .\.venv\Scripts\python.exe -m stock_review.cli evidence collect --date 2026-07-06 --source akshare --scope sentiment --output-dir data/evidence --refresh
-.\.venv\Scripts\python.exe -m stock_review.cli observation add --date 2026-07-06 --topic 机器人板块延续性 --target 机器人板块 --hypothesis 机器人板块次日保持强势 --confirmation 板块次日继续放量 --invalidation "板块跌幅超过 2%" --evidence-source "2026-07-06 Evidence Snapshot"
+.\.venv\Scripts\python.exe -m stock_review.cli observation migrate-review-governance --database data/stock_review.sqlite
+.\.venv\Scripts\python.exe -m stock_review.cli observation add --date 2026-07-06 --topic 机器人板块延续性 --target 机器人板块 --hypothesis 机器人板块次日保持强势 --confirmation 板块次日继续放量 --invalidation "板块跌幅超过 2%" --evidence-source "2026-07-06 Evidence Snapshot" --review-deadline 2026-07-08
 .\.venv\Scripts\python.exe -m stock_review.cli observation list --date 2026-07-06 --status pending
-.\.venv\Scripts\python.exe -m stock_review.cli observation review --id OBS-20260706-001 --status hit --result "板块次日上涨 3%" --note 成立条件满足
+.\.venv\Scripts\python.exe -m stock_review.cli observation review --id OBS-20260706-001 --status miss --result "板块未达到成立条件" --reason-category judgment_error --note 判断需要修正
 .\.venv\Scripts\python.exe -m stock_review.cli learning weekly --start 2026-07-06 --end 2026-07-10
 .\.venv\Scripts\python.exe -m stock_review.cli scoring create --date 2026-07-06 --evidence data/evidence/2026-07-06_snapshot.json
 ```
+
+日常收盘后可使用单入口脚本依次完成 AKShare 四范围采集、hhxg 合并、快照检查、有限候选历史采集和 STEP 1-10 详细复盘。必须显式传入实际交易日期；hhxg 只返回最近交易日，指定日期与返回日期不一致时脚本会在该步停止，不会继续生成错日复盘。
+
+```powershell
+.\scripts\run_daily_review.ps1 -TradeDate 2026-07-23
+```
+
+只检查将要执行的命令，不联网、不写文件或调用 LLM：
+
+```powershell
+.\scripts\run_daily_review.ps1 -TradeDate 2026-07-23 -DryRun
+```
+
+脚本任一步返回非零退出码时立即停止，不自动重试。执行成功后生成 `data/evidence/YYYY-MM-DD_snapshot.json`、`data/evidence/YYYY-MM-DD_review_candidate_history.json` 和 `reports/daily/YYYY-MM-DD_detailed_review.md`。
 
 测试：
 
@@ -188,30 +213,36 @@ $env:PYTHONDONTWRITEBYTECODE='1'
 
 ## 数据源口径
 
+- 数据源采用“够用即止”原则：当前日常范围固定为市场、短线情绪、板块和真实池个股，不因候选来源存在就自动接入。
+- 新来源必须同时满足三个条件：服务 `stock-review.md` 的明确 STEP、补的是反复阻塞判断的硬缺口、字段口径与稳定性足以保留证据来源；否则继续显示缺口或人工确认。
+- 对短线复盘，信息过多会稀释主线和增加噪声。资金流、龙虎榜、公告新闻、外围市场等默认按需纳入，不建设每日全量资讯流。
+- 当现有证据已经支持当日复盘、5 日比较和真实池跟踪时，优先改进报告归纳和用户确认流程，不继续横向扩展数据源。
 - 首选真实数据源：AKShare，用于先补市场、短线情绪和板块层事实证据。
-- 当前 AKShare `market` 最小范围：上证指数、深证成指、创业板指日线；成交额来自数据源返回的指数日线成交额求和，并在快照中标记来源。AKShare/东方财富失败时，会尝试腾讯指数 K 线备用路径。
-- 当前 AKShare `sentiment` 最小范围：东方财富涨停池、炸板池、跌停池，生成涨停数、跌停数、炸板率和连板高度。情绪温度暂无稳定真实来源，单独标记 `missing_emotion_temperature`。
+- 当前 AKShare `market` 最小范围：上证指数、深证成指、创业板指日线；只有来源明确为人民币金额的指数日线成交额才参与求和，并在快照中标记来源。AKShare/东方财富失败时，会尝试腾讯指数 K 线备用路径；腾讯 `amount` 单位为“手”，只保留指数价格事实，成交额固定标记 `missing_total_amount`。
+- 当前 AKShare `sentiment` 最小范围：东方财富涨停池、炸板池、跌停池，生成涨停数、跌停数、炸板率和连板高度。hhxg `sentiment_index` 按其页面标签记录为赚钱效应，公开公式待确认；独立情绪温度仍无稳定来源并单独标记 `missing_emotion_temperature`。
 - 当前 AKShare `sectors` 最小范围：东方财富概念/行业板块列表；在当前网络不可用时，兜底使用同花顺行业汇总，生成板块涨跌幅、成交额、上涨/下跌家数和领涨股。当前不写入核心票列表。
 - 当前 AKShare `stocks` 最小范围：从快照已有板块领涨股和东方财富涨停池连板股提取事实；缺少代码、交易所或板块时标记待确认，不认定核心票、不修改池子。
+- `collect-review-history` 只请求同日快照已有可确认代码和有效真实池，不从全市场新增候选；优先使用 AKShare 新浪日线的成交额与流通股本，流通市值按收盘价乘流通股本计算，来源失败时保留缺口。
 - 分 scope 采集会合并到同一交易日 Evidence Snapshot，后采集的空字段不会覆盖已有 market、sentiment 或 sectors 证据。
-- 新采集快照会分别记录 market、sentiment、sectors 和 stocks 的字段来源；旧快照未记录字段来源时，报告会标记待确认，不从顶层来源反推。
+- 新采集快照会分别记录 market、sentiment、sectors 和 stocks 的字段来源；market 会区分 AKShare 东方财富接口、东方财富直连和腾讯备用路径。旧快照未记录字段来源时，报告会标记待确认，不从顶层来源反推。
 - 同交易日同 scope 已有有效 AKShare 事实时默认复用快照，避免重复请求；只有显式 `--refresh` 才重新联网采集。
 - 同次 AKShare scope 采集的连续请求固定间隔 0.3 秒；失败按 `rate_limited`、`network_timeout`、`access_denied` 或 `upstream_unavailable` 标记，不据此断言 IP 被封禁。
 - 可选依赖安装：`python -m pip install -e .[data]`。
-- 备选数据源：
-  - 开盘啦或同类短线情绪源：后续补涨停原因、连板梯队、题材强度和情绪温度。
-  - Tushare：后续补更稳定的结构化历史行情和专业数据。
-  - Baostock：后续可作为历史行情兜底，不作为短线情绪首选。
+- 备选数据源只作为明确硬缺口的候选，不进入默认开发计划：
+  - 开盘啦或同类短线情绪源：仅在涨停原因、连板梯队、题材强度或情绪温度持续阻塞对应 STEP 时评估。
+  - Tushare：仅在现有结构化历史行情无法支撑具体 STEP 时评估，并先确认权限和额度。
+  - Baostock：仅作为历史行情兜底候选，不作为短线情绪首选。
 
 ## 当前证据缺口
 
-以 2026-07-06 真实采集快照为例，当前已补齐 `market`、短线情绪核心字段、`sectors` 和 `stocks`，仍保留：
+当前日常采集已经覆盖市场、短线情绪核心字段、板块排行和真实池日线；以下缺口继续显式保留，但不等于必须立即接入新数据源：
 
 - `missing_emotion_temperature`：情绪温度暂无稳定真实来源，后续可评估开盘啦或同类短线情绪源。
+- 涨跌家数、晋级率、前日反馈、竞价、分时、板块 K 线、外围市场和个股身份验证：只有在详细复盘的具体 STEP 中反复造成关键判断不可用时，才拆成独立数据任务。
 
 ## 每日 hhxg 手动积累
 
-收盘后仅在确认当日为交易日时手工执行。将 `$tradeDate` 改为当天实际交易日期；hhxg 返回日期不一致时命令会失败且不会写入历史日期。当前从 `2026-07-10` 开始积累，满 5 个有效交易日后才可启用对应历史分析。
+收盘后仅在确认当日为交易日时手工执行。将 `$tradeDate` 改为当天实际交易日期；hhxg 返回日期不一致时命令会失败且不会写入历史日期。2026-07-16 已达到 5 个有效交易日，后续继续每日积累；来源不可比字段仍不得用于历史判断。
 
 ```powershell
 $env:PYTHONPATH='src'

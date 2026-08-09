@@ -1,0 +1,185 @@
+{
+  "trade_date": "2026-07-21",
+  "source": "akshare:review_candidate_history",
+  "sample_date": "2026-07-21",
+  "scope": "snapshot_and_real_pool_candidates",
+  "records": [
+    {
+      "code": "001258",
+      "name": "立新能源",
+      "sectors": [
+        "电力"
+      ],
+      "sample_date": "2026-07-21",
+      "close": 10.01,
+      "change_percent": null,
+      "volume": 158971100.0,
+      "amount": 1579363417.0,
+      "average_5d_amount": 658287104.6,
+      "outstanding_share": 933323584.0,
+      "circulating_market_value": 9342569075.84,
+      "turnover": 0.1703279577686103,
+      "history_days": 31,
+      "return_5d_percent": 46.345,
+      "return_20d_percent": 38.835,
+      "missing_fields": [],
+      "origin": "system_snapshot",
+      "source": "akshare:stock_zh_a_daily"
+    },
+    {
+      "code": "000815",
+      "name": "美利云",
+      "sectors": [
+        "IT服务Ⅱ"
+      ],
+      "sample_date": "2026-07-21",
+      "close": 14.66,
+      "change_percent": null,
+      "volume": 30317952.0,
+      "amount": 444402918.0,
+      "average_5d_amount": 342073084.0,
+      "outstanding_share": 695263035.0,
+      "circulating_market_value": 10192556093.1,
+      "turnover": 0.04360644888880077,
+      "history_days": 31,
+      "return_5d_percent": 12.4233,
+      "return_20d_percent": -13.7139,
+      "missing_fields": [],
+      "origin": "system_snapshot",
+      "source": "akshare:stock_zh_a_daily"
+    },
+    {
+      "code": "000889",
+      "name": "中嘉博创",
+      "sectors": [
+        "通信服务"
+      ],
+      "sample_date": "2026-07-21",
+      "close": 3.8,
+      "change_percent": null,
+      "volume": 69866215.0,
+      "amount": 257976103.0,
+      "average_5d_amount": 202299736.2,
+      "outstanding_share": 869845146.0,
+      "circulating_market_value": 3305411554.8,
+      "turnover": 0.08032029071068703,
+      "history_days": 31,
+      "return_5d_percent": 15.5015,
+      "return_20d_percent": 0.0,
+      "missing_fields": [],
+      "origin": "system_snapshot",
+      "source": "akshare:stock_zh_a_daily"
+    },
+    {
+      "code": "002036",
+      "name": "联创电子",
+      "sectors": [
+        "光学光电"
+      ],
+      "sample_date": "2026-07-21",
+      "close": 7.21,
+      "change_percent": null,
+      "volume": 43470313.0,
+      "amount": 303292434.0,
+      "average_5d_amount": 232548262.4,
+      "outstanding_share": 1055467775.0,
+      "circulating_market_value": 7609922657.75,
+      "turnover": 0.041185826824509164,
+      "history_days": 31,
+      "return_5d_percent": 18.1967,
+      "return_20d_percent": -9.875,
+      "missing_fields": [],
+      "origin": "system_snapshot",
+      "source": "akshare:stock_zh_a_daily"
+    },
+    {
+      "code": "600744",
+      "name": "华银电力",
+      "sectors": [
+        "电力"
+      ],
+      "sample_date": "2026-07-21",
+      "close": 7.22,
+      "change_percent": null,
+      "volume": 369924707.0,
+      "amount": 2551519243.0,
+      "average_5d_amount": 942387258.0,
+      "outstanding_share": 2031124273.9999998,
+      "circulating_market_value": 14664717258.28,
+      "turnover": 0.18212805180624808,
+      "history_days": 31,
+      "return_5d_percent": 31.2727,
+      "return_20d_percent": 6.4897,
+      "missing_fields": [],
+      "origin": "system_snapshot",
+      "source": "akshare:stock_zh_a_daily"
+    },
+    {
+      "code": "002829",
+      "name": "星网宇达",
+      "sectors": [
+        "航天装备"
+      ],
+      "sample_date": "2026-07-21",
+      "close": 21.49,
+      "change_percent": null,
+      "volume": 32012547.0,
+      "amount": 660122547.0,
+      "average_5d_amount": 503310430.4,
+      "outstanding_share": 146052524.0,
+      "circulating_market_value": 3138668740.76,
+      "turnover": 0.21918516793314713,
+      "history_days": 31,
+      "return_5d_percent": 25.4524,
+      "return_20d_percent": 17.0479,
+      "missing_fields": [],
+      "origin": "real_pool",
+      "source": "akshare:stock_zh_a_daily"
+    },
+    {
+      "code": "000977",
+      "name": "浪潮信息",
+      "sectors": [
+        "国产算例"
+      ],
+      "sample_date": "2026-07-21",
+      "close": 88.66,
+      "change_percent": null,
+      "volume": 185913895.0,
+      "amount": 15518432334.0,
+      "average_5d_amount": 13453558574.8,
+      "outstanding_share": 1466831804.0000002,
+      "circulating_market_value": 130049307742.64,
+      "turnover": 0.12674520316032087,
+      "history_days": 31,
+      "return_5d_percent": 4.6753,
+      "return_20d_percent": 36.821,
+      "missing_fields": [],
+      "origin": "real_pool",
+      "source": "akshare:stock_zh_a_daily"
+    },
+    {
+      "code": "002384",
+      "name": "东山精密",
+      "sectors": [
+        "CPO"
+      ],
+      "sample_date": "2026-07-21",
+      "close": 231.0,
+      "change_percent": null,
+      "volume": 152657954.0,
+      "amount": 32705698955.0,
+      "average_5d_amount": 30400494327.0,
+      "outstanding_share": 1386321723.0,
+      "circulating_market_value": 320240318013.0,
+      "turnover": 0.11011726316287407,
+      "history_days": 31,
+      "return_5d_percent": -11.9966,
+      "return_20d_percent": -10.1622,
+      "missing_fields": [],
+      "origin": "real_pool",
+      "source": "akshare:stock_zh_a_daily"
+    }
+  ],
+  "note": "仅覆盖同日快照与有效真实池的有限候选；流通市值按收盘价乘流通股本计算，成交容量使用候选自身成交额，不扩展为全市场选股。"
+}

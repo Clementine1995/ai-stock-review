@@ -21,6 +21,8 @@ class HhxgSourceTest(unittest.TestCase):
         self.assertEqual(evidence["sentiment"]["limit_up_count"], 92)
         self.assertEqual(evidence["sentiment"]["broken_board_rate"], 0.3741)
         self.assertEqual(evidence["sentiment"]["highest_board"], 5)
+        self.assertEqual(evidence["sentiment"]["profit_effect_percent"], 69.6)
+        self.assertNotIn("emotion_temperature", evidence["sentiment"])
         self.assertEqual(evidence["sectors"][0]["name"], "商业航天")
         self.assertNotIn("change_percent", evidence["sectors"][1])
 

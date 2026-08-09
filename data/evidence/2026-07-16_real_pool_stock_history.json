@@ -1,0 +1,69 @@
+{
+  "trade_date": "2026-07-16",
+  "source": "akshare:pool_stock_history",
+  "sample_date": "2026-07-16",
+  "scope": "real_pool_stocks",
+  "records": [
+    {
+      "code": "002829",
+      "name": "星网宇达",
+      "sectors": [
+        "航天装备"
+      ],
+      "sample_date": "2026-07-16",
+      "close": 18.84,
+      "change_percent": null,
+      "volume": 124827.0,
+      "amount": null,
+      "history_days": 33,
+      "return_5d_percent": -3.3846,
+      "return_20d_percent": 1.0188,
+      "missing_fields": [
+        "missing_latest_amount"
+      ],
+      "source": "akshare:stock_zh_a_hist_tx",
+      "source_note": "主日线接口失败，已使用腾讯日线备用路径。"
+    },
+    {
+      "code": "000977",
+      "name": "浪潮信息",
+      "sectors": [
+        "国产算例"
+      ],
+      "sample_date": "2026-07-16",
+      "close": 85.0,
+      "change_percent": null,
+      "volume": 1480173.0,
+      "amount": null,
+      "history_days": 33,
+      "return_5d_percent": -5.0492,
+      "return_20d_percent": 29.4548,
+      "missing_fields": [
+        "missing_latest_amount"
+      ],
+      "source": "akshare:stock_zh_a_hist_tx",
+      "source_note": "主日线接口失败，已使用腾讯日线备用路径。"
+    },
+    {
+      "code": "002384",
+      "name": "东山精密",
+      "sectors": [
+        "CPO"
+      ],
+      "sample_date": "2026-07-16",
+      "close": 268.8,
+      "change_percent": null,
+      "volume": 1158991.0,
+      "amount": null,
+      "history_days": 33,
+      "return_5d_percent": 10.9369,
+      "return_20d_percent": -1.5385,
+      "missing_fields": [
+        "missing_latest_amount"
+      ],
+      "source": "akshare:stock_zh_a_hist_tx",
+      "source_note": "主日线接口失败，已使用腾讯日线备用路径。"
+    }
+  ],
+  "note": "仅覆盖真实池记录；主日线失败时可降级到 AKShare 的腾讯日线。该备用源的 amount 单位为手，只写入成交量，不伪装成成交额；5/20 日字段不足时保留待确认，不认定核心票或买点。"
+}

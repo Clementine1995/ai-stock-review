@@ -11,6 +11,7 @@ from stock_review.observations.manage_observation import (
     DEFAULT_DATABASE_PATH,
     Observation,
     list_observations_between,
+    observation_review_reason_label,
 )
 
 
@@ -48,6 +49,7 @@ def render_weekly_learning(
     miss_items = [item for item in observations if item.status == "miss"]
     invalid_items = [item for item in observations if item.status == "invalid"]
     pending_items = [item for item in observations if item.status == "pending"]
+    overdue_items = [item for item in pending_items if item.is_overdue_on(end_date)]
     reviewed_items = [*hit_items, *miss_items, *invalid_items]
 
     lines = [
@@ -58,6 +60,7 @@ def render_weekly_learning(
         f"- Observation 总数：{len(observations)}",
         f"- 已回填样本：{len(reviewed_items)}",
         f"- 命中：{len(hit_items)}；失败：{len(miss_items)}；无效：{len(invalid_items)}；待观察：{len(pending_items)}。",
+        f"- 逾期未回填：{len(overdue_items)}（按报告结束日期 {end_date} 判断，不自动修改状态）。",
         "- 总结边界：仅基于已保存 Observation 和回填事实，不自动修改 stock-review.md。",
         "",
     ]
@@ -75,24 +78,52 @@ def render_weekly_learning(
     lines.extend(render_sample_section("命中样本", hit_items))
     lines.extend(render_sample_section("失败样本", miss_items))
     lines.extend(render_sample_section("无效样本", invalid_items))
-    lines.extend(render_sample_section("待观察样本", pending_items))
+    lines.extend(render_sample_section("待观察样本", pending_items, reference_date=end_date))
+    lines.extend(render_review_reason_section([*miss_items, *invalid_items]))
     lines.extend(render_pattern_section("有效判断模式", hit_items))
     lines.extend(render_pattern_section("反复误判主题", miss_items))
     lines.extend(render_candidate_section(hit_items, miss_items))
     return "\n".join(lines).rstrip() + "\n"
 
 
-def render_sample_section(title: str, observations: list[Observation]) -> list[str]:
+def render_sample_section(
+    title: str,
+    observations: list[Observation],
+    reference_date: str | None = None,
+) -> list[str]:
     lines = [f"## {title}", ""]
     if not observations:
         return [*lines, "- 无。", ""]
     for observation in observations:
         result = observation.actual_result or "未填写"
         note = observation.review_note or "无"
+        deadline = observation.review_deadline or "待补充"
+        overdue_label = "｜状态提示：逾期未回填" if observation.is_overdue_on(reference_date) else ""
+        reason_label = (
+            f"｜回填原因：{observation_review_reason_label(observation.review_reason)}"
+            if observation.status in {"miss", "invalid"}
+            else ""
+        )
         lines.append(
             f"- {observation.observation_id}｜{observation.topic}｜假设：{observation.hypothesis}｜"
-            f"实际结果：{result}｜复盘备注：{note}｜证据：{observation.evidence_source}"
+            f"实际结果：{result}｜最晚回填：{deadline}{overdue_label}{reason_label}｜"
+            f"复盘备注：{note}｜证据：{observation.evidence_source}"
         )
+    return [*lines, ""]
+
+
+# 原因统计保留分类计数和记录 ID，不把分类解释成自动交易绩效或因果结论。
+def render_review_reason_section(observations: list[Observation]) -> list[str]:
+    lines = ["## 回填原因分类", ""]
+    if not observations:
+        return [*lines, "- 无 miss 或 invalid 样本。", ""]
+    grouped: dict[str, list[str]] = {}
+    for observation in observations:
+        label = observation_review_reason_label(observation.review_reason)
+        grouped.setdefault(label, []).append(observation.observation_id)
+    for label in sorted(grouped):
+        observation_ids = grouped[label]
+        lines.append(f"- {label}：{len(observation_ids)} 条；Observation ID：{', '.join(observation_ids)}。")
     return [*lines, ""]
 
 

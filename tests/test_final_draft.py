@@ -52,6 +52,20 @@ class FinalDraftTest(unittest.TestCase):
             with self.assertRaisesRegex(FinalDraftError, "全部有效真实池代码"):
                 create_final_draft("2026-07-14", root, database_path, self.empty_pool_response, self.settings())
 
+    def test_draft_allows_local_history_fields_only_in_step_one_to_step_four(self):
+        with TemporaryDirectory() as temp_path:
+            root = Path(temp_path)
+            for offset, trade_date in enumerate(("2026-07-06", "2026-07-07", "2026-07-08", "2026-07-09", "2026-07-10")):
+                self.write_snapshot(root, trade_date, event_source="hhxg", index_close=3900 + offset)
+
+            draft = create_final_draft("2026-07-10", root, root / "stock_review.sqlite", self.history_field_response, self.settings())
+            content = render_final_draft(draft)
+
+            self.assertIn("连续市场事实：上证指数 5 日区间", content)
+            self.assertIn("多日涨停与连板高度事实：2026-07-06", content)
+            self.assertIn("多日短线情绪事实：2026-07-06", content)
+            self.assertIn("多日板块重复排行事实：创新药", content)
+
     def test_local_env_file_reads_only_llm_settings(self):
         with TemporaryDirectory() as temp_path:
             env_path = Path(temp_path) / ".env"
@@ -103,12 +117,33 @@ class FinalDraftTest(unittest.TestCase):
         return result
 
     @staticmethod
-    def write_snapshot(root: Path, trade_date: str) -> None:
+    def history_field_response(*args):
+        result = FinalDraftTest.valid_response(*args)
+        history_fields = [
+            "market.history_range",
+            "sentiment.history_style",
+            "sentiment.history_cycle",
+            "sectors.history_repeated_rankings",
+        ]
+        for index, field_name in enumerate(history_fields):
+            result["step_drafts"][index]["evidence_field_keys"] = [field_name]
+        return result
+
+    @staticmethod
+    def write_snapshot(
+        root: Path,
+        trade_date: str,
+        event_source: str | None = None,
+        index_close: float = 3967.13,
+    ) -> None:
         payload = {
             "trade_date": trade_date, "sample_date": trade_date, "source": "manual",
-            "market": {"indices": [{"name": "上证指数", "close": 3967.13, "change_percent": 1.36}], "total_amount": 1450000000000},
-            "sentiment": {"limit_up_count": 29, "limit_down_count": 172, "broken_board_rate": 40.82, "highest_board": 3},
-            "sectors": [{"name": "创新药", "rank": 1, "limit_up_count": 7}], "stocks": [], "events": [],
+            "market": {"indices": [{"name": "上证指数", "close": index_close, "change_percent": 1.36}], "total_amount": 1450000000000},
+            "sentiment": {"limit_up_count": 29, "limit_down_count": 172, "broken_board_rate": 0.4082, "highest_board": 3},
+            "sectors": [{"name": "创新药", "rank": 1, "limit_up_count": 7, "source_type": "hhxg_hot_theme"}],
+            "stocks": [],
+            "field_sources": {"market": "akshare", "sentiment": "hhxg", "sectors": "hhxg"},
+            "events": [{"source": event_source, "title": "历史快照"}] if event_source else [],
         }
         (root / f"{trade_date}_snapshot.json").write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
 

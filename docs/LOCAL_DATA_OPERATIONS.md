@@ -39,6 +39,18 @@ $env:PYTHONDONTWRITEBYTECODE='1'
 
 离线验证不得调用真实数据源，不需要修改 `.env`，也不写入生产或远端状态。
 
+## Observation 回填治理结构迁移
+
+旧 Observation 表没有 `review_deadline` 和 `review_reason` 字段。普通新增、查询和周报命令不会静默修改旧库；检测到旧结构时会提示先执行显式迁移。
+
+迁移会写入本地 SQLite，执行前必须确认目标为本地开发库、完成仓库外备份，并单独获得用户授权。正式命令为：
+
+```powershell
+.\.venv\Scripts\python.exe -m stock_review.cli observation migrate-review-governance --database data/stock_review.sqlite
+```
+
+迁移只增加两个字段，不修改 Observation 状态，也不为旧记录编造最晚回填日期或原因分类；旧记录的未知值保持为空。命令输出新增字段数量，重复执行时数量为 `0`。
+
 ## 备份
 
 备份对象至少包括：

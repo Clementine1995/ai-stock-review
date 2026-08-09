@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any
 
 from stock_review.evidence.akshare_source import AkshareRequestPacer, AkshareSourceError, import_akshare_client
+from stock_review.evidence.evidence_snapshot import build_evidence_snapshot
+from stock_review.evidence.manage_evidence_snapshot import read_json_mapping
 from stock_review.pools.manage_pool_item import DEFAULT_DATABASE_PATH, list_pool_items
 
 
@@ -64,7 +66,91 @@ def collect_real_pool_stock_history(
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"{trade_date}_real_pool_stock_history.json"
     output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    write_collection_log(trade_date, output_path, len(records), log_path)
+    write_collection_log("evidence collect-pool-history", trade_date, output_path, len(records), log_path)
+    return output_path
+
+
+# 复盘候选历史只合并同日快照的可确认代码和有效真实池；不从全市场额外选股。
+def collect_review_candidate_history(
+    trade_date: str,
+    snapshot_dir: Path = DEFAULT_EVIDENCE_DIR,
+    output_dir: Path = DEFAULT_EVIDENCE_DIR,
+    database_path: Path = DEFAULT_DATABASE_PATH,
+    ak_client: Any | None = None,
+    log_path: Path = DEFAULT_LOG_PATH,
+) -> Path:
+    target_date = date.fromisoformat(trade_date)
+    snapshot_path = snapshot_dir / f"{trade_date}_snapshot.json"
+    if not snapshot_path.exists():
+        raise AkshareSourceError(f"证据快照不存在：{snapshot_path}")
+    snapshot = build_evidence_snapshot(trade_date, read_json_mapping(snapshot_path))
+    if snapshot.sample_date != trade_date:
+        raise AkshareSourceError("证据快照样本日期与复盘日期不一致。")
+
+    candidates: dict[str, dict[str, Any]] = {}
+    for stock in snapshot.stocks:
+        code = str(stock.get("code") or "").strip()
+        name = str(stock.get("name") or "").strip()
+        if code.isdigit() and len(code) == 6 and name:
+            candidates[code] = {
+                "code": code,
+                "name": name,
+                "sectors": (str(stock.get("sector") or "待确认"),),
+                "origin": "system_snapshot",
+            }
+    for item in list_pool_items(record_kind="real", database_path=database_path):
+        existing = candidates.get(item.code)
+        candidates[item.code] = {
+            "code": item.code,
+            "name": item.name,
+            "sectors": item.sectors or tuple(existing["sectors"] if existing else ()),
+            "origin": "system_snapshot_and_real_pool" if existing else "real_pool",
+        }
+    if not candidates:
+        raise AkshareSourceError("当前快照和真实池都没有可确认代码，无法采集复盘候选历史事实。")
+
+    client = ak_client or import_akshare_client()
+    start_date = (target_date - timedelta(days=45)).strftime("%Y%m%d")
+    end_date = target_date.strftime("%Y%m%d")
+    pacer = AkshareRequestPacer()
+    records: list[dict[str, Any]] = []
+    for candidate in candidates.values():
+        try:
+            rows, source, source_note = fetch_pool_history_rows(
+                client, candidate["code"], start_date, end_date, pacer
+            )
+        except AkshareSourceError as error:
+            records.append(
+                {
+                    "code": candidate["code"],
+                    "name": candidate["name"],
+                    "origin": candidate["origin"],
+                    "error": str(error),
+                    "missing_fields": ["history_unavailable"],
+                }
+            )
+            continue
+        record = build_history_record(
+            candidate["code"], candidate["name"], tuple(candidate["sectors"]), target_date, rows
+        )
+        record["origin"] = candidate["origin"]
+        record["source"] = source
+        if source_note:
+            record["source_note"] = source_note
+        records.append(record)
+
+    payload = {
+        "trade_date": trade_date,
+        "source": "akshare:review_candidate_history",
+        "sample_date": trade_date,
+        "scope": "snapshot_and_real_pool_candidates",
+        "records": records,
+        "note": "仅覆盖同日快照与有效真实池的有限候选；流通市值按收盘价乘流通股本计算，成交容量使用候选自身成交额，不扩展为全市场选股。",
+    }
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / f"{trade_date}_review_candidate_history.json"
+    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    write_collection_log("evidence collect-review-history", trade_date, output_path, len(records), log_path)
     return output_path
 
 
@@ -75,6 +161,19 @@ def fetch_pool_history_rows(
     end_date: str,
     pacer: AkshareRequestPacer,
 ) -> tuple[list[dict[str, Any]], str, str]:
+    try:
+        pacer.wait_before_request()
+        frame = client.stock_zh_a_daily(
+            symbol=to_tencent_symbol(code),
+            start_date=start_date,
+            end_date=end_date,
+            adjust="",
+        )
+    except Exception:  # noqa: BLE001
+        frame = None
+    if normalize_history_rows(frame):
+        return normalize_history_rows(frame), "akshare:stock_zh_a_daily", ""
+
     try:
         pacer.wait_before_request()
         frame = client.stock_zh_a_hist(
@@ -149,6 +248,14 @@ def build_history_record(code: str, name: str, sectors: tuple[str, ...], target_
         "change_percent": number_value(latest.get("涨跌幅", latest.get("change_percent"))),
         "volume": number_value(latest.get("成交量", latest.get("volume"))),
         "amount": number_value(latest.get("成交额", latest.get("amount"))),
+        "average_5d_amount": window_average(normalized_rows, 5, "成交额", "amount"),
+        "outstanding_share": number_value(latest.get("outstanding_share")),
+        "circulating_market_value": (
+            round(close * number_value(latest.get("outstanding_share")), 2)
+            if close is not None and number_value(latest.get("outstanding_share")) is not None
+            else None
+        ),
+        "turnover": number_value(latest.get("换手率", latest.get("turnover"))),
         "history_days": len(normalized_rows),
         "return_5d_percent": window_return(normalized_rows, 5),
         "return_20d_percent": window_return(normalized_rows, 20),
@@ -164,6 +271,10 @@ def build_history_record(code: str, name: str, sectors: tuple[str, ...], target_
         record["missing_fields"].append("missing_latest_volume")
     if record["amount"] is None:
         record["missing_fields"].append("missing_latest_amount")
+    if record["average_5d_amount"] is None:
+        record["missing_fields"].append("missing_5d_average_amount")
+    if record["circulating_market_value"] is None:
+        record["missing_fields"].append("missing_circulating_market_value")
     return record
 
 
@@ -175,6 +286,17 @@ def window_return(rows: list[dict[str, Any]], window: int) -> float | None:
     if start in (None, 0) or end is None:
         return None
     return round((end / start - 1) * 100, 4)
+
+
+def window_average(
+    rows: list[dict[str, Any]], window: int, primary_field: str, fallback_field: str
+) -> float | None:
+    if len(rows) < window:
+        return None
+    values = [number_value(row.get(primary_field, row.get(fallback_field))) for row in rows[-window:]]
+    if any(value is None for value in values):
+        return None
+    return round(sum(value for value in values if value is not None) / window, 2)
 
 
 def parse_row_date(row: dict[str, Any]) -> date | None:
@@ -194,7 +316,7 @@ def number_value(value: Any) -> float | None:
         return None
 
 
-def write_collection_log(trade_date: str, output_path: Path, item_count: int, log_path: Path) -> None:
+def write_collection_log(command: str, trade_date: str, output_path: Path, item_count: int, log_path: Path) -> None:
     log_path.parent.mkdir(parents=True, exist_ok=True)
     logger = logging.getLogger("stock_review.pool_stock_history")
     logger.setLevel(logging.INFO)
@@ -202,7 +324,7 @@ def write_collection_log(trade_date: str, output_path: Path, item_count: int, lo
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
     logger.addHandler(handler)
     try:
-        logger.info("command=evidence collect-pool-history trade_date=%s output=%s item_count=%s status=created", trade_date, output_path, item_count)
+        logger.info("command=%s trade_date=%s output=%s item_count=%s status=created", command, trade_date, output_path, item_count)
     finally:
         logger.removeHandler(handler)
         handler.close()

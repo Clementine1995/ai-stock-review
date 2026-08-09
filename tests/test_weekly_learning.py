@@ -29,12 +29,14 @@ class WeeklyLearningTest(unittest.TestCase):
                 miss.observation_id,
                 "miss",
                 "板块次日下跌 2%",
+                review_reason="judgment_error",
                 database_path=database_path,
             )
             review_observation(
                 invalid.observation_id,
                 "invalid",
                 "样本日期不匹配",
+                review_reason="invalid_sample",
                 database_path=database_path,
             )
 
@@ -54,6 +56,10 @@ class WeeklyLearningTest(unittest.TestCase):
             self.assertNotIn(invalid.observation_id, candidate_content)
             self.assertIn("软件延续", content)
             self.assertIn("油气延续", content)
+            self.assertIn("逾期未回填：1", content)
+            self.assertIn("状态提示：逾期未回填", content)
+            self.assertIn(f"判断错误：1 条；Observation ID：{miss.observation_id}", content)
+            self.assertIn(f"样本无效：1 条；Observation ID：{invalid.observation_id}", content)
             self.assertTrue(output_path.exists())
 
     def test_weekly_learning_reports_insufficient_reviewed_samples(self):
@@ -96,6 +102,7 @@ class WeeklyLearningTest(unittest.TestCase):
             confirmation_condition="次日继续放量上涨",
             invalidation_condition="次日跌幅超过 2%",
             evidence_source="2026-07-06 Evidence Snapshot",
+            review_deadline="2026-07-08",
             database_path=database_path,
         )
 

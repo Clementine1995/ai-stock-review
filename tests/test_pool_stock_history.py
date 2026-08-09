@@ -3,7 +3,10 @@ from tempfile import TemporaryDirectory
 import json
 import unittest
 
-from stock_review.evidence.collect_pool_stock_history import collect_real_pool_stock_history
+from stock_review.evidence.collect_pool_stock_history import (
+    collect_real_pool_stock_history,
+    collect_review_candidate_history,
+)
 from stock_review.pools.manage_pool_item import add_pool_item
 
 
@@ -41,6 +44,42 @@ class PoolStockHistoryTest(unittest.TestCase):
             self.assertIn("missing_latest_amount", record["missing_fields"])
             self.assertEqual(record["return_5d_percent"], 3.4483)
 
+    def test_collects_snapshot_and_real_pool_candidates_with_capacity_facts(self):
+        with TemporaryDirectory() as temp_path:
+            root = Path(temp_path)
+            database_path = root / "stock_review.sqlite"
+            add_pool_item("hot", "002829", "星网宇达", "2026-07-10", "真实热点", record_kind="real", database_path=database_path)
+            (root / "2026-07-10_snapshot.json").write_text(
+                json.dumps(
+                    {
+                        "trade_date": "2026-07-10",
+                        "sample_date": "2026-07-10",
+                        "stocks": [
+                            {"code": "603580", "name": "艾艾精工", "sector": "轻工制造"}
+                        ],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+            client = DailyCapacityClient()
+
+            output_path = collect_review_candidate_history(
+                "2026-07-10",
+                snapshot_dir=root,
+                output_dir=root,
+                database_path=database_path,
+                ak_client=client,
+                log_path=root / "log.txt",
+            )
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            records = {record["code"]: record for record in payload["records"]}
+
+            self.assertEqual(set(records), {"002829", "603580"})
+            self.assertEqual(records["603580"]["source"], "akshare:stock_zh_a_daily")
+            self.assertEqual(records["603580"]["average_5d_amount"], 100000000.0)
+            self.assertEqual(records["603580"]["circulating_market_value"], 1300000000.0)
+
 
 class FakeAkshareClient:
     def __init__(self):
@@ -72,6 +111,21 @@ class FallbackAkshareClient:
         ] + [
             {"date": f"2026-07-{index:02d}", "close": 110 + index, "amount": 1000}
             for index in range(1, 11)
+        ]
+
+
+class DailyCapacityClient:
+    def stock_zh_a_daily(self, symbol, start_date, end_date, adjust):
+        return [
+            {
+                "date": f"2026-06-{index:02d}",
+                "close": 100 + index,
+                "volume": 1000000,
+                "amount": 100000000,
+                "outstanding_share": 10000000,
+                "turnover": 0.1,
+            }
+            for index in range(21, 31)
         ]
 
 

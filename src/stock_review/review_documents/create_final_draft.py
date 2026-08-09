@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 import json
 from pathlib import Path
 from typing import Any, Callable
@@ -11,6 +12,11 @@ from stock_review.evidence.summarize_review_facts import (
     ReviewFactsSummary,
     StepEvidence,
     build_step_evidence,
+    render_candidate_trend_capacity,
+    render_hhxg_sentiment_history,
+    render_hhxg_style_history,
+    render_market_history,
+    render_repeated_rank_facts,
     summarize_review_facts,
 )
 from stock_review.llm.openai_compatible_client import OpenAICompatibleSettings, request_json_completion
@@ -119,12 +125,38 @@ def build_evidence_facts(context: ReviewContext, facts_summary: ReviewFactsSumma
     return {
         "market.indices": render_indices(snapshot.market),
         "market.total_amount": f"成交额：{render_value(snapshot.market.get('total_amount'))}",
+        "market.history_range": f"连续市场事实：{render_market_history(facts_summary.market_history)}",
         "sentiment.limit_up_count": f"涨停数：{render_value(snapshot.sentiment.get('limit_up_count'))}",
         "sentiment.limit_down_count": f"跌停数：{render_value(snapshot.sentiment.get('limit_down_count'))}",
-        "sentiment.broken_board_rate": f"炸板率：{render_value(snapshot.sentiment.get('broken_board_rate'))}",
+        "sentiment.broken_board_rate": f"炸板率：{render_ratio_percent(snapshot.sentiment.get('broken_board_rate'))}",
         "sentiment.highest_board": f"最高连板：{render_value(snapshot.sentiment.get('highest_board'))}",
+        "sentiment.profit_effect_percent": (
+            f"赚钱效应：{render_value(snapshot.sentiment.get('profit_effect_percent'))}；"
+            f"来源：{render_value(snapshot.sentiment.get('profit_effect_source'))}；公开公式待确认"
+        ),
+        "sentiment.history_style": f"多日涨停与连板高度事实：{render_hhxg_style_history(facts_summary.hhxg_history)}",
+        "sentiment.history_cycle": f"多日短线情绪事实：{render_hhxg_sentiment_history(facts_summary.hhxg_history)}",
+        "candidate_history.trend_capacity": (
+            "有限候选趋势与成交容量事实："
+            + render_candidate_trend_capacity(
+                facts_summary.candidate_history_records,
+                facts_summary.candidate_history_missing,
+            )
+        ),
         "sectors.rankings": render_sectors(snapshot.sectors),
+        "sectors.history_repeated_rankings": (
+            f"多日板块重复排行事实：{render_repeated_rank_facts(facts_summary.hhxg_history)}"
+        ),
         "stocks.current": render_stocks(snapshot.stocks),
+        "candidate_history.latest": render_pool_history_values(
+            facts_summary.candidate_history_records, "close", "当日收盘"
+        ),
+        "candidate_history.return_5d_percent": render_pool_history_values(
+            facts_summary.candidate_history_records, "return_5d_percent", "5 日涨跌幅"
+        ),
+        "candidate_history.return_20d_percent": render_pool_history_values(
+            facts_summary.candidate_history_records, "return_20d_percent", "20 日涨跌幅"
+        ),
         "pool.active_real": render_pool_items(context.active_real_pool_items),
         "pool_history.latest": render_pool_history_values(facts_summary.pool_history_records, "close", "当日收盘"),
         "pool_history.return_5d_percent": render_pool_history_values(facts_summary.pool_history_records, "return_5d_percent", "5 日涨跌幅"),
@@ -328,9 +360,13 @@ def render_indices(market: dict[str, Any]) -> str:
     if not isinstance(indices, list) or not indices:
         return "指数：待确认"
     return "；".join(
-        f"{item.get('name') or '待确认'} 收盘 {render_value(item.get('close'))}，涨跌幅 {render_value(item.get('change_percent'))}"
+        f"{item.get('name') or '待确认'} 收盘 {render_value(item.get('close'))}，涨跌幅 {render_percent(item.get('change_percent'))}"
         for item in indices if isinstance(item, dict)
     )
+
+
+def render_percent(value: Any) -> str:
+    return f"{value}%" if value not in (None, "") else "待确认"
 
 
 def render_sectors(sectors: list[dict[str, Any]]) -> str:
@@ -373,3 +409,11 @@ def render_hard_gaps(step_evidence: StepEvidence) -> str:
 
 def render_value(value: Any) -> str:
     return str(value) if value not in (None, "") else "待确认"
+
+
+# 炸板率在 Evidence Snapshot 中保存为 0 至 1 的比例，提供给模型时统一转换为业务百分比。
+def render_ratio_percent(value: Any) -> str:
+    if not isinstance(value, (int, float)):
+        return "待确认"
+    percent = Decimal(str(value)) * 100
+    return f"{format(percent.normalize(), 'f')}%"

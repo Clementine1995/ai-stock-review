@@ -24,13 +24,18 @@ from stock_review.evidence.check_history_readiness import (
     render_hhxg_history_readiness,
 )
 from stock_review.evidence.summarize_hhxg_history import create_hhxg_history_report
-from stock_review.evidence.collect_pool_stock_history import collect_real_pool_stock_history
+from stock_review.evidence.collect_pool_stock_history import (
+    collect_real_pool_stock_history,
+    collect_review_candidate_history,
+)
 from stock_review.evidence.summarize_review_facts import create_review_facts_report
 from stock_review.learning.summarize_weekly_learning import create_weekly_learning
 from stock_review.observations.manage_observation import (
+    OBSERVATION_REVIEW_REASON_LABELS,
     ObservationError,
     add_observation,
     list_observations,
+    migrate_observation_review_governance,
     review_observation,
 )
 from stock_review.planning.build_trade_plan import TradePlanError, create_trade_plan
@@ -56,6 +61,12 @@ from stock_review.review_documents.manage_manual_review import (
 )
 from stock_review.review_documents.build_review_context import build_review_context, render_review_context
 from stock_review.review_documents.create_final_draft import FinalDraftError, create_final_draft, render_final_draft
+from stock_review.review_documents.create_detailed_review import (
+    DEFAULT_DETAILED_REPORT_DIR,
+    DEFAULT_LOG_PATH as DEFAULT_DETAILED_REVIEW_LOG_PATH,
+    DetailedReviewError,
+    create_detailed_review_report,
+)
 from stock_review.llm.openai_compatible_client import LLMClientError
 from stock_review.review_framework.parse_framework import (
     FrameworkParseError,
@@ -75,7 +86,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         return args.handler(args)
-    except (EvidenceSnapshotError, FinalDraftError, FrameworkParseError, LLMClientError, ManualReviewError, ObservationError, PoolItemError, TradePlanError) as error:
+    except (DetailedReviewError, EvidenceSnapshotError, FinalDraftError, FrameworkParseError, LLMClientError, ManualReviewError, ObservationError, PoolItemError, TradePlanError) as error:
         print(f"错误：{error}", file=sys.stderr)
         return 1
     except OSError as error:
@@ -218,6 +229,28 @@ def build_parser() -> argparse.ArgumentParser:
         "--database", type=Path, default=DEFAULT_DATABASE_PATH, help="本地 SQLite 数据库路径"
     )
     review_draft_final_parser.set_defaults(handler=handle_review_draft_final)
+
+    review_create_detailed_parser = review_subparsers.add_parser(
+        "create-detailed",
+        help="调用已配置 LLM 生成严格按 STEP 1-10 编排的详细复盘 Markdown",
+    )
+    review_create_detailed_parser.add_argument("--date", required=True, help="复盘日期，格式 YYYY-MM-DD")
+    review_create_detailed_parser.add_argument(
+        "--framework", required=True, type=Path, help="复盘框架 Markdown 文件路径"
+    )
+    review_create_detailed_parser.add_argument(
+        "--snapshot-dir", type=Path, default=DEFAULT_EVIDENCE_DIR, help="Evidence Snapshot 与真实池历史目录"
+    )
+    review_create_detailed_parser.add_argument(
+        "--database", type=Path, default=DEFAULT_DATABASE_PATH, help="本地 SQLite 数据库路径"
+    )
+    review_create_detailed_parser.add_argument(
+        "--output-dir", type=Path, default=DEFAULT_DETAILED_REPORT_DIR, help="详细复盘 Markdown 输出目录"
+    )
+    review_create_detailed_parser.add_argument(
+        "--log-path", type=Path, default=DEFAULT_DETAILED_REVIEW_LOG_PATH, help="本地日志路径"
+    )
+    review_create_detailed_parser.set_defaults(handler=handle_review_create_detailed)
 
     evidence_parser = subparsers.add_parser("evidence", help="证据快照相关命令")
     evidence_subparsers = evidence_parser.add_subparsers(dest="evidence_command")
@@ -384,6 +417,23 @@ def build_parser() -> argparse.ArgumentParser:
         "--database", type=Path, default=DEFAULT_DATABASE_PATH, help="本地 SQLite 数据库路径"
     )
     evidence_collect_pool_history_parser.set_defaults(handler=handle_evidence_collect_pool_history)
+
+    evidence_collect_review_history_parser = evidence_subparsers.add_parser(
+        "collect-review-history",
+        help="采集同日快照候选与真实池的 5/20 日、成交容量和流通市值事实，禁止全市场选股",
+    )
+    evidence_collect_review_history_parser.add_argument("--date", required=True, help="交易日期，格式 YYYY-MM-DD")
+    evidence_collect_review_history_parser.add_argument(
+        "--source", required=True, choices=["akshare"], help="数据源名称；当前仅支持 akshare"
+    )
+    evidence_collect_review_history_parser.add_argument(
+        "--snapshot-dir", required=True, type=Path, help="同日证据快照目录"
+    )
+    evidence_collect_review_history_parser.add_argument("--output-dir", required=True, type=Path, help="事实输出目录")
+    evidence_collect_review_history_parser.add_argument(
+        "--database", type=Path, default=DEFAULT_DATABASE_PATH, help="本地 SQLite 数据库路径"
+    )
+    evidence_collect_review_history_parser.set_defaults(handler=handle_evidence_collect_review_history)
 
     evidence_history_readiness_parser = evidence_subparsers.add_parser(
         "history-readiness",
@@ -588,6 +638,9 @@ def build_parser() -> argparse.ArgumentParser:
     observation_add_parser.add_argument("--confirmation", required=True, help="成立条件")
     observation_add_parser.add_argument("--invalidation", required=True, help="失效条件")
     observation_add_parser.add_argument("--evidence-source", required=True, help="证据来源")
+    observation_add_parser.add_argument(
+        "--review-deadline", required=True, help="最晚回填日期，格式 YYYY-MM-DD"
+    )
     observation_add_parser.add_argument("--plan-item", default="", help="可选关联计划项")
     observation_add_parser.add_argument(
         "--database",
@@ -623,12 +676,33 @@ def build_parser() -> argparse.ArgumentParser:
     observation_review_parser.add_argument("--result", required=True, help="实际结果")
     observation_review_parser.add_argument("--note", default="", help="复盘备注")
     observation_review_parser.add_argument(
+        "--reason-category",
+        choices=sorted(OBSERVATION_REVIEW_REASON_LABELS),
+        default="",
+        help=(
+            "miss/invalid 必填：judgment_error=判断错误，insufficient_evidence=证据不足，"
+            "observation_or_execution_deviation=观察或执行偏差，invalid_sample=样本无效"
+        ),
+    )
+    observation_review_parser.add_argument(
         "--database",
         type=Path,
         default=DEFAULT_DATABASE_PATH,
         help="本地 SQLite 数据库路径",
     )
     observation_review_parser.set_defaults(handler=handle_observation_review)
+
+    observation_migrate_parser = observation_subparsers.add_parser(
+        "migrate-review-governance",
+        help="显式补充 Observation 回填期限与原因分类字段",
+    )
+    observation_migrate_parser.add_argument(
+        "--database",
+        type=Path,
+        default=DEFAULT_DATABASE_PATH,
+        help="本地 SQLite 数据库路径",
+    )
+    observation_migrate_parser.set_defaults(handler=handle_observation_migrate_review_governance)
 
     learning_parser = subparsers.add_parser("learning", help="学习总结相关命令")
     learning_subparsers = learning_parser.add_subparsers(dest="learning_command")
@@ -788,6 +862,20 @@ def handle_review_build_context(args: argparse.Namespace) -> int:
 def handle_review_draft_final(args: argparse.Namespace) -> int:
     draft = create_final_draft(args.date, snapshot_dir=args.snapshot_dir, database_path=args.database)
     print(render_final_draft(draft), end="")
+    return 0
+
+
+# 详细复盘命令只写 Markdown 和审计日志，模型草案不会写入 SQLite 或修改池子、计划与 Observation。
+def handle_review_create_detailed(args: argparse.Namespace) -> int:
+    output_path = create_detailed_review_report(
+        args.date,
+        args.framework,
+        args.snapshot_dir,
+        args.database,
+        output_dir=args.output_dir,
+        log_path=args.log_path,
+    )
+    print(f"已生成详细复盘：{output_path}")
     return 0
 
 
@@ -1175,6 +1263,18 @@ def handle_evidence_collect_pool_history(args: argparse.Namespace) -> int:
     return 0
 
 
+# 复盘候选历史只沿同日快照和真实池的有限代码请求，不产生新的全市场候选。
+def handle_evidence_collect_review_history(args: argparse.Namespace) -> int:
+    output_path = collect_review_candidate_history(
+        args.date,
+        snapshot_dir=args.snapshot_dir,
+        output_dir=args.output_dir,
+        database_path=args.database,
+    )
+    print(f"已生成复盘候选历史事实：{output_path}")
+    return 0
+
+
 # 就绪检查只读取本地快照，明确阻止不足五个有效交易日时提前进行历史分析。
 def handle_evidence_history_readiness(args: argparse.Namespace) -> int:
     readiness = check_hhxg_history_readiness(args.start, args.end, args.snapshot_dir)
@@ -1241,12 +1341,14 @@ def handle_observation_add(args: argparse.Namespace) -> int:
         confirmation_condition=args.confirmation,
         invalidation_condition=args.invalidation,
         evidence_source=args.evidence_source,
+        review_deadline=args.review_deadline,
         plan_item=args.plan_item,
         database_path=args.database,
     )
     write_observation_log("observation add", observation.observation_id, observation.status, args.database)
     print(f"已创建 Observation：{observation.observation_id}")
     print(f"状态：{observation.status}")
+    print(f"最晚回填日期：{observation.review_deadline}")
     return 0
 
 
@@ -1256,8 +1358,10 @@ def handle_observation_list(args: argparse.Namespace) -> int:
         print("暂无 Observation 记录。")
         return 0
     for observation in observations:
+        overdue_label = "逾期未回填" if observation.is_overdue_on() else "未逾期"
         print(
             f"{observation.observation_id} | {observation.review_date} | {observation.status} | "
+            f"{observation.review_deadline or '待补充'} | {overdue_label} | "
             f"{observation.topic} | {observation.related_target} | {observation.hypothesis}"
         )
     return 0
@@ -1270,11 +1374,20 @@ def handle_observation_review(args: argparse.Namespace) -> int:
         status=args.status,
         actual_result=args.result,
         review_note=args.note,
+        review_reason=args.reason_category,
         database_path=args.database,
     )
     write_observation_log("observation review", observation.observation_id, observation.status, args.database)
     print(f"已回填 Observation：{observation.observation_id}")
     print(f"状态：{observation.status}")
+    return 0
+
+
+# 迁移只增加治理字段，旧记录的未知期限与原因保持为空，不自动生成业务事实。
+def handle_observation_migrate_review_governance(args: argparse.Namespace) -> int:
+    migrated_column_count = migrate_observation_review_governance(database_path=args.database)
+    write_observation_migration_log(migrated_column_count, args.database)
+    print(f"已完成 Observation 回填治理结构迁移：新增 {migrated_column_count} 个字段。")
     return 0
 
 
@@ -1294,6 +1407,25 @@ def write_observation_log(command: str, observation_id: str, status: str, databa
             observation_id,
             status,
             database_path,
+        )
+    finally:
+        logger.removeHandler(handler)
+        handler.close()
+
+
+def write_observation_migration_log(migrated_column_count: int, database_path: Path) -> None:
+    log_path = Path("logs") / "stock_review.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    logger = logging.getLogger("stock_review.observation")
+    logger.setLevel(logging.INFO)
+    handler = logging.FileHandler(log_path, encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    logger.addHandler(handler)
+    try:
+        logger.info(
+            "command=observation migrate-review-governance database=%s migrated_column_count=%s status=completed",
+            database_path,
+            migrated_column_count,
         )
     finally:
         logger.removeHandler(handler)

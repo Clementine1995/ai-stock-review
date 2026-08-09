@@ -42,7 +42,10 @@ def collect_hhxg_snapshot_evidence(
         if total_touched_limit_up
         else None,
         "highest_board": parse_number(ladder.get("max_streak")),
-        "emotion_temperature": parse_number(market.get("sentiment_index")),
+        # hhxg 页面把 sentiment_index 展示为“赚钱效应”；公开页面未披露正式公式，不能改称情绪温度。
+        "profit_effect_percent": parse_number(market.get("sentiment_index")),
+        "profit_effect_source": "hhxg:market.sentiment_index",
+        "profit_effect_calculation": "source_provided_formula_unverified",
     }
 
     return {
@@ -58,7 +61,7 @@ def collect_hhxg_snapshot_evidence(
             {
                 "title": "hhxg 最近交易日快照",
                 "source": "hhxg",
-                "note": "公开接口仅提供最近交易日快照；指数、成交额和可确认股票代码仍为待确认字段。",
+                "note": "公开接口仅提供最近交易日快照；sentiment_index 按页面标签记录为赚钱效应，公开公式待确认；指数、成交额和可确认股票代码仍为待确认字段。",
             }
         ],
     }

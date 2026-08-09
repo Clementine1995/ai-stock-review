@@ -115,7 +115,8 @@ def render_sentiment_lines(snapshot: EvidenceSnapshot) -> list[str]:
         f"- 跌停数：{format_value(sentiment.get('limit_down_count'))}。",
         f"- 炸板率：{format_value(sentiment.get('broken_board_rate'))}。",
         f"- 连板高度：{format_value(sentiment.get('highest_board'))}。",
-        f"- 情绪温度：{format_value(sentiment.get('emotion_temperature'))}。",
+        f"- 赚钱效应：{format_value(sentiment.get('profit_effect_percent'))}；来源：{format_value(sentiment.get('profit_effect_source'))}；公式：来源未公开。",
+        f"- 独立情绪温度：{format_value(sentiment.get('emotion_temperature'))}。",
     ]
 
 

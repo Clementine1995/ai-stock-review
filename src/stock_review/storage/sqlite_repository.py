@@ -8,7 +8,7 @@ from pathlib import Path
 import sqlite3
 
 from stock_review.evidence.evidence_snapshot import EvidenceSnapshot
-from stock_review.observations.manage_observation import Observation
+from stock_review.observations.manage_observation import Observation, ObservationError
 from stock_review.pools.manage_pool_item import PoolItem, PoolItemError, PoolItemStatusEvent
 from stock_review.review_documents.manage_manual_review import ManualFinalResponse, ManualPreview, ManualStepRecord
 
@@ -346,7 +346,10 @@ class PoolItemRepository:
 
     @staticmethod
     def column_exists(connection: sqlite3.Connection, table_name: str, column_name: str) -> bool:
-        return any(row[1] == column_name for row in connection.execute(f"PRAGMA table_info({table_name})"))
+        return any(
+            row[1] == column_name
+            for row in connection.execute(f"PRAGMA table_info({table_name})")
+        )
 
     def pool_item_select_columns(self, connection: sqlite3.Connection) -> str:
         base_columns = "pool_type, code, name, exchange, reason, start_date, status, note, created_at, updated_at"
@@ -736,11 +739,12 @@ class ObservationRepository:
                     invalidation_condition,
                     evidence_source,
                     plan_item,
+                    review_deadline,
                     status,
                     created_at,
                     updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     observation.observation_id,
@@ -752,6 +756,7 @@ class ObservationRepository:
                     observation.invalidation_condition,
                     observation.evidence_source,
                     observation.plan_item,
+                    observation.review_deadline,
                     observation.status,
                     observation.created_at,
                     observation.updated_at,
@@ -814,11 +819,13 @@ class ObservationRepository:
                     observations.invalidation_condition,
                     observations.evidence_source,
                     observations.plan_item,
+                    observations.review_deadline,
                     observations.status,
                     observations.created_at,
                     observations.updated_at,
                     COALESCE(observation_reviews.actual_result, '') AS actual_result,
-                    COALESCE(observation_reviews.review_note, '') AS review_note
+                    COALESCE(observation_reviews.review_note, '') AS review_note,
+                    COALESCE(observation_reviews.review_reason, '') AS review_reason
                 FROM observations
                 LEFT JOIN observation_reviews
                     ON observation_reviews.observation_id = observations.observation_id
@@ -849,11 +856,13 @@ class ObservationRepository:
                     observations.invalidation_condition,
                     observations.evidence_source,
                     observations.plan_item,
+                    observations.review_deadline,
                     observations.status,
                     observations.created_at,
                     observations.updated_at,
                     COALESCE(observation_reviews.actual_result, '') AS actual_result,
-                    COALESCE(observation_reviews.review_note, '') AS review_note
+                    COALESCE(observation_reviews.review_note, '') AS review_note,
+                    COALESCE(observation_reviews.review_reason, '') AS review_reason
                 FROM observations
                 LEFT JOIN observation_reviews
                     ON observation_reviews.observation_id = observations.observation_id
@@ -873,6 +882,7 @@ class ObservationRepository:
         status: str,
         actual_result: str,
         review_note: str,
+        review_reason: str,
         reviewed_at: str,
     ) -> Observation | None:
         connection = sqlite3.connect(self.database_path)
@@ -892,16 +902,18 @@ class ObservationRepository:
                     actual_result,
                     status,
                     review_note,
+                    review_reason,
                     reviewed_at
                 )
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(observation_id) DO UPDATE SET
                     actual_result = excluded.actual_result,
                     status = excluded.status,
                     review_note = excluded.review_note,
+                    review_reason = excluded.review_reason,
                     reviewed_at = excluded.reviewed_at
                 """,
-                (observation_id, actual_result, status, review_note, reviewed_at),
+                (observation_id, actual_result, status, review_note, review_reason, reviewed_at),
             )
             connection.execute(
                 """
@@ -922,6 +934,18 @@ class ObservationRepository:
         )
 
     def ensure_tables(self, connection: sqlite3.Connection) -> None:
+        if self.table_exists(connection, "observations") and not self.column_exists(
+            connection, "observations", "review_deadline"
+        ):
+            raise ObservationError(
+                "本地 Observation 仍是旧结构，请先显式执行 observation migrate-review-governance。"
+            )
+        if self.table_exists(connection, "observation_reviews") and not self.column_exists(
+            connection, "observation_reviews", "review_reason"
+        ):
+            raise ObservationError(
+                "本地 Observation 仍是旧结构，请先显式执行 observation migrate-review-governance。"
+            )
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS observations (
@@ -934,6 +958,7 @@ class ObservationRepository:
                 invalidation_condition TEXT NOT NULL,
                 evidence_source TEXT NOT NULL,
                 plan_item TEXT NOT NULL,
+                review_deadline TEXT NOT NULL,
                 status TEXT NOT NULL,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
@@ -948,6 +973,7 @@ class ObservationRepository:
                 actual_result TEXT NOT NULL,
                 status TEXT NOT NULL,
                 review_note TEXT NOT NULL,
+                review_reason TEXT NOT NULL,
                 reviewed_at TEXT NOT NULL,
                 FOREIGN KEY (observation_id) REFERENCES observations (observation_id)
             )
@@ -965,9 +991,48 @@ class ObservationRepository:
             invalidation_condition=row["invalidation_condition"],
             evidence_source=row["evidence_source"],
             plan_item=row["plan_item"],
+            review_deadline=row["review_deadline"],
             status=row["status"],
             actual_result=row["actual_result"],
             review_note=row["review_note"],
+            review_reason=row["review_reason"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )
+
+    # 旧记录缺少的信息保持为空，只补列结构，不为历史样本编造回填期限或原因。
+    def migrate_review_governance_schema(self) -> int:
+        self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        connection = sqlite3.connect(self.database_path)
+        migrated_column_count = 0
+        try:
+            if self.table_exists(connection, "observations") and not self.column_exists(
+                connection, "observations", "review_deadline"
+            ):
+                connection.execute(
+                    "ALTER TABLE observations ADD COLUMN review_deadline TEXT NOT NULL DEFAULT ''"
+                )
+                migrated_column_count += 1
+            if self.table_exists(connection, "observation_reviews") and not self.column_exists(
+                connection, "observation_reviews", "review_reason"
+            ):
+                connection.execute(
+                    "ALTER TABLE observation_reviews ADD COLUMN review_reason TEXT NOT NULL DEFAULT ''"
+                )
+                migrated_column_count += 1
+            self.ensure_tables(connection)
+            connection.commit()
+            return migrated_column_count
+        finally:
+            connection.close()
+
+    @staticmethod
+    def table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
+        row = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (table_name,)
+        ).fetchone()
+        return row is not None
+
+    @staticmethod
+    def column_exists(connection: sqlite3.Connection, table_name: str, column_name: str) -> bool:
+        return any(row[1] == column_name for row in connection.execute(f"PRAGMA table_info({table_name})"))
