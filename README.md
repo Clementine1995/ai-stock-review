@@ -2,7 +2,7 @@
 
 一个以 `stock-review.md` 为主流程、以有限股票池和必要行情/情绪数据为证据输入的 A 股短线盘后复盘与次日计划系统。
 
-当前产品主线不是继续增加数据和功能，而是把已经积累的当日事实、5 日历史、真实池与模式核验，严格按 `stock-review.md` 的 STEP 1-10 编排成一份详细、可追溯、可用于次日预演的复盘文档。
+当前产品主线不是继续增加数据和功能，而是先把已经积累的当日事实、5 日历史和真实池收敛成一份低摩擦的盘后复盘决策卡；完整 STEP 1-10 详细报告保留为显式启用的补充输出。
 
 ## 项目负责
 
@@ -84,9 +84,10 @@ flowchart TD
 - M10.4.1 已完成详细复盘报告编排及真实使用修正：`review create-detailed` 复用现有事实、历史、系统发现候选、真实池、人工记录和模式核验，按 `stock-review.md` 的 STEP 1-10 输出；证据字段由本地按 STEP 白名单和事实可用性固定，STEP 1-7 的精确历史事实只由本地证据链渲染，额外模型字段键不会参与业务判断。
 - M10.4.2 已完成真实可用性修正：hhxg `sentiment_index` 按页面口径记录为赚钱效应且明确公式未公开；有限系统候选与真实池可补采 5/20 日、5 日均成交额和流通市值，逐只进入 STEP 2/6/7；STEP 8 先给主情景和值博率方向，四类条件改为相对分支和否决线。
 - M10.4.3 已完成直接行动计划边界：详细复盘各 STEP 均允许条件买卖、低吸、打板和仓位表达，不再维护动作词黑名单；STEP 8/10 可输出 AI 条件阈值、参与结论、总仓位及逐候选行动，STEP 8 的大盘、板块和个股三类输出及证据路由由本地固定。风险由用户自行承担但不保证市场结果；候选代码仍限于本地有限范围，身份未验证时不得认定龙头、中军或核心票；STEP 9 逐项展示全部 12 种模式。
+- 日常入口默认生成不依赖 LLM 的盘后复盘决策卡：只在决策区展示本地事实、有效真实池和待人工确认项，未确认系统候选仅进入附录；传入 `-WithLlm` 时才额外生成原 STEP 1-10 详细复盘。
 - M10.5.1 已完成 Observation 回填治理代码闭环：新建记录必须指定最晚回填日期，逾期 `pending` 只提示不改状态，`miss/invalid` 必须选择固定原因分类，周报展示分类计数和 Observation ID；现有真实库尚未执行结构迁移。
 - 池子对象已支持最多 3 个人工确认板块；旧单板块本地库需显式执行 `pool migrate-sectors` 后才可写入新结构。
-- 后续顺序：先完成详细复盘报告并投入每日使用，再根据真实使用中反复出现的硬缺口决定是否补数据，最后积累真实 Observation 样本并进入学习和框架演进。具体边界见 `docs/PRODUCT_REQUIREMENTS.md`。
+- 后续顺序：先连续使用本地盘后复盘决策卡，确认能稳定完成每日人工判断；再根据反复出现的硬缺口决定是否补数据，最后积累真实 Observation 样本并进入学习和框架演进。具体边界见 `docs/PRODUCT_REQUIREMENTS.md`。
 - 当前 `stock-review.md` 实际包含 `STEP 1` 到 `STEP 10`，命令会按文件内容动态识别，不硬编码 STEP 数量。
 - 当前已在本地开发环境完成 2026-07-06 的真实联网采集验证；MVP 暂不建设 WebUI。
 - 个股角色标签和买点模式疑似匹配只基于数据源明确给出的板块领涨、连板等事实，不能认定核心票、龙头或确认买点。
@@ -104,7 +105,7 @@ flowchart TD
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e .[dev]
+.\.venv\Scripts\python.exe -m pip install -e .[dev,data]
 ```
 
 当前已实现 CLI：
@@ -113,6 +114,7 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m stock_review.cli framework check --file stock-review.md
 .\.venv\Scripts\python.exe -m stock_review.cli review create --date 2026-07-06 --framework stock-review.md
 .\.venv\Scripts\python.exe -m stock_review.cli review create --date 2026-07-06 --framework stock-review.md --evidence data/evidence/2026-07-06_snapshot.json
+.\.venv\Scripts\python.exe -m stock_review.cli review create-brief --date 2026-07-06 --snapshot-dir data/evidence --database data/stock_review.sqlite --output-dir reports/daily
 .\.venv\Scripts\python.exe -m stock_review.cli review record-step --date 2026-07-06 --step 1 --judgment "市场阶段待确认" --evidence-reference data/evidence/2026-07-06_snapshot.json
 .\.venv\Scripts\python.exe -m stock_review.cli review record-preview --date 2026-07-06 --target "机器人板块" --expectation "板块延续强势" --over-expectation "板块放量强化" --under-expectation "板块明显走弱" --abandon-condition "证据缺失时放弃观察" --evidence-reference data/evidence/2026-07-06_snapshot.json --confirmed
 .\.venv\Scripts\python.exe -m stock_review.cli review record-final --date 2026-07-06 --response "只观察反馈，不形成操作结论" --risk-boundary "证据不足时放弃" --evidence-reference data/evidence/2026-07-06_snapshot.json --plan-reference reports/daily/2026-07-06_plan.md --plan-item "计划项 1: 002829 星网宇达" --pool-code 002829 --preview-id PREVIEW-20260706-001 --observation-id OBS-20260706-001 --confirmed
@@ -152,10 +154,16 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m stock_review.cli scoring create --date 2026-07-06 --evidence data/evidence/2026-07-06_snapshot.json
 ```
 
-日常收盘后可使用单入口脚本依次完成 AKShare 四范围采集、hhxg 合并、快照检查、有限候选历史采集和 STEP 1-10 详细复盘。必须显式传入实际交易日期；hhxg 只返回最近交易日，指定日期与返回日期不一致时脚本会在该步停止，不会继续生成错日复盘。
+日常收盘后可使用单入口脚本依次完成 AKShare 四范围采集、hhxg 合并、快照检查、有限候选历史采集和本地盘后复盘决策卡。决策卡不调用 LLM，部分证据缺失时仍会保留缺口并生成；系统候选只进入附录，不自动进入行动计划。必须显式传入实际交易日期；hhxg 只返回最近交易日，指定日期与返回日期不一致时脚本会在该步停止，不会继续生成错日复盘。
 
 ```powershell
 .\scripts\run_daily_review.ps1 -TradeDate 2026-07-23
+```
+
+如需在决策卡之外继续生成原 STEP 1-10 LLM 详细复盘，必须显式传入：
+
+```powershell
+.\scripts\run_daily_review.ps1 -TradeDate 2026-07-23 -WithLlm
 ```
 
 只检查将要执行的命令，不联网、不写文件或调用 LLM：
@@ -164,7 +172,11 @@ python -m venv .venv
 .\scripts\run_daily_review.ps1 -TradeDate 2026-07-23 -DryRun
 ```
 
-脚本任一步返回非零退出码时立即停止，不自动重试。执行成功后生成 `data/evidence/YYYY-MM-DD_snapshot.json`、`data/evidence/YYYY-MM-DD_review_candidate_history.json` 和 `reports/daily/YYYY-MM-DD_detailed_review.md`。
+脚本任一步返回非零退出码时立即停止，不自动重试。默认执行成功后生成 `data/evidence/YYYY-MM-DD_snapshot.json`、`data/evidence/YYYY-MM-DD_review_candidate_history.json` 和 `reports/daily/YYYY-MM-DD_brief_review.md`；传入 `-WithLlm` 时额外生成 `reports/daily/YYYY-MM-DD_detailed_review.md`。
+
+## WorkBuddy 集成
+
+仓库提供可导入 WorkBuddy 的本地 `stock-review` Skill，入口和五日试跑说明见 [`integrations/workbuddy/README.md`](integrations/workbuddy/README.md)。Skill 把 WorkBuddy 限制为交互和确认层：始终先执行 DryRun，真实采集、人工判断写入和 Observation 创建分别要求用户明确确认；业务事实仍只由现有 CLI、Evidence Snapshot 和 SQLite 管理。
 
 测试：
 

@@ -67,6 +67,11 @@ from stock_review.review_documents.create_detailed_review import (
     DetailedReviewError,
     create_detailed_review_report,
 )
+from stock_review.review_documents.create_brief_review import (
+    DEFAULT_BRIEF_REPORT_DIR,
+    DEFAULT_BRIEF_REVIEW_LOG_PATH,
+    create_brief_review_report,
+)
 from stock_review.llm.openai_compatible_client import LLMClientError
 from stock_review.review_framework.parse_framework import (
     FrameworkParseError,
@@ -139,6 +144,25 @@ def build_parser() -> argparse.ArgumentParser:
         help="可选 Evidence Snapshot JSON 文件路径",
     )
     review_create_parser.set_defaults(handler=handle_review_create)
+
+    review_create_brief_parser = review_subparsers.add_parser(
+        "create-brief",
+        help="基于本地证据生成不依赖 LLM 的盘后复盘决策卡",
+    )
+    review_create_brief_parser.add_argument("--date", required=True, help="复盘日期，格式 YYYY-MM-DD")
+    review_create_brief_parser.add_argument(
+        "--snapshot-dir", type=Path, default=DEFAULT_EVIDENCE_DIR, help="Evidence Snapshot 与候选历史目录"
+    )
+    review_create_brief_parser.add_argument(
+        "--database", type=Path, default=DEFAULT_DATABASE_PATH, help="本地 SQLite 数据库路径"
+    )
+    review_create_brief_parser.add_argument(
+        "--output-dir", type=Path, default=DEFAULT_BRIEF_REPORT_DIR, help="简版复盘 Markdown 输出目录"
+    )
+    review_create_brief_parser.add_argument(
+        "--log-path", type=Path, default=DEFAULT_BRIEF_REVIEW_LOG_PATH, help="本地日志路径"
+    )
+    review_create_brief_parser.set_defaults(handler=handle_review_create_brief)
 
     review_record_step_parser = review_subparsers.add_parser(
         "record-step",
@@ -768,6 +792,19 @@ def handle_framework_check(args: argparse.Namespace) -> int:
 def handle_review_create(args: argparse.Namespace) -> int:
     output_path = create_daily_review(args.date, args.framework, evidence_path=args.evidence)
     print(f"已生成每日复盘：{output_path}")
+    return 0
+
+
+# 简版复盘只消费本地证据和有效真实池，系统候选不会进入行动计划。
+def handle_review_create_brief(args: argparse.Namespace) -> int:
+    output_path = create_brief_review_report(
+        args.date,
+        args.snapshot_dir,
+        database_path=args.database,
+        output_dir=args.output_dir,
+        log_path=args.log_path,
+    )
+    print(f"已生成盘后复盘决策卡：{output_path}")
     return 0
 
 

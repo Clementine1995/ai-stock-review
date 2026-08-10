@@ -1,11 +1,13 @@
-﻿# 本脚本串联单个交易日的证据采集、有限候选历史和详细复盘；任一步失败立即停止，不自动重试。
+﻿# 本脚本串联单个交易日的证据采集、有限候选历史和本地决策卡；LLM 详细复盘仅在显式启用时生成。
 
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
     [string]$TradeDate,
 
-    [switch]$DryRun
+    [switch]$DryRun,
+
+    [switch]$WithLlm
 )
 
 $ErrorActionPreference = "Stop"
@@ -24,7 +26,7 @@ catch {
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $pythonPath = Join-Path $repositoryRoot ".venv\Scripts\python.exe"
 
-if (-not (Test-Path -LiteralPath $pythonPath -PathType Leaf)) {
+if (-not $DryRun -and -not (Test-Path -LiteralPath $pythonPath -PathType Leaf)) {
     throw "未找到项目虚拟环境 Python：$pythonPath"
 }
 
@@ -94,14 +96,24 @@ try {
         "--database", "data/stock_review.sqlite"
     )
 
-    Invoke-StockReviewStep -Name "生成 STEP 1-10 详细复盘" -Arguments @(
-        "review", "create-detailed",
+    Invoke-StockReviewStep -Name "生成本地盘后复盘决策卡" -Arguments @(
+        "review", "create-brief",
         "--date", $TradeDate,
-        "--framework", "stock-review.md",
         "--snapshot-dir", "data/evidence",
         "--database", "data/stock_review.sqlite",
         "--output-dir", "reports/daily"
     )
+
+    if ($WithLlm) {
+        Invoke-StockReviewStep -Name "生成 STEP 1-10 LLM 详细复盘" -Arguments @(
+            "review", "create-detailed",
+            "--date", $TradeDate,
+            "--framework", "stock-review.md",
+            "--snapshot-dir", "data/evidence",
+            "--database", "data/stock_review.sqlite",
+            "--output-dir", "reports/daily"
+        )
+    }
 
     Write-Host ""
     if ($DryRun) {
@@ -111,7 +123,10 @@ try {
         Write-Host "每日复盘完成。" -ForegroundColor Green
         Write-Host "快照：data/evidence/${TradeDate}_snapshot.json"
         Write-Host "候选历史：data/evidence/${TradeDate}_review_candidate_history.json"
-        Write-Host "详细复盘：reports/daily/${TradeDate}_detailed_review.md"
+        Write-Host "盘后复盘决策卡：reports/daily/${TradeDate}_brief_review.md"
+        if ($WithLlm) {
+            Write-Host "LLM 详细复盘：reports/daily/${TradeDate}_detailed_review.md"
+        }
     }
 }
 finally {
