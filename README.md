@@ -8,6 +8,7 @@
 - 旧 `data/stock_review.sqlite` 保持历史旧链边界。新版日常命令默认不读写它，两个数据库没有自动合并能力。
 - WorkBuddy Skill 已同步当前 CLI 合同，但真实 WorkBuddy 端到端验收和连续五个交易日试跑尚未完成。
 - 旧 CLI 和 `scripts/run_daily_review.ps1` 在真实 WorkBuddy 验收前暂留，只能作为过渡入口，不能产生新版正式 publication。
+- 新增盘后决策卡入口 `python -m stock_review.decision --date DATE`，直接回答「情绪 / 能否参与 / 参与什么 / 参与多少」；它与 ReviewRun 正式链并存，最终地位待用户确认。
 - 本地自动化测试、离线样例和文档不能证明真实数据源、真实模型或真实复盘效果已经通过验收。
 
 当前产品合同见 [`docs/PRODUCT_REQUIREMENTS.md`](docs/PRODUCT_REQUIREMENTS.md)，项目文档的职责和权威边界见 [`docs/README.md`](docs/README.md)。根目录 `PRD.md` 与 [`docs/REVIEW_QUALITY_REDESIGN.md`](docs/REVIEW_QUALITY_REDESIGN.md) 仅保留历史背景。
@@ -25,6 +26,24 @@
 提供 model ID 只确定身份，不等于授权真实调用。WorkBuddy 应转交 Base64、operation ID、修订 ID 和哈希，用户不需要手工拼接命令。正式模型不可用、actual model ID 不一致、证据不足或身份无法核实时，流程应明确阻断，不得静默换模型或把缺证据包装成“不参与”。最终以 `daily verify` 通过作为单次运行的技术收口。
 
 这仍是待验收的试跑入口。完整编排合同和采集范围见 [`integrations/workbuddy/README.md`](integrations/workbuddy/README.md) 与 [`integrations/workbuddy/stock-review/SKILL.md`](integrations/workbuddy/stock-review/SKILL.md)。
+
+## 盘后决策卡
+
+需要"今天情绪怎么样、明天能不能买、买什么、买多少"的当日结论时，使用决策卡入口，不需要两次对象确认：
+
+```powershell
+.\.venv\Scripts\python.exe -m stock_review.decision --date 2026-10-09
+```
+
+它的定位、规则来源、数据来源与已知限制见 [`docs/DECISION_CARD.md`](docs/DECISION_CARD.md)。决策卡定位为**独立决策入口**（2026-10-09 确认），不写 `data/review_run.sqlite`、不创建 publication、不进入 `reports/daily/`，因此不能表述为正式复盘，也不构成平行正式流程。
+
+决策卡可选用通达信连接器补充证据：Agent 把当日通达信事实落成 `data/decision/tdx/<trade-date>.json`，决策卡运行时自动读取，用于补全概念板块、解析候选代码、附上个股涨停逻辑与当日消息面。该快照由**每交易日盘后任务自动采集**，采集步骤见 [`docs/DECISION_TDX_COLLECTION.md`](docs/DECISION_TDX_COLLECTION.md)；采集后必须自校验：
+
+```powershell
+.\.venv\Scripts\python.exe -m stock_review.decision.tdx_snapshot --date 2026-10-09
+```
+
+快照缺失或自校验不通过时，决策卡照常产出并写明相应缺口。
 
 ## 唯一正式流程
 

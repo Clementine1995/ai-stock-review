@@ -19,6 +19,8 @@
 | [`../REQUIREMENT_DEVELOPMENT.md`](../REQUIREMENT_DEVELOPMENT.md) | 单项需求合同的触发条件、结构和状态 | 复杂新需求的维护规则 |
 | [`../integrations/workbuddy/stock-review/SKILL.md`](../integrations/workbuddy/stock-review/SKILL.md) | WorkBuddy 对当前 CLI 的运行时编排协议 | 适配合同；真实验收尚未完成 |
 | [`LOCAL_DATA_OPERATIONS.md`](LOCAL_DATA_OPERATIONS.md) | 新旧数据库、证据、报告、日志、备份与清理边界 | 当前数据操作说明 |
+| [`DECISION_CARD.md`](DECISION_CARD.md) | 盘后决策卡的定位、入口、规则来源与已知限制 | 独立决策入口；定位已确认 |
+| [`DECISION_TDX_COLLECTION.md`](DECISION_TDX_COLLECTION.md) | 每交易日通达信快照的采集步骤、字段映射与自校验 | 采集作业手册 |
 | [`REVIEW_QUALITY_REDESIGN.md`](REVIEW_QUALITY_REDESIGN.md) | 2026-09-05 重构前后的审计与设计过程 | 冻结历史快照，非当前规范 |
 | [`../PRD.md`](../PRD.md) | 上一版失败项目材料 | 历史参考，非当前合同 |
 
