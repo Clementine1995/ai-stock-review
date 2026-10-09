@@ -51,7 +51,7 @@ class EvidenceSnapshotTest(unittest.TestCase):
             self.assertIsNotNone(stored_data)
             self.assertEqual(stored_data["missing_fields"], [])
 
-    def test_missing_emotion_temperature_is_reported_separately(self):
+    def test_complete_sentiment_does_not_require_independent_temperature(self):
         snapshot = build_evidence_snapshot(
             "2026-07-06",
             {
@@ -69,7 +69,7 @@ class EvidenceSnapshotTest(unittest.TestCase):
         )
 
         self.assertNotIn("missing_sentiment", snapshot.missing_fields)
-        self.assertIn("missing_emotion_temperature", snapshot.missing_fields)
+        self.assertEqual(snapshot.missing_fields, ())
 
     def test_legacy_hhxg_sentiment_index_is_reinterpreted_as_profit_effect_on_read(self):
         snapshot = build_evidence_snapshot(
@@ -161,6 +161,65 @@ class EvidenceSnapshotTest(unittest.TestCase):
                 "sectors": "hhxg:snapshot",
             },
         )
+
+    def test_merge_keeps_independent_sector_rank_sources(self):
+        merged = merge_evidence_data(
+            {
+                "source": "akshare",
+                "sample_date": "2026-07-06",
+                "sectors": [
+                    {
+                        "name": "通信设备",
+                        "source_type": "industry",
+                        "rank": 1,
+                        "change_percent": 4.2,
+                    }
+                ],
+                "field_sources": {"sectors": "akshare:industry_rank"},
+            },
+            {
+                "source": "hhxg",
+                "sample_date": "2026-07-06",
+                "sectors": [
+                    {
+                        "name": "CPO",
+                        "source_type": "hhxg_hot_theme",
+                        "rank": 1,
+                        "limit_up_count": 10,
+                    }
+                ],
+                "field_sources": {"sectors": "hhxg:snapshot"},
+            },
+        )
+
+        self.assertEqual([item["name"] for item in merged["sectors"]], ["通信设备", "CPO"])
+        self.assertEqual(
+            merged["field_sources"]["sectors"],
+            "akshare:industry_rank+hhxg:snapshot",
+        )
+
+    def test_merge_replaces_only_previous_sector_records_from_same_source(self):
+        merged = merge_evidence_data(
+            {
+                "source": "hhxg",
+                "sample_date": "2026-07-06",
+                "sectors": [
+                    {"name": "机器人", "source_type": "concept", "rank": 1},
+                    {"name": "旧题材", "source_type": "hhxg_hot_theme", "rank": 1},
+                ],
+                "field_sources": {"sectors": "akshare:concept_rank+hhxg:snapshot"},
+            },
+            {
+                "source": "hhxg",
+                "sample_date": "2026-07-06",
+                "sectors": [
+                    {"name": "新题材", "source_type": "hhxg_hot_theme", "rank": 1}
+                ],
+                "field_sources": {"sectors": "hhxg:snapshot"},
+            },
+        )
+
+        self.assertEqual([item["name"] for item in merged["sectors"]], ["机器人", "新题材"])
 
     def test_render_marks_old_snapshot_field_source_as_unconfirmed(self):
         snapshot = build_evidence_snapshot(

@@ -45,6 +45,8 @@ EASTMONEY_SECTOR_CONFIGS = {
 }
 
 AKSHARE_REQUEST_INTERVAL_SECONDS = 0.3
+SSE_AMOUNT_TO_YUAN = Decimal("100000000")
+EXCHANGE_TOTAL_AMOUNT_SOURCE = "akshare:stock_sse_deal_daily+akshare:stock_szse_summary"
 
 
 class AkshareRequestPacer:
@@ -60,7 +62,7 @@ class AkshareRequestPacer:
         self.has_requested = True
 
 
-# 当前最小范围只采集 STEP 1 需要的指数事实；情绪、板块和个股留给后续数据源补齐。
+# 当前最小范围只采集 STEP 1 需要的指数和沪深 A 股成交额事实；情绪、板块和个股留给后续数据源补齐。
 def collect_akshare_market_evidence(trade_date: str, ak_client: Any | None = None) -> dict[str, Any]:
     client = ak_client or import_akshare_client()
     target_date = date.fromisoformat(trade_date)
@@ -68,15 +70,12 @@ def collect_akshare_market_evidence(trade_date: str, ak_client: Any | None = Non
 
     indices: list[dict[str, Any]] = []
     sample_dates: list[str] = []
-    total_amount = Decimal("0")
-    amount_count = 0
-    amount_sources: set[str] = set()
     market_sources: set[str] = set()
     events: list[dict[str, str]] = [
         {
             "title": "AKShare 市场层最小采集",
             "source": "akshare",
-            "note": "当前仅采集指数日线数据；情绪、板块和个股证据仍需后续数据源补齐。",
+            "note": "当前采集指数日线和交易所 A 股成交金额；情绪、板块和个股证据仍需后续数据源补齐。",
         }
     ]
 
@@ -101,11 +100,6 @@ def collect_akshare_market_evidence(trade_date: str, ak_client: Any | None = Non
         }
         if amount is not None:
             index_record["amount"] = decimal_to_number(amount)
-            total_amount += amount
-            amount_count += 1
-            amount_sources.add(
-                str(selected_row.get("__amount_source", "akshare_stock_zh_index_daily_em_amount_sum"))
-            )
 
         indices.append(index_record)
         market_sources.add(str(selected_row.get("__market_source", "akshare:stock_zh_index_daily_em")))
@@ -114,10 +108,19 @@ def collect_akshare_market_evidence(trade_date: str, ak_client: Any | None = Non
 
     sample_date = max(sample_dates) if sample_dates else trade_date
     market: dict[str, Any] = {"indices": indices}
-    if amount_count == len(INDEX_SYMBOLS):
+    total_amount, amount_breakdown = collect_exchange_a_share_total_amount(
+        client,
+        trade_date,
+        request_pacer,
+        events,
+    )
+    if total_amount is not None:
+        # 两市成交额只接受交易所 A 股分类成交金额，禁止再用存在覆盖重叠的指数成交额求和替代。
         market["total_amount"] = decimal_to_number(total_amount)
-        # 该字段来自指数日线成交额求和，用于明确两市成交额当前是近似来源，避免伪装成交易所总貌。
-        market["total_amount_source"] = "+".join(sorted(amount_sources))
+        market["total_amount_source"] = EXCHANGE_TOTAL_AMOUNT_SOURCE
+        market["total_amount_unit"] = "CNY"
+        market["total_amount_breakdown"] = amount_breakdown
+        market_sources.update(("akshare:stock_sse_deal_daily", "akshare:stock_szse_summary"))
 
     return {
         "source": "akshare",
@@ -129,6 +132,89 @@ def collect_akshare_market_evidence(trade_date: str, ak_client: Any | None = Non
         "field_sources": {"market": "+".join(sorted(market_sources))} if market_sources else {},
         "events": events,
     }
+
+
+# 沪深两端都返回明确 A 股分类后才形成两市总额；任一端失败都保留缺口，不写部分值。
+def collect_exchange_a_share_total_amount(
+    client: Any,
+    trade_date: str,
+    request_pacer: AkshareRequestPacer,
+    events: list[dict[str, str]],
+) -> tuple[Decimal | None, dict[str, int | float]]:
+    query_date = trade_date.replace("-", "")
+    errors: list[str] = []
+    shanghai_amount: Decimal | None = None
+    shenzhen_amount: Decimal | None = None
+
+    try:
+        rows = get_market_summary_rows(client, "stock_sse_deal_daily", query_date, request_pacer)
+        amount_row = next((row for row in rows if row.get("单日情况") == "成交金额"), None)
+        if amount_row is None:
+            raise AkshareSourceError("上交所每日概况未返回成交金额行")
+        main_board_amount = parse_finite_decimal(amount_row.get("主板A"))
+        star_market_amount = parse_finite_decimal(amount_row.get("科创板"))
+        if main_board_amount is None or star_market_amount is None:
+            raise AkshareSourceError("上交所每日概况缺少主板 A 股或科创板成交金额")
+        # 上交所每日概况的成交金额单位为亿元，统一转换为人民币元后再与深市相加。
+        shanghai_amount = (main_board_amount + star_market_amount) * SSE_AMOUNT_TO_YUAN
+    except Exception as error:  # noqa: BLE001
+        errors.append(f"上交所={error}")
+
+    try:
+        rows = get_market_summary_rows(client, "stock_szse_summary", query_date, request_pacer)
+        a_share_amounts = [
+            amount
+            for row in rows
+            if row.get("证券类别") in {"主板A股", "创业板A股"}
+            if (amount := parse_finite_decimal(row.get("成交金额"))) is not None
+        ]
+        if len(a_share_amounts) != 2:
+            raise AkshareSourceError("深交所市场总貌未完整返回主板 A 股和创业板 A 股成交金额")
+        # 深交所市场总貌已按人民币元返回，不做比例换算。
+        shenzhen_amount = sum(a_share_amounts, Decimal("0"))
+    except Exception as error:  # noqa: BLE001
+        errors.append(f"深交所={error}")
+
+    if shanghai_amount is None or shenzhen_amount is None:
+        events.append(
+            {
+                "title": "交易所 A 股成交额采集失败",
+                "source": "akshare",
+                "note": "；".join(errors),
+            }
+        )
+        return None, {}
+
+    return (
+        shanghai_amount + shenzhen_amount,
+        {
+            "shanghai_a_share_amount": decimal_to_number(shanghai_amount),
+            "shenzhen_a_share_amount": decimal_to_number(shenzhen_amount),
+        },
+    )
+
+
+def get_market_summary_rows(
+    client: Any,
+    method_name: str,
+    query_date: str,
+    request_pacer: AkshareRequestPacer,
+) -> list[dict[str, Any]]:
+    try:
+        request_pacer.wait_before_request()
+        frame = getattr(client, method_name)(date=query_date)
+    except Exception as error:  # noqa: BLE001
+        raise AkshareSourceError(
+            f"{method_name} 调用失败 [{classify_akshare_error(error)}]：{error}"
+        ) from error
+
+    if hasattr(frame, "to_dict"):
+        rows = frame.to_dict("records")
+    elif isinstance(frame, list):
+        rows = frame
+    else:
+        raise AkshareSourceError(f"{method_name} 返回格式不可识别")
+    return [row for row in rows if isinstance(row, dict)]
 
 
 def collect_akshare_sentiment_evidence(trade_date: str, ak_client: Any | None = None) -> dict[str, Any]:
@@ -444,12 +530,14 @@ def select_hot_sector_records(rows: list[dict[str, Any]], source_type: str, limi
         reverse=True,
     )
     sectors: list[dict[str, Any]] = []
-    for row in ranked_rows[:limit]:
+    for rank, row in enumerate(ranked_rows[:limit], start=1):
         sectors.append(
             {
                 "name": format_optional_text(get_first_value(row, ("板块名称", "板块"))),
                 "code": format_optional_text(get_first_value(row, ("板块代码",))),
                 "source_type": source_type,
+                "ranking_group": f"akshare_{source_type}_change_rank",
+                "rank": rank,
                 "strength": "按涨跌幅排序",
                 "change_percent": decimal_to_number(parse_decimal(get_first_value(row, ("涨跌幅",)))),
                 "market_value": decimal_to_number(parse_decimal(get_first_value(row, ("总市值",)))),
@@ -715,6 +803,13 @@ def parse_decimal(value: Any) -> Decimal | None:
         return Decimal(str(value))
     except (InvalidOperation, ValueError):
         return None
+
+
+def parse_finite_decimal(value: Any) -> Decimal | None:
+    decimal_value = parse_decimal(value)
+    if decimal_value is None or not decimal_value.is_finite():
+        return None
+    return decimal_value
 
 
 def parse_int(value: Any) -> int | None:

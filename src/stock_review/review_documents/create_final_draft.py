@@ -12,11 +12,16 @@ from stock_review.evidence.summarize_review_facts import (
     ReviewFactsSummary,
     StepEvidence,
     build_step_evidence,
+    render_board_ladder,
+    render_candidate_capacity_ranking,
     render_candidate_trend_capacity,
     render_hhxg_sentiment_history,
     render_hhxg_style_history,
     render_market_history,
+    render_longhubang_evidence,
     render_repeated_rank_facts,
+    render_sector_kline_evidence,
+    render_us_market_evidence,
     summarize_review_facts,
 )
 from stock_review.llm.openai_compatible_client import OpenAICompatibleSettings, request_json_completion
@@ -37,6 +42,15 @@ STEP_TITLES = {
     6: "核心票",
     7: "重点关注",
 }
+UNAVAILABLE_EVIDENCE_MARKERS = (
+    "不存在",
+    "为空",
+    "未采集",
+    "没有可确认代码",
+    "没有来源可确认",
+    "没有可验证",
+    "事实不可用",
+)
 
 
 @dataclass(frozen=True)
@@ -60,21 +74,45 @@ def create_final_draft(
 ) -> FinalDraft:
     context = build_review_context(review_date, snapshot_dir=snapshot_dir, database_path=database_path)
     facts_summary = summarize_review_facts(review_date, snapshot_dir, snapshot_dir)
-    step_evidence = build_step_evidence(facts_summary)
+    raw_step_evidence = build_step_evidence(facts_summary)
     evidence_facts = build_evidence_facts(context, facts_summary)
+    evidence_references = dict(facts_summary.evidence_references)
+    evidence_references["pool.active_real"] = (
+        (f"SQLite:{database_path}#active_real_pool",)
+        if context.active_real_pool_items
+        else ()
+    )
+    step_evidence = filter_available_step_evidence(
+        raw_step_evidence,
+        evidence_facts,
+        evidence_references,
+    )
     resolved_settings = settings or OpenAICompatibleSettings.from_environment()
     response = request_completion(
         resolved_settings,
         build_system_prompt(),
-        build_user_prompt(context, snapshot_dir, evidence_facts, step_evidence),
+        build_user_prompt(
+            context,
+            evidence_references,
+            evidence_facts,
+            step_evidence,
+        ),
     )
-    return validate_final_draft(response, context, snapshot_dir, evidence_facts, step_evidence)
+    return validate_final_draft(
+        response,
+        context,
+        evidence_facts,
+        step_evidence,
+        evidence_references,
+    )
 
 
 def build_system_prompt() -> str:
     return (
         "你是 A 股短线盘后复盘的证据关联助手。必须只基于用户提供的 JSON 上下文生成 JSON 对象。"
         "你只能从每个 STEP 自己的 allowed_evidence_field_keys 中选择已有字段作为证据，不能跨 STEP 使用字段。"
+        "每项 evidence_references 必须完整等于所选字段在 evidence_references_by_field 中的实际引用，不能借用其它字段来源。"
+        "某个 STEP 的 allowed_evidence_field_keys 为空时，该 STEP 的 evidence_field_keys 和 evidence_references 都必须返回空数组。"
         "STEP 状态和硬缺口均由本地固定，你不得输出或决定它们；不能输出自然语言概览、市场强弱、风险、阶段、核心票、买点或交易结论。"
         "必须完整输出 STEP 1 至 7；active_real_pool_items 非空时，重点关注候选和最终应对必须逐一关联全部真实池代码，但这不表示重点关注或交易建议。"
     )
@@ -83,14 +121,10 @@ def build_system_prompt() -> str:
 # 提示词只给模型选择字段和对象的权力，事实文本由本地 evidence_facts 固定呈现。
 def build_user_prompt(
     context: ReviewContext,
-    snapshot_dir: Path,
+    evidence_references: dict[str, tuple[str, ...]],
     evidence_facts: dict[str, str],
     step_evidence: dict[int, StepEvidence],
 ) -> str:
-    snapshot_reference = str(snapshot_dir / f"{context.review_date}_snapshot.json")
-    allowed_references = {snapshot_reference}
-    allowed_references.update(record.evidence_reference for record in context.step_records)
-    allowed_references.update(preview.evidence_reference for preview in context.previews)
     payload = {
         "review_date": context.review_date,
         "snapshot": context.snapshot.to_mapping(),
@@ -100,7 +134,11 @@ def build_user_prompt(
         ],
         "previews": [preview.__dict__ for preview in context.previews],
         "missing_step_numbers": list(context.missing_step_numbers),
-        "allowed_evidence_references": sorted(allowed_references),
+        "evidence_references_by_field": {
+            field_name: list(references)
+            for field_name, references in evidence_references.items()
+            if references
+        },
         "allowed_evidence_fields": evidence_facts,
         "step_evidence": [
             {
@@ -111,8 +149,8 @@ def build_user_prompt(
             for step_number, evidence in step_evidence.items()
         ],
         "required_output": {
-            "step_drafts": [{"step_number": "1 至 7", "evidence_field_keys": ["该 STEP 的 allowed_evidence_field_keys 中的键"], "evidence_references": ["允许的证据引用"]}],
-            "focus_candidates": [{"code": "每个有效真实池代码各一条", "evidence_field_keys": ["STEP 7 的 allowed_evidence_field_keys 中的键"], "evidence_references": ["允许的证据引用"]}],
+            "step_drafts": [{"step_number": "1 至 7", "evidence_field_keys": ["该 STEP 的 allowed_evidence_field_keys 中的键；白名单为空时返回空数组"], "evidence_references": ["所选字段在 evidence_references_by_field 中对应的全部引用；没有所选字段时返回空数组"]}],
+            "focus_candidates": [{"code": "每个有效真实池代码各一条", "evidence_field_keys": ["STEP 7 的 allowed_evidence_field_keys 中的键"], "evidence_references": ["所选字段在 evidence_references_by_field 中对应的全部引用"]}],
             "final_response": {"status": "pending_confirmation 或 unavailable", "related_pool_codes": ["全部有效真实池代码"], "related_preview_ids": ["已存在预演 ID"]},
         },
     }
@@ -124,18 +162,25 @@ def build_evidence_facts(context: ReviewContext, facts_summary: ReviewFactsSumma
     snapshot = context.snapshot
     return {
         "market.indices": render_indices(snapshot.market),
-        "market.total_amount": f"成交额：{render_value(snapshot.market.get('total_amount'))}",
-        "market.history_range": f"连续市场事实：{render_market_history(facts_summary.market_history)}",
+        "market.total_amount": render_market_total_amount(snapshot.market),
+        "market.advance_decline": render_market_advance_decline(snapshot.market),
+        "market.us_session": render_us_market_evidence(facts_summary.us_market_evidence),
+        "market.history_range": render_market_history(facts_summary.market_history),
         "sentiment.limit_up_count": f"涨停数：{render_value(snapshot.sentiment.get('limit_up_count'))}",
         "sentiment.limit_down_count": f"跌停数：{render_value(snapshot.sentiment.get('limit_down_count'))}",
         "sentiment.broken_board_rate": f"炸板率：{render_ratio_percent(snapshot.sentiment.get('broken_board_rate'))}",
         "sentiment.highest_board": f"最高连板：{render_value(snapshot.sentiment.get('highest_board'))}",
-        "sentiment.profit_effect_percent": (
-            f"赚钱效应：{render_value(snapshot.sentiment.get('profit_effect_percent'))}；"
-            f"来源：{render_value(snapshot.sentiment.get('profit_effect_source'))}；公开公式待确认"
-        ),
+        "sentiment.profit_effect_percent": render_profit_effect(snapshot.sentiment),
         "sentiment.history_style": f"多日涨停与连板高度事实：{render_hhxg_style_history(facts_summary.hhxg_history)}",
         "sentiment.history_cycle": f"多日短线情绪事实：{render_hhxg_sentiment_history(facts_summary.hhxg_history)}",
+        "sentiment.board_ladder": (
+            f"结构化连板梯队：{render_board_ladder(facts_summary.board_ladder)}"
+        ),
+        "stocks.longhubang": render_longhubang_evidence(facts_summary.longhubang_evidence),
+        "candidate_history.capacity_ranking": (
+            "有限候选容量与 5/20 日横截面排序："
+            + render_candidate_capacity_ranking(facts_summary.candidate_capacity_ranking)
+        ),
         "candidate_history.trend_capacity": (
             "有限候选趋势与成交容量事实："
             + render_candidate_trend_capacity(
@@ -144,10 +189,14 @@ def build_evidence_facts(context: ReviewContext, facts_summary: ReviewFactsSumma
             )
         ),
         "sectors.rankings": render_sectors(snapshot.sectors),
+        "sectors.daily_kline": render_sector_kline_evidence(
+            facts_summary.sector_kline_evidence
+        ),
         "sectors.history_repeated_rankings": (
             f"多日板块重复排行事实：{render_repeated_rank_facts(facts_summary.hhxg_history)}"
         ),
         "stocks.current": render_stocks(snapshot.stocks),
+        "stocks.relative_comparison": render_stock_relative_comparisons(snapshot.stocks),
         "candidate_history.latest": render_pool_history_values(
             facts_summary.candidate_history_records, "close", "当日收盘"
         ),
@@ -165,30 +214,77 @@ def build_evidence_facts(context: ReviewContext, facts_summary: ReviewFactsSumma
     }
 
 
+# 未采集或无实际引用的字段不进入旧草稿模型白名单，避免模型选择空事实。
+def filter_available_step_evidence(
+    step_evidence: dict[int, StepEvidence],
+    evidence_facts: dict[str, str],
+    evidence_references: dict[str, tuple[str, ...]],
+) -> dict[int, StepEvidence]:
+    return {
+        step_number: StepEvidence(
+            step_number,
+            tuple(
+                field_name
+                for field_name in evidence.allowed_field_keys
+                if is_evidence_fact_available(evidence_facts.get(field_name, ""))
+                and evidence_references.get(field_name)
+            ),
+            evidence.hard_missing_fields,
+        )
+        for step_number, evidence in step_evidence.items()
+    }
+
+
+def is_evidence_fact_available(value: str) -> bool:
+    if not value.strip() or any(marker in value for marker in UNAVAILABLE_EVIDENCE_MARKERS):
+        return False
+    primary_clause = value.split("；", maxsplit=1)[0].strip()
+    return not primary_clause.endswith(("：待确认", "：无"))
+
+
+# 通达信成交额只提供行情备用事实，进入模型提示词和详细报告时必须保留非官方口径标记。
+def render_market_total_amount(market: dict[str, Any]) -> str:
+    value = render_value(market.get("total_amount"))
+    if market.get("total_amount_quality") != "market_quote_fallback":
+        return f"成交额：{value}"
+    source = render_value(market.get("total_amount_source"))
+    return f"沪深成交额（通达信行情口径，非交易所官方汇总）：{value}；来源：{source}"
+
+
+# 行情涨跌家数必须保留非交易所官方全市场统计的质量标签。
+def render_market_advance_decline(market: dict[str, Any]) -> str:
+    up_count = render_value(market.get("up_count"))
+    down_count = render_value(market.get("down_count"))
+    if market.get("advance_decline_quality") != "market_quote_breadth":
+        return f"上涨家数：{up_count}；下跌家数：{down_count}"
+    source = render_value(market.get("advance_decline_source"))
+    return (
+        "涨跌家数（通达信行情统计口径，非交易所官方全市场统计）："
+        f"上涨 {up_count}，下跌 {down_count}；来源：{source}"
+    )
+
+
 # 本地校验只允许既有对象、既有证据和既有字段进入草案，草案不会写入 SQLite、池子、计划或 Observation。
 def validate_final_draft(
     raw_draft: dict[str, Any],
     context: ReviewContext,
-    snapshot_dir: Path,
     evidence_facts: dict[str, str],
     step_evidence: dict[int, StepEvidence],
+    evidence_references: dict[str, tuple[str, ...]],
 ) -> FinalDraft:
     step_drafts = require_mapping_list(raw_draft, "step_drafts")
     focus_candidates = require_mapping_list(raw_draft, "focus_candidates")
     final_response = required_mapping(raw_draft, "final_response")
     reject_free_text_fields(raw_draft, step_drafts, focus_candidates, final_response)
 
-    allowed_references = {str(snapshot_dir / f"{context.review_date}_snapshot.json")}
-    allowed_references.update(record.evidence_reference for record in context.step_records)
-    allowed_references.update(preview.evidence_reference for preview in context.previews)
     allowed_codes = {item.code for item in context.active_real_pool_items}
     allowed_preview_ids = {preview.preview_id for preview in context.previews}
 
-    validate_step_drafts(step_drafts, allowed_references, step_evidence)
+    validate_step_drafts(step_drafts, evidence_references, step_evidence)
     validate_focus_candidates(
         focus_candidates,
         allowed_codes,
-        allowed_references,
+        evidence_references,
         set(step_evidence[7].allowed_field_keys),
     )
     if required_text(final_response, "status") not in {"pending_confirmation", "unavailable"}:
@@ -207,7 +303,9 @@ def validate_final_draft(
 
 
 def validate_step_drafts(
-    step_drafts: list[dict[str, Any]], allowed_references: set[str], step_evidence: dict[int, StepEvidence]
+    step_drafts: list[dict[str, Any]],
+    evidence_references: dict[str, tuple[str, ...]],
+    step_evidence: dict[int, StepEvidence],
 ) -> None:
     numbers: set[int] = set()
     for draft in step_drafts:
@@ -219,21 +317,24 @@ def validate_step_drafts(
         if "status" in draft:
             raise FinalDraftError("LLM 草案 STEP 状态由本地字段映射决定，不允许模型输出。")
         validate_field_keys(draft, "evidence_field_keys", set(step_evidence[number].allowed_field_keys), f"STEP {number}")
-        validate_references(draft, allowed_references)
+        validate_references(draft, evidence_references)
         draft["status"] = step_evidence[number].status
     if numbers != set(STEP_TITLES):
         raise FinalDraftError("LLM 草案必须覆盖 STEP 1 至 7。")
 
 
 def validate_focus_candidates(
-    candidates: list[dict[str, Any]], allowed_codes: set[str], allowed_references: set[str], allowed_fields: set[str]
+    candidates: list[dict[str, Any]],
+    allowed_codes: set[str],
+    evidence_references: dict[str, tuple[str, ...]],
+    allowed_fields: set[str],
 ) -> None:
     candidate_codes = {required_text(candidate, "code") for candidate in candidates}
     if candidate_codes != allowed_codes or len(candidates) != len(candidate_codes):
         raise FinalDraftError("LLM 草案必须逐一关联全部有效真实池代码。")
     for candidate in candidates:
         validate_field_keys(candidate, "evidence_field_keys", allowed_fields)
-        validate_references(candidate, allowed_references)
+        validate_references(candidate, evidence_references)
 
 
 def reject_free_text_fields(
@@ -263,15 +364,35 @@ def normalize_step_number(value: Any) -> int:
     return number
 
 
-def validate_references(value: dict[str, Any], allowed_references: set[str]) -> None:
+def validate_references(
+    value: dict[str, Any],
+    evidence_references: dict[str, tuple[str, ...]],
+) -> None:
+    fields = value.get("evidence_field_keys")
     references = value.get("evidence_references")
-    if not isinstance(references, list) or not all(isinstance(item, str) and item in allowed_references for item in references):
-        raise FinalDraftError("LLM 草案证据引用必须来自复盘上下文。")
+    if not isinstance(fields, list) or not isinstance(references, list):
+        raise FinalDraftError("LLM 草案证据引用必须与所选字段一致。")
+    expected_references = {
+        reference
+        for field_name in fields
+        for reference in evidence_references.get(field_name, ())
+    }
+    if (
+        len(references) != len(set(references))
+        or not all(isinstance(item, str) for item in references)
+        or set(references) != expected_references
+    ):
+        raise FinalDraftError("LLM 草案证据引用必须与所选字段的实际来源一致。")
 
 
 def validate_field_keys(value: dict[str, Any], field_name: str, allowed_fields: set[str], label: str = "") -> None:
     fields = value.get(field_name)
-    if not isinstance(fields, list) or not fields or not all(isinstance(item, str) and item in allowed_fields for item in fields):
+    if (
+        not isinstance(fields, list)
+        or (not allowed_fields and fields)
+        or (allowed_fields and not fields)
+        or not all(isinstance(item, str) and item in allowed_fields for item in fields)
+    ):
         prefix = f"{label} " if label else ""
         raise FinalDraftError(f"{prefix}LLM 草案字段必须选择本地允许的证据字段：{field_name}。")
 
@@ -369,22 +490,155 @@ def render_percent(value: Any) -> str:
     return f"{value}%" if value not in (None, "") else "待确认"
 
 
+# 来源直接提供的指标与本地涨跌停比例代理不是同一口径，模型输入必须明确区分。
+def render_profit_effect(sentiment: dict[str, Any]) -> str:
+    value = render_percent(sentiment.get("profit_effect_percent"))
+    source = render_value(sentiment.get("profit_effect_source"))
+    calculation = sentiment.get("profit_effect_calculation")
+    if calculation == "limit_up_ratio_proxy":
+        return (
+            f"涨跌停家数比例代理：{value}；来源：{source}；"
+            "计算：涨停数/(涨停数+跌停数)；不等同完整赚钱效应"
+        )
+    return f"赚钱效应代理：{value}；来源：{source}；来源公式未公开"
+
+
 def render_sectors(sectors: list[dict[str, Any]]) -> str:
     if not sectors:
         return "板块排行：待确认"
-    return "板块排行：" + "；".join(
-        f"{item.get('name') or '待确认'}（排行 {render_value(item.get('rank'))}，涨停 {render_value(item.get('limit_up_count'))}）"
-        for item in sectors[:5]
+    grouped_texts: list[str] = []
+    for source_type, label in (
+        ("concept", "AKShare 概念涨幅榜"),
+        ("industry", "AKShare 行业涨幅榜"),
+        ("industry_ths", "AKShare 同花顺行业涨幅榜"),
+    ):
+        records = [item for item in sectors if item.get("source_type") == source_type]
+        if records:
+            grouped_texts.append(
+                f"{label}：" + "；".join(render_sector_rank_item(item) for item in records)
+            )
+    hot_themes = [item for item in sectors if item.get("source_type") == "hhxg_hot_theme"]
+    if hot_themes:
+        grouped_texts.append(
+            "热门题材：" + "；".join(render_sector_rank_item(item) for item in hot_themes)
+        )
+
+    # hhxg 行业榜与概念榜共用 source_type，排名重新从一开始时表示进入下一组排行。
+    strong_sectors = [item for item in sectors if item.get("source_type") == "hhxg_strong_sector"]
+    strong_groups: list[list[dict[str, Any]]] = []
+    for item in strong_sectors:
+        previous_group = strong_groups[-1][-1].get("ranking_group") if strong_groups else None
+        current_group = item.get("ranking_group")
+        if not strong_groups or (
+            strong_groups[-1]
+            and (
+                (current_group and current_group != previous_group)
+                or (not current_group and item.get("rank") in (1, "1"))
+            )
+        ):
+            strong_groups.append([])
+        strong_groups[-1].append(item)
+    strong_group_labels = ("强势行业", "强势概念")
+    for index, records in enumerate(strong_groups):
+        label = (
+            strong_group_labels[index]
+            if index < len(strong_group_labels)
+            else f"强势板块第 {index + 1} 组"
+        )
+        grouped_texts.append(
+            f"{label}：" + "；".join(render_sector_rank_item(item) for item in records)
+        )
+    if not grouped_texts:
+        grouped_texts.append("其它排行：" + "；".join(render_sector_rank_item(item) for item in sectors))
+        return "板块排行：" + "｜".join(grouped_texts)
+
+    # 三类榜单的样本和排序口径相互独立，同名板块的净流入也不能跨组归并。
+    return (
+        "板块排行（热门题材、强势行业、强势概念为独立分组口径；"
+        "净流入仅在所属分组内解释，不跨组比较或合并）："
+        + "｜".join(grouped_texts)
     )
+
+
+def render_sector_rank_item(item: dict[str, Any]) -> str:
+    details = [f"排行 {render_value(item.get('rank'))}"]
+    if item.get("change_percent") not in (None, ""):
+        details.append(f"涨跌幅 {render_percent(item.get('change_percent'))}")
+    if item.get("limit_up_count") not in (None, ""):
+        details.append(f"涨停 {render_value(item.get('limit_up_count'))}")
+    if item.get("up_count") not in (None, "") and item.get("down_count") not in (None, ""):
+        details.append(
+            f"上涨/下跌 {render_value(item.get('up_count'))}/{render_value(item.get('down_count'))} 家"
+        )
+    if item.get("net_inflow_yi") not in (None, ""):
+        details.append(f"净流入 {render_value(item.get('net_inflow_yi'))} 亿")
+    if item.get("net_inflow") not in (None, ""):
+        details.append(f"净流入 {render_value(item.get('net_inflow'))}")
+    leading_stocks = render_leading_stock_names(item.get("leading_stock"))
+    if leading_stocks:
+        details.append(f"领涨 {leading_stocks}")
+    return f"{item.get('name') or '待确认'}（{'，'.join(details)}）"
+
+
+def render_leading_stock_names(value: Any) -> str:
+    if isinstance(value, str):
+        return value.strip()
+    if not isinstance(value, list):
+        return ""
+    names = [
+        str(item.get("name") or "").strip()
+        for item in value
+        if isinstance(item, dict) and str(item.get("name") or "").strip()
+    ]
+    return "、".join(names)
 
 
 def render_stocks(stocks: list[dict[str, Any]]) -> str:
-    confirmed = [item for item in stocks if str(item.get("code") or "") not in {"", "待确认"}]
-    if not confirmed:
+    visible = [item for item in stocks if str(item.get("name") or "").strip()]
+    if not visible:
         return "个股事实：没有可确认代码"
     return "个股事实：" + "；".join(
-        f"{item.get('code')} {item.get('name') or '待确认'}（角色 {item.get('role') or '待确认'}）" for item in confirmed[:8]
+        f"{item.get('code') if str(item.get('code') or '') not in {'', '待确认'} else '代码待确认'} "
+        f"{item.get('name') or '待确认'}（板块 {item.get('sector') or '待确认'}，"
+        f"角色 {item.get('role') or '待确认'}，角色来源 {item.get('role_source') or '待确认'}）"
+        for item in visible
     )
+
+
+# 相对比较事实直接进入 STEP 6/7 提示词，并保留覆盖率，避免用少数对象放开整组缺口。
+def render_stock_relative_comparisons(stocks: list[dict[str, Any]]) -> str:
+    complete_rows: list[str] = []
+    for stock in stocks:
+        relative = stock.get("relative_strength")
+        continuous = stock.get("continuous_comparison")
+        if not (
+            isinstance(relative, dict)
+            and relative.get("completeness") == "complete"
+            and isinstance(continuous, dict)
+            and continuous.get("completeness") == "complete"
+        ):
+            continue
+        recent_up_ratio = continuous.get("recent_up_ratio")
+        recent_up_percent = (
+            render_ratio_percent(recent_up_ratio)
+            if isinstance(recent_up_ratio, (int, float))
+            else "待确认"
+        )
+        complete_rows.append(
+            f"{stock.get('code') or '代码待确认'} {stock.get('name') or '待确认'}："
+            f"{relative.get('window_start') or '待确认'} 至 {relative.get('window_end') or '待确认'}，"
+            f"个股 {render_percent(relative.get('stock_return_percent'))}，"
+            f"基准 {render_percent(relative.get('benchmark_return_percent'))}，"
+            f"超额 {render_value(relative.get('excess_return_percent'))} 个百分点，"
+            f"方向 {relative.get('direction') or '待确认'}；"
+            f"末端连涨 {render_value(continuous.get('consecutive_up_days'))} 日，"
+            f"近 5 个交易对上涨比例 {recent_up_percent}，"
+            f"方向 {continuous.get('direction') or '待确认'}"
+        )
+    coverage = f"覆盖 {len(complete_rows)}/{len(stocks)}"
+    if not complete_rows:
+        return f"个股相对强弱与连续比较事实：{coverage}；待确认"
+    return f"个股相对强弱与连续比较事实：{coverage}；" + "；".join(complete_rows)
 
 
 def render_pool_items(items: tuple[PoolItem, ...]) -> str:

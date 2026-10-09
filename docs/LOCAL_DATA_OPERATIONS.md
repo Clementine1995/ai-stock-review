@@ -1,105 +1,70 @@
-# 本地数据与验证说明
+# 本地数据与验证边界
 
 ## 职责
 
-本文件说明本地开发环境中的业务数据、验证样例、报告和日志如何区分，以及离线验证、备份、恢复和清理时必须遵守的边界。
+本文件只说明新版正式数据、旧链历史数据、离线验证材料、报告和日志的身份，以及备份、恢复和清理的安全边界。具体可执行命令统一维护在 [`../DEV_WORKFLOW.md`](../DEV_WORKFLOW.md)。
 
-## 数据分类
+## 当前数据分区
 
-| 类型 | 当前路径或对象 | 口径 |
+| 类型 | 默认路径 | 当前口径 |
 | --- | --- | --- |
-| 离线输入样例 | `data/evidence/2026-07-06_sample.json` | 只用于无网络测试，不代表真实行情 |
-| 真实采集快照 | `data/evidence/YYYY-MM-DD_snapshot.json` | 记录数据来源、样本日期和缺口；历史文件不代表当前行情 |
-| 本地业务库 | `data/stock_review.sqlite` | 保存 Evidence Snapshot、池子及其多板块关联、人工 STEP 判断、STEP 8/STEP 10 记录、Observation 和回填记录 |
-| 日报与计划 | `reports/daily/` | 由明确交易日期、框架和证据生成；是否为真实复盘取决于人工内容和证据完整度 |
-| 周度学习 | `reports/weekly/` | 只汇总已保存 Observation；验收样例不代表真实经验 |
-| 本地日志 | `logs/stock_review.log` | 记录正式 CLI 写操作及其对象、日期、输出和状态 |
+| 新版正式数据库 | `data/review_run.sqlite` | ReviewRun schema version 1 的默认库；文件不存在时由首次 `daily start` 初始化 |
+| 旧链历史数据库 | `data/stock_review.sqlite` | 保存旧流程数据，保持历史边界；新版日常命令不得默认读写 |
+| 证据目录 | `data/evidence/` | 同时可能包含离线样例、历史快照和正式外部信封；必须以记录内来源、日期、终态和清单绑定判断身份 |
+| 日报目录 | `reports/daily/` | 新版正式记录由数据库 publication 指向内容寻址 blob；文件名本身不能证明当前版本 |
+| 周报目录 | `reports/weekly/` | 新版周报冻结当时的正式日报、Observation 当前结果和池事件 |
+| 新版审计日志 | `logs/review_run.log` | audit outbox 的可恢复投影；数据库审计事件才是权威事实 |
+| 旧链日志 | `logs/stock_review.log` | 仅用于核查历史旧入口，不代表新版运行状态 |
 
-`review draft-final` 会把当天只读上下文发送至用户配置的 OpenAI-compatible 服务，并只向终端打印待确认草案；不写入 SQLite、报告或日志。`.env` 仅保存在本机且已被 Git 忽略，不得提交或粘贴密钥。
+两个数据库目前没有自动合并能力。启用 `data/review_run.sqlite` 不会自动导入旧池、旧 Observation、旧报告或旧日志；对旧库执行原地迁移也不会把内容合并到已经使用的新版库。任何跨库导入都必须作为独立需求设计、预览和授权，不能隐藏在日常复盘中。
 
-当前 `2026-07-10` 日报、计划、周报和 `OBS-20260710-001` 是 M8 系统验收样例。该 Observation 状态为 `invalid`，不进入经验候选。它们证明链路可运行，不证明真实复盘效果已经可用。
+## 正式数据与验证材料
 
-## 离线最小验证
+- RunManifest 固定本次交易日期、来源、scope、字段、有限对象、记录上限、输出、模型和写入影响。目录中已有文件不等于本次运行已获准使用。
+- Evidence Capture 必须记录来源、样本日期、终态和缺失字段；所有槽位终态后才能封存 EvidenceBundle。
+- `sample`、`system_validation`、临时 SQLite 和 Mock 响应只能证明离线或受控链路，不能写成真实行情、真实模型或正式复盘效果证据。
+- 自动化测试必须使用临时目录、临时数据库和受控 source/client，不得读取或写入两个业务数据库，不得访问真实网络。
+- 临时 Base64 正文、模型请求中转或 WorkBuddy 交换文件放在操作系统临时目录；不得在 `data/evidence/` 或 `.workbuddy/memory/` 留存协作过程副本。
 
-在仓库根目录执行：
+## 新版日常边界
 
-```powershell
-$env:PYTHONPATH='src'
-$env:PYTHONDONTWRITEBYTECODE='1'
-.\.venv\Scripts\python.exe -m stock_review.cli framework check --file stock-review.md
-.\.venv\Scripts\python.exe -m stock_review.cli evidence check --date 2026-07-06
-.\.venv\Scripts\python.exe -m unittest discover -s tests
-```
+- 日常 ReviewRun 使用 `data/review_run.sqlite`、`reports/daily/`、`reports/weekly/` 和 `logs/review_run.log`。
+- 只有 `daily start` 可以在不存在或无表的新版默认库中初始化 schema version 1；其它新版命令要求目标结构完整。
+- 池、Observation、正式日报和周报的写入只能经过已确认的 ActionSet、明确的 Observation 结果 action 或对应正式 CLI。
+- 报告文件不是状态主存储。当前 publication、不可变修订和权威哈希以 SQLite 投影与 `daily verify` 结果为准。
+- 数据源、模型或写入调用的结果不明时不得直接重试；先用 `daily show`、`daily verify`、数据库只读查询和审计投影区分实际状态。
 
-预期结果：
+## 旧库迁移
 
-- 框架检查识别当前 `stock-review.md` 的全部 STEP。
-- 证据检查显示来源、样本日期和明确缺口。
-- 自动化测试全部通过。
+旧库迁移不是新版首次使用的前置步骤。只有明确需要原地升级某个现有数据库时，才进入独立迁移流程：
 
-离线验证不得调用真实数据源，不需要修改 `.env`，也不写入生产或远端状态。
+1. 只读生成并完整核对 MigrationPlan、目标数据库身份、逻辑快照指纹、历史文件清单、备份位置和 `plan_hash`。
+2. 针对同一完整计划和哈希取得单独明确授权。
+3. 使用正式迁移入口执行；迁移期间由单写者门禁、SQLite Online Backup、`integrity_check` 和同一逻辑快照指纹保护。
+4. 完成后只读核对 schema、表计数、legacy 登记、审计事件和备份完整性。
 
-## Observation 回填治理结构迁移
-
-旧 Observation 表没有 `review_deadline` 和 `review_reason` 字段。普通新增、查询和周报命令不会静默修改旧库；检测到旧结构时会提示先执行显式迁移。
-
-迁移会写入本地 SQLite，执行前必须确认目标为本地开发库、完成仓库外备份，并单独获得用户授权。正式命令为：
-
-```powershell
-.\.venv\Scripts\python.exe -m stock_review.cli observation migrate-review-governance --database data/stock_review.sqlite
-```
-
-迁移只增加两个字段，不修改 Observation 状态，也不为旧记录编造最晚回填日期或原因分类；旧记录的未知值保持为空。命令输出新增字段数量，重复执行时数量为 `0`。
+普通复盘、本地测试、WorkBuddy 使用或一般文件写入授权不能替代迁移授权。迁移不得改写历史报告、补造新版版本链、跨库合并、自动用备份覆盖主库或擅自删除 WAL/SHM sidecar。完整命令和成功标准见 [`../DEV_WORKFLOW.md`](../DEV_WORKFLOW.md#数据库迁移)。
 
 ## 备份
 
-备份对象至少包括：
-
-- `data/stock_review.sqlite`
-- 需要保留的 `data/evidence/`
-- 需要保留的 `reports/`
-- `logs/stock_review.log`
-- 用户维护的 `stock-review.md`
-
-备份目录必须位于仓库外，并使用日期时间命名。执行前先确认目标目录不存在或为空，避免把新旧备份混在一起。备份属于文件复制，不改变当前业务库内容。
-
-示例命令中的目标路径必须由用户替换为明确的仓库外目录：
-
-```powershell
-$backupRoot='D:\backup\ai-stock-review\2026-07-11-190000'
-New-Item -ItemType Directory -Path $backupRoot
-Copy-Item -LiteralPath data\stock_review.sqlite -Destination $backupRoot
-Copy-Item -LiteralPath data\evidence -Destination $backupRoot -Recurse
-Copy-Item -LiteralPath reports -Destination $backupRoot -Recurse
-Copy-Item -LiteralPath logs\stock_review.log -Destination $backupRoot
-Copy-Item -LiteralPath stock-review.md -Destination $backupRoot
-```
+- 先确认要保护的是新版库、旧库、证据、报告、日志还是用户维护的 `stock-review.md`，并记录绝对路径、时间和预期文件数量。
+- 备份目录必须位于仓库外并使用独立时间标识；不能把新旧批次混入同一目标。
+- 对可能仍有写入者的 SQLite 数据库，不直接复制单个主文件来声称获得一致备份。停止写入者或使用 SQLite Online Backup，并连同必要的完整性和逻辑快照核验。
+- 备份不改变当前业务状态，但创建仓库外文件前仍应确认目标目录和覆盖影响。
 
 ## 恢复
 
-恢复会覆盖当前状态，默认禁止自动执行。恢复前必须：
+恢复会覆盖当前状态，必须作为独立任务取得明确授权。执行前至少完成：
 
-1. 明确目标环境为本地开发环境。
-2. 停止所有可能写入本地数据库或报告的 CLI 进程。
-3. 只读确认备份目录、文件日期和 SQLite 表结构。
-4. 先为当前状态创建独立备份。
-5. 明确获得用户对覆盖目标文件的授权。
+1. 确认实际工作区、目标数据库或目录的绝对路径，并停止所有写入者。
+2. 只读核对备份来源、创建时间、schema、完整性和预期业务范围。
+3. 为当前状态创建另一份可验证备份。
+4. 列出将覆盖的每个目标、恢复后的只读回查和失败处理方式。
 
-恢复后至少运行框架检查、证据检查、SQLite 只读回查和自动化测试。若任一检查失败，停止使用恢复后的数据，不执行 Git 回滚命令或数据库回滚脚本。
+结果不明时停止，不反复覆盖，也不使用 Git 回滚命令或临时数据库脚本猜测恢复。
 
 ## 清理
 
-数据库、证据快照、报告和日志都可能包含历史复盘证据，默认不得删除。清理前必须逐项确认：
+数据库、WAL/SHM sidecar、证据、报告和日志都可能承载版本链或审计证据，默认不得删除。清理必须逐项确认数据身份、目标绝对路径或 SQL 筛选条件、预计数量、备份状态、回查方式和失败处理，并单独取得明确授权。
 
-- 文件或记录属于离线样例、系统验收样例还是真实业务数据。
-- 是否已完成仓库外备份。
-- 删除条件、目标路径或 SQL 筛选条件及预计影响数量。
-- 删除后的回查方式和失败处理方式。
-
-清理操作必须单独获得用户明确授权。数据库记录不得通过手工编辑 SQLite 文件清理；需要删除或迁移时，应先设计正式命令、回查 SQL 和测试。
-
-## 非目标
-
-- 不把 Git 当作 SQLite、日志或用户复盘记录的备份系统。
-- 不在本地验证过程中调用生产服务或写远端数据。
-- 不把 M8 验收样例当作真实交易结论或学习样本。
+不得手工编辑 SQLite 文件或用文件名推定记录已废弃。一次性排查脚本、缓存和协作材料也要先确认没有被迁移清单、测试或当前运行引用，再按获准范围处理。

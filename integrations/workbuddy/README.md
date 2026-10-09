@@ -1,35 +1,88 @@
-# WorkBuddy 集成
+# WorkBuddy 接入说明
 
-本目录提供一个可导入 WorkBuddy 的本地 Skill。它只负责交互、权限确认和调用仓库正式 CLI，不复制行情判断逻辑，也不直接访问 SQLite。
+## 职责
 
-## 导入
+本文件说明如何把 WorkBuddy 作为新版 ReviewRun 的试跑入口，以及试跑前后必须核对什么。正式产品行为以 [`../../docs/PRODUCT_REQUIREMENTS.md`](../../docs/PRODUCT_REQUIREMENTS.md) 为准，STEP 业务框架以 [`../../stock-review.md`](../../stock-review.md) 为准，精确机器编排协议以 [`stock-review/SKILL.md`](stock-review/SKILL.md) 为准。开发和数据库人工作业命令只从 [`../../DEV_WORKFLOW.md`](../../DEV_WORKFLOW.md) 读取。
 
-1. 在 WorkBuddy 的“技能”页面选择“添加技能 → 上传技能”。
-2. 导入 `stock-review` 技能包。
-3. 新建任务时把工作空间设置为本仓库根目录。
-4. 使用默认权限或 Plan 模式，不启用完全访问权限。
-5. 启用 `stock-review` Skill 后输入：`为 2026-08-07 做盘后复盘`。
+## 当前状态
 
-Skill 会先运行 `scripts/run_daily_review.ps1 -DryRun`，展示真实运行的联网和写入范围。只有用户明确确认后才执行真实复盘；人工判断和 Observation 分别需要再次确认。
+- WorkBuddy Skill 已同步新版 ReviewRun 对象和 CLI 参数合同。
+- 真实 WorkBuddy 端到端合同验收尚未完成，连续五个交易日试跑也未完成。
+- 新版默认使用 `data/review_run.sqlite`；首次获确认的 `daily start` 可以创建 schema version 1。
+- 旧 `data/stock_review.sqlite` 保持历史原貌，新版日常运行不得指回旧库，两个数据库没有自动合并能力。
+- 旧 CLI 和 `scripts/run_daily_review.ps1` 在验收完成前保留为过渡入口，不能生成新版正式 publication。
 
-## 五日试跑
+因此，WorkBuddy 现在可以用于首轮真实试跑，但不能表述为已经验收的稳定正式入口。
 
-第一阶段连续使用五个实际交易日，不配置无人值守的真实采集任务。WorkBuddy 自动化只建议作为收盘提醒，提示词可设置为：
+## 用户入口
 
-> 提醒我输入今天的实际交易日期并使用 stock-review Skill。不要联网采集，不要写文件，不要执行数据库操作。
+把本仓库设为 WorkBuddy 工作空间后输入：
 
-五日内重点记录：
+```text
+复盘 YYYY-MM-DD
+```
 
-- 是否每天能完成决策卡。
-- 哪一步最常失败。
-- 哪个证据缺口反复阻塞判断。
-- 人工确认是否能在十分钟内完成。
-- 是否真正创建并按期回填 Observation。
+这句话表示尝试完成一份可供次日使用的正式复盘。它不表示运行诊断，也不自动授权数据库迁移、扩大采集范围或更换模型。
 
-## 安全边界
+首轮需要补齐：
 
-- WorkBuddy 工作空间必须指向本仓库根目录。
-- 保持默认权限，让文件写入和命令执行继续显示确认。
-- 不在 WorkBuddy 对话、Skill 或仓库中保存模型密钥。
-- 不让自动化任务运行 `-WithLlm`、数据库迁移、依赖安装或 Observation 写入。
-- 未确认系统候选只作为附录事实，不进入行动计划。
+- 精确交易日期。
+- 精确的正式分析 model ID，以及平台支持时的推理强度。
+- 新版池为空时，一份小型板块和股票清单。
+- 对 RunManifest 与 FinalizationProposal 的两次完整确认。
+
+只有用户明确说“测试连通性”或“测试数据源”时，才执行诊断 profile。诊断结果不能进入 `propose-actions` 或 `finalize`，也不能作为正式复盘。
+
+## 编排责任
+
+WorkBuddy 必须沿唯一对象链编排：
+
+```text
+RunManifest
+  → ReviewRun
+  → EvidenceBundle
+  → RevisionBundle
+  → FinalizationProposal / ActionSet
+  → 唯一当前 publication
+```
+
+运行时必须：
+
+1. 只读生成 RunManifest，展示交易日期、来源、有限对象、记录上限、模型、联网、文件与数据库影响，以及完整正文、有效期和 `manifest_hash`。
+2. 在同一正文和哈希获确认后启动 ReviewRun，按槽位转交外部证据信封，并在全部槽位终态后封存 EvidenceBundle。
+3. 把正式模型请求通过 `prepare-model → complete-model` 留痕；模型响应只修改允许字段。状态、对象、次日检查、STEP 9 背景或 PlanItem 的变化通过完整 `revise` 联合换版。
+4. 只读生成 FinalizationProposal，展示最终 RevisionBundle、质量门禁、ActionSet、数据库与文件影响、完整报告预览、有效期和 `proposal_hash`。
+5. 在同一提案获确认后执行 `finalize`，原样返回 run、revision、ActionSet、publication、report 的 ID 与哈希，最后运行 `daily verify`。
+6. 临时 Base64 和中转文件只放在操作系统临时目录，不写入 `data/evidence/_workbuddy_tmp/` 或 `.workbuddy/memory/`。
+
+WorkBuddy 只编排 CLI、保存用户选择并转交完整对象。它不得直接编辑 SQLite、证据或报告，不得绕过 `daily finalize` 创建正式结果。
+
+## 硬边界
+
+- 用户确认的正式分析 model ID 必须原样进入 RunManifest。actual model ID 缺失、不一致或模型不可用时停止，不静默换模型。
+- WorkBuddy 的编排模型不能代替正式分析模型生成未记录的业务结论。
+- capture profile 必须按当前日期、授权和有限池生成；不能默认全市场扫描，也不能为补长报告临时扩源。
+- `complete-local` 只是保守模板草案。叙述模板、STEP 9、四态 PlanItem 和参与决策没有按正式合同完成时，不得进入提案。
+- 核心证据不足、来源失败或对象身份无法核实时保持 `blocked`；不能把采集失败包装成 `non_participation`。
+- RunManifest、模型请求或 FinalizationProposal 过期后，必须重新生成并展示完整正文、新哈希和影响，再取得新确认。
+- 调用超时或结果不明时停止重复写入，先用相同 ID、CLI 只读命令、数据库投影和审计日志确认现场。
+
+## 分开的确认
+
+以下确认互不替代：
+
+1. RunManifest 的完整正文与 `manifest_hash`。
+2. 将已冻结请求交给真实模型的授权。
+3. FinalizationProposal、完整报告预览与 `proposal_hash`。
+4. Observation 结果 action 与 `action_hash`。
+5. 如另行处理旧库，MigrationPlan 与 `plan_hash` 的独立迁移授权。
+
+## 验收完成条件
+
+只有同时取得以下证据，才能把 WorkBuddy 标为已经验收的正式入口，并另行处理旧链删除：
+
+- WorkBuddy 按当前 Base64、哈希、有效期和乐观版本合同完成真实端到端运行。
+- 过期 RunManifest、迟到模型响应、过期或冲突提案、错误 action hash 等失败场景都被准确阻断并原样报告。
+- 连续五个交易日由新版 `daily finalize` 产生正式 publication，且逐日 `daily verify` 通过。
+
+这些条件不能从文档、Mock 或本地单元测试推定为已经完成。

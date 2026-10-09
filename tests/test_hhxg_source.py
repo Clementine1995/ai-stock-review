@@ -24,6 +24,8 @@ class HhxgSourceTest(unittest.TestCase):
         self.assertEqual(evidence["sentiment"]["profit_effect_percent"], 69.6)
         self.assertNotIn("emotion_temperature", evidence["sentiment"])
         self.assertEqual(evidence["sectors"][0]["name"], "商业航天")
+        self.assertEqual(evidence["sectors"][0]["ranking_group"], "hhxg_hot_theme")
+        self.assertEqual(evidence["sectors"][1]["ranking_group"], "hhxg_sector_group_1_strong")
         self.assertNotIn("change_percent", evidence["sectors"][1])
 
     def test_snapshot_rejects_latest_data_for_requested_history_date(self):

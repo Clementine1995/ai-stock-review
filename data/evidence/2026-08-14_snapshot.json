@@ -1,0 +1,527 @@
+{
+  "trade_date": "2026-08-14",
+  "source": "hhxg",
+  "sample_date": "2026-08-14",
+  "market": {
+    "indices": [
+      {
+        "symbol": "sh000001",
+        "name": "上证指数",
+        "sample_date": "2026-08-14",
+        "close": 3927.18,
+        "change_percent": 0.01
+      },
+      {
+        "symbol": "sz399001",
+        "name": "深证成指",
+        "sample_date": "2026-08-14",
+        "close": 14354.31,
+        "change_percent": 0.45
+      },
+      {
+        "symbol": "sz399006",
+        "name": "创业板指",
+        "sample_date": "2026-08-14",
+        "close": 3626.3,
+        "change_percent": 1.12
+      }
+    ],
+    "total_amount": 2145023504496.3,
+    "total_amount_source": "akshare:stock_sse_deal_daily+akshare:stock_szse_summary",
+    "total_amount_unit": "CNY",
+    "total_amount_breakdown": {
+      "shanghai_a_share_amount": 991681000000,
+      "shenzhen_a_share_amount": 1153342504496.3
+    },
+    "up_count": 2333,
+    "down_count": 2737,
+    "advance_decline_source": "workbuddy:tongdaxin.tdx_kline:000002.up/down+399106.up/down",
+    "advance_decline_quality": "market_quote_breadth",
+    "advance_decline_calculation": "000002.Rows.up/down+399106.Rows.up/down",
+    "advance_decline_breakdown": {
+      "shanghai_advance_count": 995,
+      "shanghai_decline_count": 1238,
+      "shenzhen_advance_count": 1338,
+      "shenzhen_decline_count": 1499
+    },
+    "advance_decline_note": "使用上证 A 股指数与深证综指的通达信行情统计字段；属于行情口径，不替代交易所官方全市场统计。"
+  },
+  "sentiment": {
+    "limit_up_count": 63,
+    "limit_down_count": 9,
+    "broken_board_rate": 0.3077,
+    "highest_board": 5,
+    "profit_effect_percent": 46.2,
+    "profit_effect_source": "hhxg:market.sentiment_index",
+    "profit_effect_calculation": "source_provided_formula_unverified"
+  },
+  "sectors": [
+    {
+      "name": "通信技术",
+      "source_type": "hhxg_hot_theme",
+      "rank": 1,
+      "limit_up_count": 16,
+      "net_inflow_yi": 1.81,
+      "leading_stock": [
+        {
+          "name": "杭电股份",
+          "net_yi": 3.38
+        },
+        {
+          "name": "中瓷电子",
+          "net_yi": 2.42
+        }
+      ]
+    },
+    {
+      "name": "F5G概念",
+      "source_type": "hhxg_hot_theme",
+      "rank": 2,
+      "limit_up_count": 14,
+      "net_inflow_yi": 0.88,
+      "leading_stock": [
+        {
+          "name": "杭电股份",
+          "net_yi": 3.38
+        },
+        {
+          "name": "中瓷电子",
+          "net_yi": 2.42
+        }
+      ]
+    },
+    {
+      "name": "共封装光学(CPO)",
+      "source_type": "hhxg_hot_theme",
+      "rank": 3,
+      "limit_up_count": 10,
+      "net_inflow_yi": 0.48,
+      "leading_stock": [
+        {
+          "name": "中瓷电子",
+          "net_yi": 2.42
+        },
+        {
+          "name": "共进股份",
+          "net_yi": 1.78
+        }
+      ]
+    },
+    {
+      "name": "液冷服务器",
+      "source_type": "hhxg_hot_theme",
+      "rank": 4,
+      "limit_up_count": 10,
+      "net_inflow_yi": 6.07,
+      "leading_stock": [
+        {
+          "name": "网宿科技",
+          "net_yi": 10.48
+        },
+        {
+          "name": "金田股份",
+          "net_yi": 0.8
+        }
+      ]
+    },
+    {
+      "name": "无人机",
+      "source_type": "hhxg_hot_theme",
+      "rank": 5,
+      "limit_up_count": 9,
+      "net_inflow_yi": 3.47,
+      "leading_stock": [
+        {
+          "name": "中瓷电子",
+          "net_yi": 2.42
+        },
+        {
+          "name": "金田股份",
+          "net_yi": 0.8
+        }
+      ]
+    },
+    {
+      "name": "2026中报首亏",
+      "source_type": "hhxg_hot_theme",
+      "rank": 6,
+      "limit_up_count": 8,
+      "net_inflow_yi": 1.8,
+      "leading_stock": [
+        {
+          "name": "盈新发展",
+          "net_yi": 2.19
+        },
+        {
+          "name": "正裕工业",
+          "net_yi": -0.03
+        }
+      ]
+    },
+    {
+      "name": "通信设备",
+      "source_type": "hhxg_strong_sector",
+      "rank": 1,
+      "net_inflow_yi": 117,
+      "leading_stock": "阿莱德",
+      "bias_percent": 11
+    },
+    {
+      "name": "通信服务",
+      "source_type": "hhxg_strong_sector",
+      "rank": 2,
+      "net_inflow_yi": 21,
+      "leading_stock": "数据港",
+      "bias_percent": 8.3
+    },
+    {
+      "name": "电子化学品",
+      "source_type": "hhxg_strong_sector",
+      "rank": 3,
+      "net_inflow_yi": 16,
+      "leading_stock": "中石科技",
+      "bias_percent": 11.1
+    },
+    {
+      "name": "电池",
+      "source_type": "hhxg_strong_sector",
+      "rank": 4,
+      "net_inflow_yi": 13,
+      "leading_stock": "龙鑫智能",
+      "bias_percent": 5.9
+    },
+    {
+      "name": "游戏",
+      "source_type": "hhxg_strong_sector",
+      "rank": 5,
+      "net_inflow_yi": 11,
+      "leading_stock": "迅游科技",
+      "bias_percent": 5.8
+    },
+    {
+      "name": "电力",
+      "source_type": "hhxg_weak_sector",
+      "rank": 1,
+      "net_inflow_yi": -60,
+      "leading_stock": "华光环能",
+      "bias_percent": -0.3
+    },
+    {
+      "name": "证券",
+      "source_type": "hhxg_weak_sector",
+      "rank": 2,
+      "net_inflow_yi": -46,
+      "leading_stock": "太平洋",
+      "bias_percent": -0.9
+    },
+    {
+      "name": "保险",
+      "source_type": "hhxg_weak_sector",
+      "rank": 3,
+      "net_inflow_yi": -12,
+      "leading_stock": "新华保险",
+      "bias_percent": -4.9
+    },
+    {
+      "name": "汽车整车",
+      "source_type": "hhxg_weak_sector",
+      "rank": 4,
+      "net_inflow_yi": -9,
+      "leading_stock": "中通客车",
+      "bias_percent": -1.4
+    },
+    {
+      "name": "银行",
+      "source_type": "hhxg_weak_sector",
+      "rank": 5,
+      "net_inflow_yi": -4,
+      "leading_stock": "沪农商行",
+      "bias_percent": -1.3
+    },
+    {
+      "name": "液冷服务器",
+      "source_type": "hhxg_strong_sector",
+      "rank": 1,
+      "net_inflow_yi": 133,
+      "leading_stock": "网宿科技",
+      "bias_percent": 7.8
+    },
+    {
+      "name": "共封装光学(CPO)",
+      "source_type": "hhxg_strong_sector",
+      "rank": 2,
+      "net_inflow_yi": 132,
+      "leading_stock": "金戈新材",
+      "bias_percent": 11.7
+    },
+    {
+      "name": "5G",
+      "source_type": "hhxg_strong_sector",
+      "rank": 3,
+      "net_inflow_yi": 120,
+      "leading_stock": "中石科技",
+      "bias_percent": 8.6
+    },
+    {
+      "name": "数据中心(AIDC)",
+      "source_type": "hhxg_strong_sector",
+      "rank": 4,
+      "net_inflow_yi": 94,
+      "leading_stock": "网宿科技",
+      "bias_percent": 6.2
+    },
+    {
+      "name": "芯片概念",
+      "source_type": "hhxg_strong_sector",
+      "rank": 5,
+      "net_inflow_yi": 88,
+      "leading_stock": "敏芯股份",
+      "bias_percent": 7.9
+    },
+    {
+      "name": "同花顺中特估100",
+      "source_type": "hhxg_weak_sector",
+      "rank": 1,
+      "net_inflow_yi": -15,
+      "leading_stock": "中国稀土",
+      "bias_percent": -0.9
+    }
+  ],
+  "stocks": [
+    {
+      "code": "待确认",
+      "name": "天洋新材",
+      "exchange": "待确认",
+      "sector": "CPO概念",
+      "role": "板块领涨事实候选",
+      "role_source": "concept 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": 9.99,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "共进股份",
+      "exchange": "待确认",
+      "sector": "F5G概念",
+      "role": "板块领涨事实候选",
+      "role_source": "concept 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": 10.03,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "富信科技",
+      "exchange": "待确认",
+      "sector": "光通信模块",
+      "role": "板块领涨事实候选",
+      "role_source": "concept 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": 20,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "大唐电信",
+      "exchange": "待确认",
+      "sector": "IPv6",
+      "role": "板块领涨事实候选",
+      "role_source": "concept 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": 9.96,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "待确认",
+      "name": "行云科技",
+      "exchange": "待确认",
+      "sector": "纳米银",
+      "role": "板块领涨事实候选",
+      "role_source": "concept 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": 10.13,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。"
+    },
+    {
+      "code": "000936",
+      "name": "华西股份",
+      "exchange": "待确认",
+      "sector": "化学纤维",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（3板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 9.9369,
+      "reason": "涨停池记录的连板数为 3，仅作为可追溯事实。"
+    },
+    {
+      "code": "001260",
+      "name": "坤泰股份",
+      "exchange": "待确认",
+      "sector": "汽车零部",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（3板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 9.9857,
+      "reason": "涨停池记录的连板数为 3，仅作为可追溯事实。"
+    },
+    {
+      "code": "002172",
+      "name": "澳洋健康",
+      "exchange": "待确认",
+      "sector": "医疗服务",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（3板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 9.9274,
+      "reason": "涨停池记录的连板数为 3，仅作为可追溯事实。"
+    },
+    {
+      "code": "600613",
+      "name": "神奇制药",
+      "exchange": "待确认",
+      "sector": "化学制药",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 9.9485,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。"
+    },
+    {
+      "code": "002724",
+      "name": "海洋王",
+      "exchange": "待确认",
+      "sector": "照明设备",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10.0649,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。"
+    },
+    {
+      "code": "603330",
+      "name": "天洋新材",
+      "exchange": "待确认",
+      "sector": "塑料",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（3板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 9.9897,
+      "reason": "涨停池记录的连板数为 3，仅作为可追溯事实。"
+    },
+    {
+      "code": "002322",
+      "name": "理工能科",
+      "exchange": "待确认",
+      "sector": "软件开发",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10.0337,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。"
+    },
+    {
+      "code": "603118",
+      "name": "共进股份",
+      "exchange": "待确认",
+      "sector": "通信设备",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10.0251,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。"
+    },
+    {
+      "code": "300404",
+      "name": "博济医药",
+      "exchange": "待确认",
+      "sector": "医疗服务",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 20,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。"
+    },
+    {
+      "code": "300862",
+      "name": "蓝盾光电",
+      "exchange": "待确认",
+      "sector": "通用设备",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（5板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 19.9949,
+      "reason": "涨停池记录的连板数为 5，仅作为可追溯事实。"
+    },
+    {
+      "code": "002081",
+      "name": "金 螳 螂",
+      "exchange": "待确认",
+      "sector": "装修装饰",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（3板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 9.9792,
+      "reason": "涨停池记录的连板数为 3，仅作为可追溯事实。"
+    }
+  ],
+  "field_sources": {
+    "market": "akshare:stock_sse_deal_daily+akshare:stock_szse_summary+tencent+workbuddy:tongdaxin.tdx_kline",
+    "sentiment": "hhxg",
+    "sectors": "hhxg",
+    "stocks": "akshare"
+  },
+  "events": [
+    {
+      "title": "AKShare 市场层最小采集",
+      "source": "akshare",
+      "note": "当前采集指数日线和交易所 A 股成交金额；情绪、板块和个股证据仍需后续数据源补齐。"
+    },
+    {
+      "title": "sh000001 使用腾讯行情备用路径",
+      "source": "tencent",
+      "note": "AKShare stock_zh_index_daily_em 和东方财富 K 线直连失败后，使用腾讯指数 K 线接口；原始错误：[upstream_unavailable] HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=1.000001&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=19900101&end=20500101 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；东方财富错误：[upstream_unavailable] Remote end closed connection without response"
+    },
+    {
+      "title": "sz399001 使用腾讯行情备用路径",
+      "source": "tencent",
+      "note": "AKShare stock_zh_index_daily_em 和东方财富 K 线直连失败后，使用腾讯指数 K 线接口；原始错误：[upstream_unavailable] HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=0.399001&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=19900101&end=20500101 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；东方财富错误：[upstream_unavailable] Remote end closed connection without response"
+    },
+    {
+      "title": "sz399006 使用腾讯行情备用路径",
+      "source": "tencent",
+      "note": "AKShare stock_zh_index_daily_em 和东方财富 K 线直连失败后，使用腾讯指数 K 线接口；原始错误：[upstream_unavailable] HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=0.399006&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=19900101&end=20500101 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；东方财富错误：[upstream_unavailable] Remote end closed connection without response"
+    },
+    {
+      "title": "AKShare 短线情绪最小采集",
+      "source": "akshare",
+      "note": "当前仅采集涨停数、跌停数、炸板率和连板高度；情绪温度、板块和个股证据仍需后续数据源补齐。"
+    },
+    {
+      "title": "AKShare 热门板块最小采集",
+      "source": "akshare",
+      "note": "当前仅采集概念和行业板块涨跌幅、总市值、换手率、涨跌家数和领涨股；不写入核心票列表。"
+    },
+    {
+      "title": "industry 板块采集失败",
+      "source": "akshare",
+      "note": "AKShare 板块接口调用失败且东方财富直连备用路径也失败：stock_board_industry_name_em：akshare=[upstream_unavailable] HTTPSConnectionPool(host='17.push2.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/clist/get?pn=1&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f3&fs=m%3A90+t%3A2+f%3A%2150&fields=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6%2Cf7%2Cf8%2Cf9%2Cf10%2Cf12%2Cf13%2Cf14%2Cf15%2Cf16%2Cf17%2Cf18%2Cf20%2Cf21%2Cf23%2Cf24%2Cf25%2Cf26%2Cf22%2Cf33%2Cf11%2Cf62%2Cf128%2Cf136%2Cf115%2Cf152%2Cf124%2Cf107%2Cf104%2Cf105%2Cf140%2Cf141%2Cf207%2Cf208%2Cf209%2Cf222 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；eastmoney=[upstream_unavailable] Remote end closed connection without response"
+    },
+    {
+      "title": "AKShare 个股事实最小采集",
+      "source": "akshare",
+      "note": "仅提取已有板块领涨股和涨停池连板股事实；不认定核心票，不修改池子，不生成买卖建议。"
+    },
+    {
+      "title": "hhxg 最近交易日快照",
+      "source": "hhxg",
+      "note": "公开接口仅提供最近交易日快照；sentiment_index 按页面标签记录为赚钱效应，公开公式待确认；指数、成交额和可确认股票代码仍为待确认字段。"
+    },
+    {
+      "title": "通达信涨跌家数行情证据",
+      "source": "workbuddy:tongdaxin.tdx_kline",
+      "note": "使用上证 A 股指数与深证综指的通达信行情统计字段；属于行情口径，不替代交易所官方全市场统计。"
+    }
+  ],
+  "missing_fields": []
+}

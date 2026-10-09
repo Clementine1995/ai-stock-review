@@ -7,6 +7,7 @@ from pathlib import Path
 
 from stock_review.evidence.evidence_snapshot import EvidenceSnapshot
 from stock_review.evidence.manage_evidence_snapshot import DEFAULT_EVIDENCE_DIR, EvidenceSnapshotError, check_evidence_snapshot
+from stock_review.pools.classify_pool_freshness import StalePoolItem, classify_active_real_pool_items
 from stock_review.pools.manage_pool_item import DEFAULT_DATABASE_PATH, PoolItem, list_pool_items
 from stock_review.review_documents.manage_manual_review import (
     ManualPreview,
@@ -22,6 +23,8 @@ class ReviewContext:
     step_records: tuple[ManualStepRecord, ...]
     previews: tuple[ManualPreview, ...]
     active_real_pool_items: tuple[PoolItem, ...]
+    stale_real_pool_items: tuple[StalePoolItem, ...]
+    known_real_pool_codes: tuple[str, ...]
     missing_step_numbers: tuple[int, ...]
 
     @property
@@ -45,10 +48,11 @@ def build_review_context(
             f"Evidence Snapshot 样本日期与复盘日期不一致：复盘日期 {review_date}，样本日期 {snapshot.sample_date}。"
         )
     step_records, previews = list_manual_review_records(review_date, database_path=database_path)
-    active_real_pool_items = tuple(
-        item
-        for item in list_pool_items(record_kind="real", database_path=database_path)
-        if item.status == "active"
+    real_pool_items = list_pool_items(record_kind="real", database_path=database_path)
+    pool_freshness = classify_active_real_pool_items(
+        real_pool_items,
+        review_date,
+        snapshot_dir,
     )
     recorded_steps = {record.step_number for record in step_records}
     return ReviewContext(
@@ -56,7 +60,9 @@ def build_review_context(
         snapshot=snapshot,
         step_records=tuple(step_records),
         previews=tuple(previews),
-        active_real_pool_items=active_real_pool_items,
+        active_real_pool_items=pool_freshness.fresh_items,
+        stale_real_pool_items=pool_freshness.stale_items,
+        known_real_pool_codes=tuple(item.code for item in real_pool_items),
         missing_step_numbers=tuple(step for step in range(1, 8) if step not in recorded_steps),
     )
 
@@ -101,6 +107,17 @@ def render_review_context(context: ReviewContext) -> str:
             )
     else:
         lines.append("- 对象数：0。暂无有效真实池对象；不从样例池或全市场补充候选。")
+
+    lines.extend(["", "## 待复核真实池对象", ""])
+    if context.stale_real_pool_items:
+        for stale_item in context.stale_real_pool_items:
+            item = stale_item.item
+            lines.append(
+                f"- {item.pool_type}｜{item.code} {item.name}｜最近确认：{stale_item.last_confirmed_date}｜"
+                f"未确认交易日：{stale_item.unconfirmed_trading_days}"
+            )
+    else:
+        lines.append("- 对象数：0。")
 
     lines.extend(["", "## 重点关注输入状态", "", f"- {context.focus_input_status}"])
     return "\n".join(lines).rstrip() + "\n"

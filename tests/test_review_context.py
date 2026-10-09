@@ -39,6 +39,28 @@ class ReviewContextTest(unittest.TestCase):
             self.assertIn(7, context.missing_step_numbers)
             self.assertEqual(context.focus_input_status, "输入已齐备，仍需用户确认最终重点关注。")
 
+    def test_context_moves_old_real_pool_to_pending_review_without_changing_status(self):
+        with TemporaryDirectory() as temp_path:
+            root = Path(temp_path)
+            database_path = root / "stock_review.sqlite"
+            for trade_date in ("2026-08-03", "2026-08-04", "2026-08-05", "2026-08-06", "2026-08-07"):
+                self.write_snapshot(root, trade_date)
+            add_pool_item(
+                "hot",
+                "002829",
+                "星网宇达",
+                "2026-08-02",
+                "人工确认",
+                record_kind="real",
+                database_path=database_path,
+            )
+
+            context = build_review_context("2026-08-07", snapshot_dir=root, database_path=database_path)
+
+            self.assertEqual(context.active_real_pool_items, ())
+            self.assertEqual(context.stale_real_pool_items[0].item.status, "active")
+            self.assertEqual(context.stale_real_pool_items[0].unconfirmed_trading_days, 5)
+
     @staticmethod
     def write_snapshot(root: Path, trade_date: str) -> None:
         payload = {

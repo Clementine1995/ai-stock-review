@@ -77,15 +77,17 @@ def collect_sector_records(data: dict[str, Any]) -> list[dict[str, Any]]:
             {
                 "name": str(item["name"]),
                 "source_type": "hhxg_hot_theme",
+                "ranking_group": "hhxg_hot_theme",
                 "rank": rank,
                 "limit_up_count": parse_number(item.get("limitup_count")),
                 "net_inflow_yi": parse_number(item.get("net_yi")),
                 "leading_stock": item.get("top_stocks"),
             }
         )
-    for group in data.get("sectors") or []:
+    for group_index, group in enumerate(data.get("sectors") or [], start=1):
         if not isinstance(group, dict):
             continue
+        group_name = str(group.get("name") or group.get("type") or f"sector_group_{group_index}")
         for direction in ("strong", "weak"):
             for rank, item in enumerate(group.get(direction) or [], start=1):
                 if not isinstance(item, dict) or not item.get("name"):
@@ -94,6 +96,9 @@ def collect_sector_records(data: dict[str, Any]) -> list[dict[str, Any]]:
                     {
                         "name": str(item["name"]),
                         "source_type": f"hhxg_{direction}_sector",
+                        # 同一返回中行业、概念等榜单会分别从 rank=1 重排；显式组标识阻止跨榜单拼接指标。
+                        "ranking_group": f"hhxg_{group_name}_{direction}",
+                        "ranking_group_index": group_index,
                         "rank": rank,
                         "net_inflow_yi": parse_number(item.get("net_yi")),
                         "leading_stock": item.get("leader"),

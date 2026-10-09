@@ -1,15 +1,17 @@
 ---
 name: stock-review
-description: 用于每日A股收盘后进行总结复盘，对下个交易日行情进行推演，并找出核心票以及重点关注可参与的票
+description: 用于每日 A 股收盘后按 STEP 1-10 组织证据、复盘判断和次日条件计划；证据不足时阻断，证据充分但没有可执行机会时可明确不参与
 metadata:
-  output: 
-    - 202x-xx-xx复盘日志.md
-version: 1.2
+  output:
+    - reports/daily/<trade-date>/<run-id>/blobs/<report-hash>.md
+version: 2.0
 ---
 
-# 每日A股复盘工作流 V1.2
+# 每日A股复盘工作流 V2.0
 
-说明：复盘目前设定在早晨6点，所以是对上个交易日进行复盘，并对下个交易日进行推演
+说明：每次复盘必须显式指定一个已收盘交易日，并对其后的交易日进行条件推演；流程不绑定早晨 6 点。本文定义 STEP 1-10 的框架顺序和用户纪律，正式运行、版本、确认与发布规则以 `docs/PRODUCT_REQUIREMENTS.md` 为准；根目录 `PRD.md` 是上一版失败项目材料，不定义当前流程。
+
+正式日报只来自同一条版本链：`RunManifest → ReviewRun → EvidenceBundle → RevisionBundle → FinalizationProposal/ActionSet → 唯一当前 publication`。没有证据支持的内容必须保留为 `blocked`、证据缺口或待确认；历史报告不因框架更新而重写。
 
 ## STEP 1: 判断大盘所属阶段
 
@@ -44,7 +46,7 @@ version: 1.2
 - 同时伴随连报高度压制，一般最高板在3-5板之间
 - 一般由板块内中军带队
 
-### 2.1 情绪连扳
+### 2.2 情绪连扳
 
 - 表现为题材炒作，连板高度突破，从2板往上板块内连扳梯队完整，有高度龙头，也有低位助攻
 - 板块内大多数大市值股票表现不佳
@@ -110,7 +112,7 @@ version: 1.2
 
 1. 题材上升初期和发酵阶段的弹性标
 2. 退潮末期的弱转强，也包括大分歧后的超预期高开
-3. 轮动期间主线的长上影线（不一定是核心），要求上影线要演员大于下影线
+3. 轮动期间主线的长上影线（不一定是核心），要求上影线明显大于下影线
 4. 核心盘中被动炸板回封，尾盘跳水核心被动炸板
 5. 出现大单一字板块的，开的最好近期图形不错的20cm
 6. 情绪低迷，10点前能红盘震荡或者强势的容量核心
@@ -123,13 +125,22 @@ version: 1.2
 
 ## STEP 10: 最终输出复盘文档
 
-结合上面判断最主要的一点：明天能不能买，上多少仓位，买什么。
+结合以上判断，由用户最终确认是否参与、关注哪些对象以及最大风险边界。输出不是下单指令，必须包含：
 
-然后就是每一步的输出
+1. 顶部决策区：`actionable`、`non_participation` 或仍被质量门禁阻断的状态，以及用户确认说明。
+2. 质量处置及全部阻断项。
+3. RunManifest、EvidenceBundle、RevisionBundle、框架、程序、renderer、模型响应、ActionSet 和 publication 的 ID/哈希追溯。正文直接保存可在渲染前确定的 ID 与哈希；ActionSet、publication 和正式报告的包裹哈希按正文中的数据库定位查验，并由 `daily finalize` 回执返回实际值。
+4. STEP 1-10 的完整标题、顺序、结论、证据引用、反向证据、待确认问题、次日检查、完整性问题和证据缺口。
+5. 正式交易计划：每个已确认 PlanItem 的对象身份、市场角色、假设、成立/失效条件、最大风险、证据 refs、回填日期，以及同一来源、主指标、单位和观察时点下互斥且穷尽的 `符合预期`、`超预期`、`不及预期`、`放弃` 四态动作。
+6. 由已批准 PlanItem 派生的 Observation 映射和附录。
+
+STEP 10 只形成待联合确认的结构化输出。只有 `daily propose-actions` 返回的完整 `FinalizationProposal`、报告预览和 `proposal_hash` 经用户确认后，`daily finalize` 才能产生该交易日唯一的当前正式 publication。
 
 ---
 
 ## 执行约束
+
+以下交易规则和心态是用户框架，不是已由系统验证的市场事实或收益承诺。每次 RevisionBundle 仍须引用当次 EvidenceBundle；规则本身不能代替证据。
 
 ### 必须遵守
 
@@ -159,3 +170,12 @@ version: 1.2
 ⛔ 禁止使用模糊描述
 ⛔ 禁止随意编造股票之前的K线走势
 ⛔ 禁止把一些杂毛票当作是龙头或者核心
+
+### 系统边界
+
+- 本文不维护数据库路径、迁移步骤、CLI 或 WorkBuddy 验收状态；当前事实见 `README.md`，正式运行合同见 `docs/PRODUCT_REQUIREMENTS.md`，人工作业命令见 `DEV_WORKFLOW.md`，WorkBuddy 编排见 `integrations/workbuddy/stock-review/SKILL.md`。
+- STEP 结论必须区分事实、上游判断和未验证问题。缺失市场、板块、个股身份或连续比较证据时，保持待确认，不能用框架经验补齐。
+- 股票代码、名称、交易所、板块归属和市场角色必须来自已确认输入；模型与 renderer 都不得猜测。
+- 模型阶段必须先保存带指纹的请求。模型响应只能修改 STEP 的 `conclusion`、`counter_evidence` 和 `open_questions`，不得新增证据、阈值、对象或 PlanItem；当前修订变化后的迟到响应必须拒绝。
+- STEP 6 确认对象身份和角色；STEP 7 只能从 STEP 6 收敛；STEP 8、STEP 10 与 PlanItem 必须使用同一对象集合。STEP 4/5 没有方向关联的计划项必须说明独立原因。
+- renderer 只展示上游已经验证的数据，不采集证据、不产生判断、不改变业务状态。

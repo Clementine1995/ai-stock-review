@@ -47,6 +47,34 @@ class FakeAkshareClient:
         }
         return FakeFrame(rows_by_symbol[symbol])
 
+    def stock_sse_deal_daily(self, date):
+        self.sse_summary_date = date
+        return FakeFrame(
+            [
+                {"单日情况": "成交金额", "主板A": 5000.5, "科创板": 999.5},
+            ]
+        )
+
+    def stock_szse_summary(self, date):
+        self.szse_summary_date = date
+        return FakeFrame(
+            [
+                {"证券类别": "主板A股", "成交金额": 400000000000},
+                {"证券类别": "创业板A股", "成交金额": 200000000000},
+                {"证券类别": "主板B股", "成交金额": 999999},
+            ]
+        )
+
+
+class BrokenIndexWithMarketSummaryClient(FakeAkshareClient):
+    def stock_zh_index_daily_em(self, symbol):
+        raise RuntimeError(f"{symbol} blocked")
+
+
+class PartiallyBrokenMarketSummaryClient(FakeAkshareClient):
+    def stock_szse_summary(self, date):
+        raise RuntimeError(f"{date} blocked")
+
 
 class BrokenAkshareClient:
     def stock_zh_index_daily_em(self, symbol):
@@ -207,7 +235,7 @@ class AkshareSourceTest(unittest.TestCase):
         self.assertEqual(classify_akshare_error(RuntimeError("HTTP 403 Forbidden")), "access_denied")
         self.assertEqual(classify_akshare_error(RuntimeError("connection reset")), "upstream_unavailable")
 
-    def test_existing_akshare_scope_reuses_complete_or_documented_tencent_market(self):
+    def test_existing_akshare_scope_reuses_only_complete_market(self):
         snapshot_data = {
             "source": "akshare",
             "market": {"indices": [{"name": "上证指数"}], "total_amount": 1},
@@ -229,7 +257,7 @@ class AkshareSourceTest(unittest.TestCase):
         self.assertFalse(is_akshare_scope_covered(snapshot_data, "sentiment"))
         snapshot_data["market"].pop("total_amount")
         snapshot_data["field_sources"] = {"market": "tencent"}
-        self.assertTrue(is_akshare_scope_covered(snapshot_data, "market"))
+        self.assertFalse(is_akshare_scope_covered(snapshot_data, "market"))
         snapshot_data["field_sources"] = {}
         self.assertFalse(is_akshare_scope_covered(snapshot_data, "market"))
         snapshot_data["market"]["total_amount"] = 1
@@ -294,12 +322,24 @@ class AkshareSourceTest(unittest.TestCase):
         self.assertEqual(len(raw_data["market"]["indices"]), 3)
         self.assertEqual(raw_data["market"]["indices"][0]["change_percent"], 1)
         self.assertEqual(raw_data["market"]["indices"][1]["change_percent"], -1)
-        self.assertEqual(raw_data["market"]["total_amount"], 360)
+        self.assertEqual(raw_data["market"]["total_amount"], 1200000000000)
         self.assertEqual(
             raw_data["market"]["total_amount_source"],
-            "akshare_stock_zh_index_daily_em_amount_sum",
+            "akshare:stock_sse_deal_daily+akshare:stock_szse_summary",
         )
-        self.assertEqual(raw_data["field_sources"]["market"], "akshare:stock_zh_index_daily_em")
+        self.assertEqual(raw_data["market"]["total_amount_unit"], "CNY")
+        self.assertEqual(
+            raw_data["market"]["total_amount_breakdown"],
+            {
+                "shanghai_a_share_amount": 600000000000,
+                "shenzhen_a_share_amount": 600000000000,
+            },
+        )
+        self.assertEqual(raw_data["market"]["indices"][0]["amount"], 120)
+        self.assertEqual(
+            raw_data["field_sources"]["market"],
+            "akshare:stock_sse_deal_daily+akshare:stock_szse_summary+akshare:stock_zh_index_daily_em",
+        )
 
     def test_akshare_market_snapshot_keeps_non_market_gaps(self):
         raw_data = collect_akshare_market_evidence("2026-07-06", ak_client=FakeAkshareClient())
@@ -322,7 +362,7 @@ class AkshareSourceTest(unittest.TestCase):
         self.assertEqual(raw_data["sentiment"]["limit_down_count"], 1)
         self.assertEqual(raw_data["sentiment"]["highest_board"], 3)
         self.assertEqual(raw_data["sentiment"]["broken_board_rate"], 0.3333)
-        self.assertIn("missing_emotion_temperature", snapshot.missing_fields)
+        self.assertNotIn("missing_sentiment", snapshot.missing_fields)
         self.assertIn("missing_indices", snapshot.missing_fields)
 
     def test_collect_akshare_sector_evidence_builds_sector_snapshot_input(self):
@@ -332,6 +372,8 @@ class AkshareSourceTest(unittest.TestCase):
         self.assertEqual(len(raw_data["sectors"]), 3)
         self.assertEqual(raw_data["sectors"][0]["name"], "机器人")
         self.assertEqual(raw_data["sectors"][0]["source_type"], "concept")
+        self.assertEqual(raw_data["sectors"][0]["ranking_group"], "akshare_concept_change_rank")
+        self.assertEqual(raw_data["sectors"][0]["rank"], 1)
         self.assertEqual(raw_data["sectors"][0]["change_percent"], 3.8)
         self.assertEqual(raw_data["sectors"][0]["market_value"], 120000000000)
         self.assertEqual(raw_data["sectors"][0]["leading_stock"], "机器人")
@@ -414,7 +456,7 @@ class AkshareSourceTest(unittest.TestCase):
         self.assertEqual(rows[0]["涨跌幅"], 3.8)
         self.assertEqual(rows[0]["领涨股票"], "机器人")
 
-    def test_collect_akshare_market_evidence_uses_eastmoney_fallback_after_client_failure(self):
+    def test_exchange_total_amount_does_not_use_index_amount_sum(self):
         original_request = akshare_source.request_eastmoney_index_rows
 
         def fake_request(symbol):
@@ -435,16 +477,39 @@ class AkshareSourceTest(unittest.TestCase):
 
         akshare_source.request_eastmoney_index_rows = fake_request
         try:
-            raw_data = collect_akshare_market_evidence("2026-07-06", ak_client=BrokenAkshareClient())
+            raw_data = collect_akshare_market_evidence(
+                "2026-07-06",
+                ak_client=BrokenIndexWithMarketSummaryClient(),
+            )
         finally:
             akshare_source.request_eastmoney_index_rows = original_request
 
         self.assertEqual(len(raw_data["market"]["indices"]), 3)
         self.assertEqual(raw_data["market"]["indices"][0]["change_percent"], 5)
-        self.assertEqual(raw_data["market"]["total_amount"], 36)
-        self.assertEqual(raw_data["market"]["total_amount_source"], "eastmoney_index_kline_amount")
-        self.assertEqual(raw_data["field_sources"]["market"], "eastmoney")
+        self.assertEqual(raw_data["market"]["total_amount"], 1200000000000)
+        self.assertEqual(
+            raw_data["market"]["total_amount_source"],
+            "akshare:stock_sse_deal_daily+akshare:stock_szse_summary",
+        )
+        self.assertEqual(
+            raw_data["field_sources"]["market"],
+            "akshare:stock_sse_deal_daily+akshare:stock_szse_summary+eastmoney",
+        )
         self.assertTrue(any(event["source"] == "eastmoney" for event in raw_data["events"]))
+
+    def test_exchange_total_amount_keeps_gap_when_one_exchange_is_missing(self):
+        raw_data = collect_akshare_market_evidence(
+            "2026-07-06",
+            ak_client=PartiallyBrokenMarketSummaryClient(),
+        )
+        snapshot = build_evidence_snapshot("2026-07-06", raw_data)
+
+        self.assertNotIn("total_amount", raw_data["market"])
+        self.assertNotIn("total_amount_source", raw_data["market"])
+        self.assertIn("missing_total_amount", snapshot.missing_fields)
+        self.assertTrue(
+            any(event["title"] == "交易所 A 股成交额采集失败" for event in raw_data["events"])
+        )
 
     def test_collect_akshare_market_evidence_uses_tencent_fallback_after_eastmoney_failure(self):
         original_eastmoney_request = akshare_source.request_eastmoney_index_rows
@@ -550,7 +615,7 @@ class AkshareSourceTest(unittest.TestCase):
             snapshot_data = json.loads(output_path.read_text(encoding="utf-8"))
             self.assertEqual(
                 snapshot_data["field_sources"]["market"],
-                "akshare:stock_zh_index_daily_em",
+                "akshare:stock_sse_deal_daily+akshare:stock_szse_summary+akshare:stock_zh_index_daily_em",
             )
 
     def test_collect_akshare_sentiment_writes_standard_snapshot_path(self):

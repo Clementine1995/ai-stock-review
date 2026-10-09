@@ -15,6 +15,10 @@ from stock_review.evidence.manage_evidence_snapshot import (
     collect_akshare_evidence_scopes,
     collect_akshare_evidence_snapshot,
     import_evidence_snapshot,
+    import_tongdaxin_index_history,
+    import_tongdaxin_market_breadth_snapshot,
+    import_tongdaxin_market_snapshot,
+    import_tongdaxin_stock_facts,
     collect_hhxg_evidence_snapshot,
 )
 from stock_review.evidence.summarize_sector_history import create_sector_history_report
@@ -27,6 +31,13 @@ from stock_review.evidence.summarize_hhxg_history import create_hhxg_history_rep
 from stock_review.evidence.collect_pool_stock_history import (
     collect_real_pool_stock_history,
     collect_review_candidate_history,
+)
+from stock_review.evidence.collect_independent_evidence import (
+    DEFAULT_INDEPENDENT_EVIDENCE_LOG_PATH,
+    IndependentEvidenceCollectionError,
+    collect_longhubang_evidence_file,
+    collect_sector_kline_evidence_file,
+    collect_us_market_evidence_file,
 )
 from stock_review.evidence.summarize_review_facts import create_review_facts_report
 from stock_review.learning.summarize_weekly_learning import create_weekly_learning
@@ -49,6 +60,10 @@ from stock_review.pools.manage_pool_item import (
     update_pool_item_status,
 )
 from stock_review.pools.build_pool_candidates import build_pool_candidate_summary, render_pool_candidate_summary
+from stock_review.pools.confirm_pool_candidate import (
+    PoolCandidateConfirmationError,
+    confirm_hot_pool_candidate,
+)
 from stock_review.review_documents.create_daily_review import create_daily_review
 from stock_review.review_documents.manage_manual_review import (
     ManualReviewError,
@@ -66,6 +81,9 @@ from stock_review.review_documents.create_detailed_review import (
     DEFAULT_LOG_PATH as DEFAULT_DETAILED_REVIEW_LOG_PATH,
     DetailedReviewError,
     create_detailed_review_report,
+    decode_workbuddy_response_base64,
+    prepare_detailed_review_request,
+    render_detailed_review_request,
 )
 from stock_review.review_documents.create_brief_review import (
     DEFAULT_BRIEF_REPORT_DIR,
@@ -78,6 +96,9 @@ from stock_review.review_framework.parse_framework import (
     parse_framework_file,
 )
 from stock_review.scoring.score_market_state import create_scoring_report
+from stock_review.review_run_cli import register_review_run_commands
+from stock_review.review_runs.domain_error import ReviewRunDomainError
+from stock_review.storage.review_run_repository import ReviewRunRepositoryError
 
 
 # CLI 失败时需要给出明确原因，并用非 0 退出码提示调用方当前命令未完成。
@@ -91,7 +112,22 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         return args.handler(args)
-    except (DetailedReviewError, EvidenceSnapshotError, FinalDraftError, FrameworkParseError, LLMClientError, ManualReviewError, ObservationError, PoolItemError, TradePlanError) as error:
+    except (
+        DetailedReviewError,
+        EvidenceSnapshotError,
+        FinalDraftError,
+        FrameworkParseError,
+        IndependentEvidenceCollectionError,
+        LLMClientError,
+        ManualReviewError,
+        ObservationError,
+        PoolCandidateConfirmationError,
+        PoolItemError,
+        TradePlanError,
+        ReviewRunDomainError,
+        ReviewRunRepositoryError,
+        ValueError,
+    ) as error:
         print(f"错误：{error}", file=sys.stderr)
         return 1
     except OSError as error:
@@ -103,7 +139,7 @@ def main(argv: list[str] | None = None) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="stock_review",
-        description="价值投机复盘助手 CLI",
+        description="A 股盘后复盘 CLI；正式日报使用 daily，标记为旧版的命令仅供过渡核对。",
     )
     subparsers = parser.add_subparsers(dest="command")
 
@@ -121,7 +157,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     framework_check_parser.set_defaults(handler=handle_framework_check)
 
-    review_parser = subparsers.add_parser("review", help="每日复盘文档相关命令")
+    review_parser = subparsers.add_parser("review", help="旧版过渡：每日复盘文档")
     review_subparsers = review_parser.add_subparsers(dest="review_command")
     review_create_parser = review_subparsers.add_parser(
         "create",
@@ -254,9 +290,27 @@ def build_parser() -> argparse.ArgumentParser:
     )
     review_draft_final_parser.set_defaults(handler=handle_review_draft_final)
 
+    review_prepare_detailed_parser = review_subparsers.add_parser(
+        "prepare-detailed",
+        help="导出受本地证据约束的详细复盘模型请求，不调用 LLM 或写文件",
+    )
+    review_prepare_detailed_parser.add_argument(
+        "--date", required=True, help="复盘日期，格式 YYYY-MM-DD"
+    )
+    review_prepare_detailed_parser.add_argument(
+        "--framework", required=True, type=Path, help="复盘框架 Markdown 文件路径"
+    )
+    review_prepare_detailed_parser.add_argument(
+        "--snapshot-dir", type=Path, default=DEFAULT_EVIDENCE_DIR, help="Evidence Snapshot 与真实池历史目录"
+    )
+    review_prepare_detailed_parser.add_argument(
+        "--database", type=Path, default=DEFAULT_DATABASE_PATH, help="本地 SQLite 数据库路径"
+    )
+    review_prepare_detailed_parser.set_defaults(handler=handle_review_prepare_detailed)
+
     review_create_detailed_parser = review_subparsers.add_parser(
         "create-detailed",
-        help="调用已配置 LLM 生成严格按 STEP 1-10 编排的详细复盘 Markdown",
+        help="调用已配置 LLM 或校验 WorkBuddy 内置模型响应，生成 STEP 1-10 详细复盘 Markdown",
     )
     review_create_detailed_parser.add_argument("--date", required=True, help="复盘日期，格式 YYYY-MM-DD")
     review_create_detailed_parser.add_argument(
@@ -274,9 +328,14 @@ def build_parser() -> argparse.ArgumentParser:
     review_create_detailed_parser.add_argument(
         "--log-path", type=Path, default=DEFAULT_DETAILED_REVIEW_LOG_PATH, help="本地日志路径"
     )
+    review_create_detailed_parser.add_argument(
+        "--workbuddy-response-base64-stdin",
+        action="store_true",
+        help="从标准输入读取 WorkBuddy 内置模型响应的 UTF-8 Base64，不读取 .env 或调用外部 LLM",
+    )
     review_create_detailed_parser.set_defaults(handler=handle_review_create_detailed)
 
-    evidence_parser = subparsers.add_parser("evidence", help="证据快照相关命令")
+    evidence_parser = subparsers.add_parser("evidence", help="旧版过渡：证据快照")
     evidence_subparsers = evidence_parser.add_subparsers(dest="evidence_command")
     evidence_import_parser = evidence_subparsers.add_parser(
         "import",
@@ -306,6 +365,270 @@ def build_parser() -> argparse.ArgumentParser:
         help="本地 SQLite 数据库路径",
     )
     evidence_import_parser.set_defaults(handler=handle_evidence_import)
+
+    evidence_import_tdx_market_parser = evidence_subparsers.add_parser(
+        "import-tdx-market",
+        help="把经用户确认的通达信日 K 原始行导入为成交额备用证据",
+    )
+    evidence_import_tdx_market_parser.add_argument(
+        "--date",
+        required=True,
+        help="交易日期，格式 YYYY-MM-DD",
+    )
+    evidence_import_tdx_market_parser.add_argument(
+        "--file",
+        required=True,
+        type=Path,
+        help="WorkBuddy 通达信连接器原始行 JSON 文件路径",
+    )
+    evidence_import_tdx_market_parser.add_argument(
+        "--output-dir",
+        required=True,
+        type=Path,
+        help="已有 Evidence Snapshot 所在目录",
+    )
+    evidence_import_tdx_market_parser.add_argument(
+        "--database",
+        required=True,
+        type=Path,
+        help="本地 SQLite 数据库路径",
+    )
+    evidence_import_tdx_market_parser.add_argument(
+        "--confirmed",
+        action="store_true",
+        help="确认用户已同意使用通达信行情口径补充成交额",
+    )
+    evidence_import_tdx_market_parser.set_defaults(handler=handle_evidence_import_tdx_market)
+
+    evidence_import_tdx_breadth_parser = evidence_subparsers.add_parser(
+        "import-tdx-market-breadth",
+        help="把经用户确认的通达信固定沪深行情 up/down 导入为涨跌家数证据",
+    )
+    evidence_import_tdx_breadth_parser.add_argument(
+        "--date",
+        required=True,
+        help="交易日期，格式 YYYY-MM-DD",
+    )
+    evidence_import_tdx_breadth_parser.add_argument(
+        "--file",
+        required=True,
+        type=Path,
+        help="WorkBuddy 通达信连接器固定四查询原始行 JSON 文件路径",
+    )
+    evidence_import_tdx_breadth_parser.add_argument(
+        "--output-dir",
+        required=True,
+        type=Path,
+        help="已有 Evidence Snapshot 所在目录",
+    )
+    evidence_import_tdx_breadth_parser.add_argument(
+        "--database",
+        required=True,
+        type=Path,
+        help="本地 SQLite 数据库路径",
+    )
+    evidence_import_tdx_breadth_parser.add_argument(
+        "--confirmed",
+        action="store_true",
+        help="确认用户已同意使用通达信行情统计口径补充涨跌家数",
+    )
+    evidence_import_tdx_breadth_parser.set_defaults(
+        handler=handle_evidence_import_tdx_market_breadth
+    )
+
+    evidence_import_tdx_index_history_parser = evidence_subparsers.add_parser(
+        "import-tdx-index-history",
+        help="把经用户确认的通达信三大指数日 K 原始行导入为独立五日历史证据",
+    )
+    evidence_import_tdx_index_history_parser.add_argument(
+        "--date",
+        required=True,
+        help="目标交易日期，格式 YYYY-MM-DD",
+    )
+    evidence_import_tdx_index_history_parser.add_argument(
+        "--file",
+        required=True,
+        type=Path,
+        help="WorkBuddy 通达信三指数原始行 JSON 文件路径",
+    )
+    evidence_import_tdx_index_history_parser.add_argument(
+        "--output-dir",
+        required=True,
+        type=Path,
+        help="同日 Evidence Snapshot 所在目录及标准化历史输出目录",
+    )
+    evidence_import_tdx_index_history_parser.add_argument(
+        "--log-path",
+        type=Path,
+        default=Path("logs") / "stock_review.log",
+        help="本地审计日志路径",
+    )
+    evidence_import_tdx_index_history_parser.add_argument(
+        "--confirmed",
+        action="store_true",
+        help="确认用户已同意保存通达信三指数五日历史证据",
+    )
+    evidence_import_tdx_index_history_parser.set_defaults(
+        handler=handle_evidence_import_tdx_index_history
+    )
+
+    evidence_import_tdx_stock_facts_parser = evidence_subparsers.add_parser(
+        "import-tdx-stock-facts",
+        help="把经用户确认的通达信个股身份及有限候选比较事实导入同日快照",
+    )
+    evidence_import_tdx_stock_facts_parser.add_argument(
+        "--date",
+        required=True,
+        help="目标交易日期，格式 YYYY-MM-DD",
+    )
+    evidence_import_tdx_stock_facts_parser.add_argument(
+        "--file",
+        required=True,
+        type=Path,
+        help="带 trade_date/source/scope 的 WorkBuddy 通达信身份输入 JSON 文件路径",
+    )
+    evidence_import_tdx_stock_facts_parser.add_argument(
+        "--output-dir",
+        required=True,
+        type=Path,
+        help="同日 Evidence Snapshot、候选历史和指数历史所在目录",
+    )
+    evidence_import_tdx_stock_facts_parser.add_argument(
+        "--database",
+        required=True,
+        type=Path,
+        help="本地 SQLite 数据库路径",
+    )
+    evidence_import_tdx_stock_facts_parser.add_argument(
+        "--log-path",
+        type=Path,
+        default=Path("logs") / "stock_review.log",
+        help="本地审计日志路径",
+    )
+    evidence_import_tdx_stock_facts_parser.add_argument(
+        "--confirmed",
+        action="store_true",
+        help="确认用户已同意把通达信身份和有限候选比较事实写入同日快照",
+    )
+    evidence_import_tdx_stock_facts_parser.set_defaults(
+        handler=handle_evidence_import_tdx_stock_facts
+    )
+
+    evidence_collect_longhubang_parser = evidence_subparsers.add_parser(
+        "collect-longhubang",
+        help="从同日有限候选历史采集公开龙虎榜日榜及席位证据",
+    )
+    evidence_collect_longhubang_parser.add_argument(
+        "--date",
+        required=True,
+        help="复盘日期，格式 YYYY-MM-DD",
+    )
+    evidence_collect_longhubang_parser.add_argument(
+        "--source",
+        required=True,
+        choices=["akshare"],
+        help="数据源名称；当前仅支持 akshare",
+    )
+    evidence_collect_longhubang_parser.add_argument(
+        "--output-dir",
+        required=True,
+        type=Path,
+        help="复盘候选历史输入目录及龙虎榜独立证据输出目录",
+    )
+    evidence_collect_longhubang_parser.add_argument(
+        "--log-path",
+        type=Path,
+        default=DEFAULT_INDEPENDENT_EVIDENCE_LOG_PATH,
+        help="本地审计日志路径",
+    )
+    evidence_collect_longhubang_parser.set_defaults(
+        handler=handle_evidence_collect_longhubang
+    )
+
+    evidence_collect_sector_kline_parser = evidence_subparsers.add_parser(
+        "collect-sector-kline",
+        help="从同日 Snapshot 最多三个正向排行对象采集板块日 K 独立证据",
+    )
+    evidence_collect_sector_kline_parser.add_argument(
+        "--date",
+        required=True,
+        help="复盘日期，格式 YYYY-MM-DD",
+    )
+    evidence_collect_sector_kline_parser.add_argument(
+        "--source",
+        required=True,
+        choices=["akshare"],
+        help="数据源名称；当前仅支持 akshare",
+    )
+    evidence_collect_sector_kline_parser.add_argument(
+        "--output-dir",
+        required=True,
+        type=Path,
+        help="同日 Snapshot 输入目录及板块日 K 独立证据输出目录",
+    )
+    evidence_collect_sector_kline_parser.add_argument(
+        "--lookback-bars",
+        required=True,
+        type=int,
+        choices=range(5, 11),
+        metavar="{5..10}",
+        help="每个板块保留的日 K 根数，只允许 5 至 10",
+    )
+    evidence_collect_sector_kline_parser.add_argument(
+        "--log-path",
+        type=Path,
+        default=DEFAULT_INDEPENDENT_EVIDENCE_LOG_PATH,
+        help="本地审计日志路径",
+    )
+    evidence_collect_sector_kline_parser.set_defaults(
+        handler=handle_evidence_collect_sector_kline
+    )
+
+    evidence_collect_us_market_parser = evidence_subparsers.add_parser(
+        "collect-us-market",
+        help="按显式 A 股收盘到下一 A 股开盘窗口采集美股独立证据",
+    )
+    evidence_collect_us_market_parser.add_argument(
+        "--date",
+        required=True,
+        help="复盘日期，格式 YYYY-MM-DD",
+    )
+    evidence_collect_us_market_parser.add_argument(
+        "--source",
+        required=True,
+        choices=["akshare"],
+        help="数据源名称；当前仅支持 akshare",
+    )
+    evidence_collect_us_market_parser.add_argument(
+        "--output-dir",
+        required=True,
+        type=Path,
+        help="美股独立证据输出目录",
+    )
+    evidence_collect_us_market_parser.add_argument(
+        "--log-path",
+        type=Path,
+        default=DEFAULT_INDEPENDENT_EVIDENCE_LOG_PATH,
+        help="本地审计日志路径",
+    )
+    evidence_collect_us_market_parser.add_argument(
+        "--as-of",
+        required=True,
+        help="证据截止时点，必须是带时区的 ISO 8601 时点",
+    )
+    evidence_collect_us_market_parser.add_argument(
+        "--a-share-close-at",
+        required=True,
+        help="A 股收盘时点，必须是带时区的 ISO 8601 时点",
+    )
+    evidence_collect_us_market_parser.add_argument(
+        "--next-a-share-open-at",
+        required=True,
+        help="下一 A 股开盘时点，必须由调用方按交易日历显式提供",
+    )
+    evidence_collect_us_market_parser.set_defaults(
+        handler=handle_evidence_collect_us_market
+    )
 
     evidence_collect_parser = evidence_subparsers.add_parser(
         "collect",
@@ -526,7 +849,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     evidence_summarize_review_parser.set_defaults(handler=handle_evidence_summarize_review)
 
-    pool_parser = subparsers.add_parser("pool", help="关注池和热点池相关命令")
+    pool_parser = subparsers.add_parser(
+        "pool",
+        help="新版只读查询；其它子命令属于旧版过渡写入口",
+    )
     pool_subparsers = pool_parser.add_subparsers(dest="pool_command")
 
     watch_add_parser = pool_subparsers.add_parser("add-watch", help="手工加入关注池")
@@ -536,6 +862,24 @@ def build_parser() -> argparse.ArgumentParser:
     hot_add_parser = pool_subparsers.add_parser("add-hot", help="手工加入热点池")
     add_pool_arguments(hot_add_parser, require_reason=True)
     hot_add_parser.set_defaults(handler=handle_pool_add_hot)
+
+    pool_add_candidate_parser = pool_subparsers.add_parser(
+        "add-candidate",
+        help="把用户确认的当日 Evidence Snapshot 候选加入热点池",
+    )
+    pool_add_candidate_parser.add_argument("--date", required=True, help="交易日期，格式 YYYY-MM-DD")
+    pool_add_candidate_parser.add_argument("--code", required=True, help="当日系统候选股票代码")
+    pool_add_candidate_parser.add_argument("--reason", default="", help="可选人工补充的入池原因")
+    pool_add_candidate_parser.add_argument(
+        "--snapshot-dir", type=Path, default=DEFAULT_EVIDENCE_DIR, help="Evidence Snapshot 目录"
+    )
+    pool_add_candidate_parser.add_argument(
+        "--database", type=Path, default=DEFAULT_DATABASE_PATH, help="本地 SQLite 数据库路径"
+    )
+    pool_add_candidate_parser.add_argument(
+        "--confirmed", action="store_true", help="确认这是用户本人选择的当日系统候选"
+    )
+    pool_add_candidate_parser.set_defaults(handler=handle_pool_add_candidate)
 
     pool_list_parser = pool_subparsers.add_parser("list", help="查看关注池或热点池")
     pool_list_parser.add_argument(
@@ -620,7 +964,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     pool_history_parser.set_defaults(handler=handle_pool_history)
 
-    plan_parser = subparsers.add_parser("plan", help="次日观察计划相关命令")
+    plan_parser = subparsers.add_parser("plan", help="旧版过渡：次日观察计划")
     plan_subparsers = plan_parser.add_subparsers(dest="plan_command")
     plan_create_parser = plan_subparsers.add_parser(
         "create",
@@ -651,7 +995,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     plan_create_parser.set_defaults(handler=handle_plan_create)
 
-    observation_parser = subparsers.add_parser("observation", help="Observation 相关命令")
+    observation_parser = subparsers.add_parser(
+        "observation",
+        help="新版查询与结果回填；其它子命令属于旧版过渡写入口",
+    )
     observation_subparsers = observation_parser.add_subparsers(dest="observation_command")
 
     observation_add_parser = observation_subparsers.add_parser("add", help="手工创建 Observation")
@@ -728,7 +1075,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     observation_migrate_parser.set_defaults(handler=handle_observation_migrate_review_governance)
 
-    learning_parser = subparsers.add_parser("learning", help="学习总结相关命令")
+    learning_parser = subparsers.add_parser("learning", help="旧版过渡：学习总结")
     learning_subparsers = learning_parser.add_subparsers(dest="learning_command")
     learning_weekly_parser = learning_subparsers.add_parser("weekly", help="生成周度学习总结")
     learning_weekly_parser.add_argument("--start", required=True, help="开始日期，格式 YYYY-MM-DD")
@@ -747,7 +1094,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     learning_weekly_parser.set_defaults(handler=handle_learning_weekly)
 
-    scoring_parser = subparsers.add_parser("scoring", help="可解释规则评分相关命令")
+    scoring_parser = subparsers.add_parser("scoring", help="旧版过渡：规则评分")
     scoring_subparsers = scoring_parser.add_subparsers(dest="scoring_command")
     scoring_create_parser = scoring_subparsers.add_parser("create", help="生成市场与板块评分报告")
     scoring_create_parser.add_argument("--date", required=True, help="交易日期，格式 YYYY-MM-DD")
@@ -759,6 +1106,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="评分报告输出目录",
     )
     scoring_create_parser.set_defaults(handler=handle_scoring_create)
+
+    register_review_run_commands(
+        subparsers,
+        observation_subparsers,
+        observation_list_parser,
+        pool_list_parser,
+    )
 
     return parser
 
@@ -902,8 +1256,25 @@ def handle_review_draft_final(args: argparse.Namespace) -> int:
     return 0
 
 
-# 详细复盘命令只写 Markdown 和审计日志，模型草案不会写入 SQLite 或修改池子、计划与 Observation。
+# 请求导出只读取本地上下文并打印带指纹 JSON，不调用模型或写入任何产物。
+def handle_review_prepare_detailed(args: argparse.Namespace) -> int:
+    request = prepare_detailed_review_request(
+        args.date,
+        args.framework,
+        args.snapshot_dir,
+        args.database,
+    )
+    print(render_detailed_review_request(request), end="")
+    return 0
+
+
+# 详细复盘命令只写 Markdown 和审计日志；stdin 模式绝不读取 .env 或回退外部模型。
 def handle_review_create_detailed(args: argparse.Namespace) -> int:
+    workbuddy_response_text = (
+        decode_workbuddy_response_base64(sys.stdin.read())
+        if args.workbuddy_response_base64_stdin
+        else None
+    )
     output_path = create_detailed_review_report(
         args.date,
         args.framework,
@@ -911,6 +1282,7 @@ def handle_review_create_detailed(args: argparse.Namespace) -> int:
         args.database,
         output_dir=args.output_dir,
         log_path=args.log_path,
+        workbuddy_response_text=workbuddy_response_text,
     )
     print(f"已生成详细复盘：{output_path}")
     return 0
@@ -936,6 +1308,140 @@ def handle_evidence_import(args: argparse.Namespace) -> int:
     print(f"缺口数量：{len(snapshot.missing_fields)}")
     for missing_field in snapshot.missing_fields:
         print(f"- {missing_field}")
+    return 0
+
+
+# 通达信连接器只作为成交额硬缺口的显式降级输入，所有校验和快照写入仍由正式 CLI 完成。
+def handle_evidence_import_tdx_market(args: argparse.Namespace) -> int:
+    output_path = import_tongdaxin_market_snapshot(
+        args.date,
+        args.file,
+        confirmed=args.confirmed,
+        output_dir=args.output_dir,
+        database_path=args.database,
+    )
+    snapshot = check_evidence_snapshot(args.date, snapshot_dir=args.output_dir)
+    write_evidence_log(
+        command="evidence import-tdx-market",
+        trade_date=args.date,
+        source_file=args.file,
+        output_path=output_path,
+        missing_fields=snapshot.missing_fields,
+    )
+    print(f"已导入通达信成交额备用证据：{output_path}")
+    print("成交额口径：通达信行情口径，非交易所官方汇总")
+    print(f"缺口数量：{len(snapshot.missing_fields)}")
+    for missing_field in snapshot.missing_fields:
+        print(f"- {missing_field}")
+    return 0
+
+
+# 涨跌家数独立于成交额补入；真实执行仍要求同次用户确认和固定原始查询信封。
+def handle_evidence_import_tdx_market_breadth(args: argparse.Namespace) -> int:
+    output_path = import_tongdaxin_market_breadth_snapshot(
+        args.date,
+        args.file,
+        confirmed=args.confirmed,
+        output_dir=args.output_dir,
+        database_path=args.database,
+    )
+    snapshot = check_evidence_snapshot(args.date, snapshot_dir=args.output_dir)
+    write_evidence_log(
+        command="evidence import-tdx-market-breadth",
+        trade_date=args.date,
+        source_file=args.file,
+        output_path=output_path,
+        missing_fields=snapshot.missing_fields,
+    )
+    print(f"已导入通达信涨跌家数证据：{output_path}")
+    print("涨跌家数口径：通达信行情统计口径，非交易所官方全市场统计")
+    return 0
+
+
+# 三指数历史命令只写独立标准化 JSON 和审计日志，不改写快照、SQLite 或其它业务对象。
+def handle_evidence_import_tdx_index_history(args: argparse.Namespace) -> int:
+    output_path = import_tongdaxin_index_history(
+        args.date,
+        args.file,
+        confirmed=args.confirmed,
+        output_dir=args.output_dir,
+    )
+    write_evidence_log(
+        command="evidence import-tdx-index-history",
+        trade_date=args.date,
+        source_file=args.file,
+        output_path=output_path,
+        missing_fields=(),
+        log_path=args.log_path,
+    )
+    print(f"已导入通达信三指数五日历史证据：{output_path}")
+    print("连续性口径：三大指数返回的相同连续五根日 K，不代表独立交易所日历校验")
+    return 0
+
+
+# 个股事实入口只消费同日有限输入；身份、相对强弱和连续比较之外的事实保持原样。
+def handle_evidence_import_tdx_stock_facts(args: argparse.Namespace) -> int:
+    output_path = import_tongdaxin_stock_facts(
+        args.date,
+        args.file,
+        confirmed=args.confirmed,
+        output_dir=args.output_dir,
+        database_path=args.database,
+    )
+    snapshot = check_evidence_snapshot(args.date, snapshot_dir=args.output_dir)
+    write_evidence_log(
+        command="evidence import-tdx-stock-facts",
+        trade_date=args.date,
+        source_file=args.file,
+        output_path=output_path,
+        missing_fields=snapshot.missing_fields,
+        log_path=args.log_path,
+    )
+    print(f"已导入通达信个股身份与有限候选比较事实：{output_path}")
+    print(f"缺口数量：{len(snapshot.missing_fields)}")
+    return 0
+
+
+# 龙虎榜正式入口只消费同目录同日有限候选文件，输出独立证据，不改写 Snapshot 或数据库。
+def handle_evidence_collect_longhubang(args: argparse.Namespace) -> int:
+    output_path = collect_longhubang_evidence_file(
+        args.date,
+        args.source,
+        args.output_dir,
+        args.log_path,
+    )
+    print(f"已生成龙虎榜独立证据：{output_path}")
+    print("未上榜语义：仅表示没有当日公开日榜记录，不构成负面证据")
+    return 0
+
+
+# 板块日 K 正式入口只消费 Snapshot 中有名称、排名和正向来源类型的对象，并要求名称唯一映射。
+def handle_evidence_collect_sector_kline(args: argparse.Namespace) -> int:
+    output_path = collect_sector_kline_evidence_file(
+        args.date,
+        args.source,
+        args.output_dir,
+        args.log_path,
+        lookback_bars=args.lookback_bars,
+    )
+    print(f"已生成板块日 K 独立证据：{output_path}")
+    print("范围口径：同日正向排行对象，按 rank 与 Snapshot 顺序选取，硬上限 3")
+    return 0
+
+
+# 美股正式入口完全采用调用方给出的截止时点和 A 股窗口，不在 CLI 中推测交易日历。
+def handle_evidence_collect_us_market(args: argparse.Namespace) -> int:
+    output_path = collect_us_market_evidence_file(
+        args.date,
+        args.source,
+        args.output_dir,
+        args.log_path,
+        as_of=args.as_of,
+        a_share_close_at=args.a_share_close_at,
+        next_a_share_open_at=args.next_a_share_open_at,
+    )
+    print(f"已生成美股独立证据：{output_path}")
+    print("窗口口径：(A 股收盘, 下一 A 股开盘)，未完成新会话时保持 pending")
     return 0
 
 
@@ -1101,6 +1607,23 @@ def handle_pool_list(args: argparse.Namespace) -> int:
             f"{pool_label_for_output(item.pool_type)} | {item.code} | {item.name} | {item.exchange} | "
             f"{'、'.join(item.sectors)} | {item.status} | {item.record_kind} | {item.start_date} | {item.reason or '无'}"
         )
+    return 0
+
+
+# 候选入池只接受同日快照中的确认代码，并要求用户显式确认，避免 WorkBuddy 自主扩充真实池。
+def handle_pool_add_candidate(args: argparse.Namespace) -> int:
+    item = confirm_hot_pool_candidate(
+        args.date,
+        args.code,
+        args.confirmed,
+        snapshot_dir=args.snapshot_dir,
+        reason=args.reason,
+        database_path=args.database,
+    )
+    write_pool_log("pool add-candidate", item.pool_type, item.code, item.start_date, args.database)
+    print(f"已将当日系统候选加入热点池：{item.code} {item.name}")
+    print(f"板块：{'、'.join(item.sectors)}")
+    print(f"进入原因：{item.reason}")
     return 0
 
 

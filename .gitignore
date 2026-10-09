@@ -24,6 +24,14 @@ dist/
 .env
 .env.*
 
+# Local ReviewRun state
+/data/review_run.sqlite
+/data/review_run.sqlite-journal
+/data/review_run.sqlite-shm
+/data/review_run.sqlite-wal
+/logs/review_run.log
+/.workbuddy/
+
 # OS and editor files
 .DS_Store
 Thumbs.db

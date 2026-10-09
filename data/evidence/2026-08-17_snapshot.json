@@ -1,0 +1,1081 @@
+{
+  "trade_date": "2026-08-17",
+  "source": "hhxg",
+  "sample_date": "2026-08-17",
+  "market": {
+    "indices": [
+      {
+        "symbol": "sh000001",
+        "name": "上证指数",
+        "sample_date": "2026-08-17",
+        "close": 3982.65,
+        "change_percent": 1.41
+      },
+      {
+        "symbol": "sz399001",
+        "name": "深证成指",
+        "sample_date": "2026-08-17",
+        "close": 14704.27,
+        "change_percent": 2.44
+      },
+      {
+        "symbol": "sz399006",
+        "name": "创业板指",
+        "sample_date": "2026-08-17",
+        "close": 3740.16,
+        "change_percent": 3.14
+      }
+    ],
+    "total_amount": 2390155296028.18,
+    "total_amount_source": "akshare:stock_sse_deal_daily+akshare:stock_szse_summary",
+    "total_amount_unit": "CNY",
+    "total_amount_breakdown": {
+      "shanghai_a_share_amount": 1114296000000,
+      "shenzhen_a_share_amount": 1275859296028.18
+    },
+    "up_count": 4085,
+    "down_count": 1012,
+    "advance_decline_source": "workbuddy:tongdaxin.tdx_kline:000002.up/down+399106.up/down",
+    "advance_decline_quality": "market_quote_breadth",
+    "advance_decline_calculation": "000002.Rows.up/down+399106.Rows.up/down",
+    "advance_decline_breakdown": {
+      "shanghai_advance_count": 1761,
+      "shanghai_decline_count": 472,
+      "shenzhen_advance_count": 2324,
+      "shenzhen_decline_count": 540
+    },
+    "advance_decline_note": "使用上证 A 股指数与深证综指的通达信行情统计字段；属于行情口径，不替代交易所官方全市场统计。"
+  },
+  "sentiment": {
+    "limit_up_count": 106,
+    "limit_down_count": 1,
+    "broken_board_rate": 0.2886,
+    "highest_board": 4,
+    "profit_effect_percent": 99.0654,
+    "profit_effect_source": "derived:limit_up_down_ratio",
+    "profit_effect_calculation": "limit_up_ratio_proxy"
+  },
+  "sectors": [
+    {
+      "name": "其他养殖",
+      "code": "BK1510",
+      "source_type": "industry",
+      "ranking_group": "akshare_industry_change_rank",
+      "rank": 1,
+      "strength": "按涨跌幅排序",
+      "change_percent": 10.69,
+      "market_value": 9214564000,
+      "turnover": null,
+      "net_inflow": null,
+      "total_volume": null,
+      "turnover_rate": 1.97,
+      "up_count": 3,
+      "down_count": 0,
+      "leading_stock": "天山生物",
+      "leading_stock_change_percent": 20.02,
+      "leading_stock_code": "300313"
+    },
+    {
+      "name": "种子",
+      "code": "BK1518",
+      "source_type": "industry",
+      "ranking_group": "akshare_industry_change_rank",
+      "rank": 2,
+      "strength": "按涨跌幅排序",
+      "change_percent": 6.62,
+      "market_value": 52071679000,
+      "turnover": null,
+      "net_inflow": null,
+      "total_volume": null,
+      "turnover_rate": 8.59,
+      "up_count": 10,
+      "down_count": 0,
+      "leading_stock": "农发种业",
+      "leading_stock_change_percent": 10,
+      "leading_stock_code": "600313"
+    },
+    {
+      "name": "集成电路封测",
+      "code": "BK1328",
+      "source_type": "industry",
+      "ranking_group": "akshare_industry_change_rank",
+      "rank": 3,
+      "strength": "按涨跌幅排序",
+      "change_percent": 5.76,
+      "market_value": 478493248000,
+      "turnover": null,
+      "net_inflow": null,
+      "total_volume": null,
+      "turnover_rate": 9.32,
+      "up_count": 12,
+      "down_count": 1,
+      "leading_stock": "通富微电",
+      "leading_stock_change_percent": 10.01,
+      "leading_stock_code": "002156"
+    },
+    {
+      "name": "集成电路制造",
+      "code": "BK1329",
+      "source_type": "industry",
+      "ranking_group": "akshare_industry_change_rank",
+      "rank": 4,
+      "strength": "按涨跌幅排序",
+      "change_percent": 5.49,
+      "market_value": 2218126432000,
+      "turnover": null,
+      "net_inflow": null,
+      "total_volume": null,
+      "turnover_rate": 2.9,
+      "up_count": 8,
+      "down_count": 0,
+      "leading_stock": "盛合晶微",
+      "leading_stock_change_percent": 10.97,
+      "leading_stock_code": "688820"
+    },
+    {
+      "name": "半导体材料",
+      "code": "BK1325",
+      "source_type": "industry",
+      "ranking_group": "akshare_industry_change_rank",
+      "rank": 5,
+      "strength": "按涨跌幅排序",
+      "change_percent": 5.47,
+      "market_value": 1148304208000,
+      "turnover": null,
+      "net_inflow": null,
+      "total_volume": null,
+      "turnover_rate": 6.06,
+      "up_count": 31,
+      "down_count": 0,
+      "leading_stock": "有研新材",
+      "leading_stock_change_percent": 10,
+      "leading_stock_code": "600206"
+    },
+    {
+      "name": "F5G概念",
+      "source_type": "hhxg_hot_theme",
+      "ranking_group": "hhxg_hot_theme",
+      "rank": 1,
+      "limit_up_count": 20,
+      "net_inflow_yi": 8.13,
+      "leading_stock": [
+        {
+          "name": "兴森科技",
+          "net_yi": 3.45,
+          "code": "002436"
+        },
+        {
+          "name": "金禄电子",
+          "net_yi": 2.39,
+          "code": "301282"
+        }
+      ]
+    },
+    {
+      "name": "通信技术",
+      "source_type": "hhxg_hot_theme",
+      "ranking_group": "hhxg_hot_theme",
+      "rank": 2,
+      "limit_up_count": 20,
+      "net_inflow_yi": 15.89,
+      "leading_stock": [
+        {
+          "name": "通富微电",
+          "net_yi": 10.21,
+          "code": "002156"
+        },
+        {
+          "name": "兴森科技",
+          "net_yi": 3.45,
+          "code": "002436"
+        }
+      ]
+    },
+    {
+      "name": "2026中报首亏",
+      "source_type": "hhxg_hot_theme",
+      "ranking_group": "hhxg_hot_theme",
+      "rank": 3,
+      "limit_up_count": 17,
+      "net_inflow_yi": -2.49,
+      "leading_stock": [
+        {
+          "name": "盛洋科技",
+          "net_yi": 0.14,
+          "code": "603703"
+        },
+        {
+          "name": "金健米业",
+          "net_yi": 0.13,
+          "code": "600127"
+        }
+      ]
+    },
+    {
+      "name": "基础化工",
+      "source_type": "hhxg_hot_theme",
+      "ranking_group": "hhxg_hot_theme",
+      "rank": 4,
+      "limit_up_count": 16,
+      "net_inflow_yi": 0.28,
+      "leading_stock": [
+        {
+          "name": "振华股份",
+          "net_yi": 0,
+          "code": "603067"
+        },
+        {
+          "name": "兴欣新材",
+          "net_yi": 0,
+          "code": "001358"
+        }
+      ]
+    },
+    {
+      "name": "共封装光学(CPO)",
+      "source_type": "hhxg_hot_theme",
+      "ranking_group": "hhxg_hot_theme",
+      "rank": 5,
+      "limit_up_count": 15,
+      "net_inflow_yi": 18.46,
+      "leading_stock": [
+        {
+          "name": "通富微电",
+          "net_yi": 10.21,
+          "code": "002156"
+        },
+        {
+          "name": "兴森科技",
+          "net_yi": 3.45,
+          "code": "002436"
+        }
+      ]
+    },
+    {
+      "name": "PCB概念",
+      "source_type": "hhxg_hot_theme",
+      "ranking_group": "hhxg_hot_theme",
+      "rank": 6,
+      "limit_up_count": 14,
+      "net_inflow_yi": 6.83,
+      "leading_stock": [
+        {
+          "name": "兴森科技",
+          "net_yi": 3.45,
+          "code": "002436"
+        },
+        {
+          "name": "金禄电子",
+          "net_yi": 2.39,
+          "code": "301282"
+        }
+      ]
+    },
+    {
+      "name": "半导体",
+      "source_type": "hhxg_strong_sector",
+      "ranking_group": "hhxg_sector_group_1_strong",
+      "ranking_group_index": 1,
+      "rank": 1,
+      "net_inflow_yi": 322,
+      "leading_stock": "中微半导",
+      "bias_percent": 11.5,
+      "leading_stock_code": "688380"
+    },
+    {
+      "name": "消费电子",
+      "source_type": "hhxg_strong_sector",
+      "ranking_group": "hhxg_sector_group_1_strong",
+      "ranking_group_index": 1,
+      "rank": 2,
+      "net_inflow_yi": 53,
+      "leading_stock": "电连技术",
+      "bias_percent": 9.7,
+      "leading_stock_code": "300679"
+    },
+    {
+      "name": "光学光电子",
+      "source_type": "hhxg_strong_sector",
+      "ranking_group": "hhxg_sector_group_1_strong",
+      "ranking_group_index": 1,
+      "rank": 3,
+      "net_inflow_yi": 50,
+      "leading_stock": "激智科技",
+      "bias_percent": 10,
+      "leading_stock_code": "300566"
+    },
+    {
+      "name": "电池",
+      "source_type": "hhxg_strong_sector",
+      "ranking_group": "hhxg_sector_group_1_strong",
+      "ranking_group_index": 1,
+      "rank": 4,
+      "net_inflow_yi": 39,
+      "leading_stock": "壹石通",
+      "bias_percent": 7.4,
+      "leading_stock_code": "688733"
+    },
+    {
+      "name": "电子化学品",
+      "source_type": "hhxg_strong_sector",
+      "ranking_group": "hhxg_sector_group_1_strong",
+      "ranking_group_index": 1,
+      "rank": 5,
+      "net_inflow_yi": 38,
+      "leading_stock": "中石科技",
+      "bias_percent": 15.4,
+      "leading_stock_code": "300684"
+    },
+    {
+      "name": "电力",
+      "source_type": "hhxg_weak_sector",
+      "ranking_group": "hhxg_sector_group_1_weak",
+      "ranking_group_index": 1,
+      "rank": 1,
+      "net_inflow_yi": -10,
+      "leading_stock": "新中港",
+      "bias_percent": -0.1,
+      "leading_stock_code": "605162"
+    },
+    {
+      "name": "银行",
+      "source_type": "hhxg_weak_sector",
+      "ranking_group": "hhxg_sector_group_1_weak",
+      "ranking_group_index": 1,
+      "rank": 2,
+      "net_inflow_yi": -6,
+      "leading_stock": "齐鲁银行",
+      "bias_percent": -1.2,
+      "leading_stock_code": "601665"
+    },
+    {
+      "name": "机场航运",
+      "source_type": "hhxg_weak_sector",
+      "ranking_group": "hhxg_sector_group_1_weak",
+      "ranking_group_index": 1,
+      "rank": 3,
+      "net_inflow_yi": 0,
+      "leading_stock": "中信海直",
+      "bias_percent": -1.7,
+      "leading_stock_code": "000099"
+    },
+    {
+      "name": "保险",
+      "source_type": "hhxg_weak_sector",
+      "ranking_group": "hhxg_sector_group_1_weak",
+      "ranking_group_index": 1,
+      "rank": 4,
+      "net_inflow_yi": 0,
+      "leading_stock": "中国人寿",
+      "bias_percent": -3.6,
+      "leading_stock_code": "601628"
+    },
+    {
+      "name": "汽车整车",
+      "source_type": "hhxg_weak_sector",
+      "ranking_group": "hhxg_sector_group_1_weak",
+      "ranking_group_index": 1,
+      "rank": 5,
+      "net_inflow_yi": 0,
+      "leading_stock": "中国重汽",
+      "bias_percent": -1.1,
+      "leading_stock_code": "000951"
+    },
+    {
+      "name": "芯片概念",
+      "source_type": "hhxg_strong_sector",
+      "ranking_group": "hhxg_sector_group_2_strong",
+      "ranking_group_index": 2,
+      "rank": 1,
+      "net_inflow_yi": 602,
+      "leading_stock": "聚和材料",
+      "bias_percent": 10.6,
+      "leading_stock_code": "688503"
+    },
+    {
+      "name": "存储芯片",
+      "source_type": "hhxg_strong_sector",
+      "ranking_group": "hhxg_sector_group_2_strong",
+      "ranking_group_index": 2,
+      "rank": 2,
+      "net_inflow_yi": 305,
+      "leading_stock": "聚和材料",
+      "bias_percent": 12.4,
+      "leading_stock_code": "688503"
+    },
+    {
+      "name": "人民币贬值受益",
+      "source_type": "hhxg_strong_sector",
+      "ranking_group": "hhxg_sector_group_2_strong",
+      "ranking_group_index": 2,
+      "rank": 3,
+      "net_inflow_yi": 287,
+      "leading_stock": "太辰光",
+      "bias_percent": 9,
+      "leading_stock_code": "300570"
+    },
+    {
+      "name": "2026中报预增",
+      "source_type": "hhxg_strong_sector",
+      "ranking_group": "hhxg_sector_group_2_strong",
+      "ranking_group_index": 2,
+      "rank": 4,
+      "net_inflow_yi": 265,
+      "leading_stock": "奥来德",
+      "bias_percent": 9.1,
+      "leading_stock_code": "688378"
+    },
+    {
+      "name": "新能源汽车",
+      "source_type": "hhxg_strong_sector",
+      "ranking_group": "hhxg_sector_group_2_strong",
+      "ranking_group_index": 2,
+      "rank": 5,
+      "net_inflow_yi": 246,
+      "leading_stock": "电连技术",
+      "bias_percent": 8.1,
+      "leading_stock_code": "300679"
+    }
+  ],
+  "stocks": [
+    {
+      "code": "300313",
+      "name": "天山生物",
+      "exchange": "SZ",
+      "sector": "其他养殖",
+      "role": "板块领涨事实候选",
+      "role_source": "industry 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": 20.02,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。",
+      "identity_verified": true,
+      "identity_source": "workbuddy:tongdaxin.tdx_lookup_stock",
+      "relative_strength": {
+        "completeness": "incomplete",
+        "reason": "候选历史缺该个股"
+      },
+      "continuous_comparison": {
+        "completeness": "incomplete",
+        "reason": "候选历史缺该个股"
+      }
+    },
+    {
+      "code": "600313",
+      "name": "农发种业",
+      "exchange": "SH",
+      "sector": "种子",
+      "role": "板块领涨事实候选",
+      "role_source": "industry 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": 10,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。",
+      "identity_verified": true,
+      "identity_source": "workbuddy:tongdaxin.tdx_lookup_stock",
+      "relative_strength": {
+        "completeness": "incomplete",
+        "reason": "候选历史缺该个股"
+      },
+      "continuous_comparison": {
+        "completeness": "incomplete",
+        "reason": "候选历史缺该个股"
+      }
+    },
+    {
+      "code": "002156",
+      "name": "通富微电",
+      "exchange": "SZ",
+      "sector": "集成电路封测",
+      "role": "板块领涨事实候选",
+      "role_source": "industry 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": 10.01,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。",
+      "identity_verified": true,
+      "identity_source": "workbuddy:tongdaxin.tdx_lookup_stock",
+      "relative_strength": {
+        "completeness": "incomplete",
+        "reason": "候选历史缺该个股"
+      },
+      "continuous_comparison": {
+        "completeness": "incomplete",
+        "reason": "候选历史缺该个股"
+      }
+    },
+    {
+      "code": "688820",
+      "name": "盛合晶微",
+      "exchange": "SH",
+      "sector": "集成电路制造",
+      "role": "板块领涨事实候选",
+      "role_source": "industry 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": 10.97,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。",
+      "identity_verified": true,
+      "identity_source": "workbuddy:tongdaxin.tdx_lookup_stock",
+      "relative_strength": {
+        "completeness": "incomplete",
+        "reason": "候选历史缺该个股"
+      },
+      "continuous_comparison": {
+        "completeness": "incomplete",
+        "reason": "候选历史缺该个股"
+      }
+    },
+    {
+      "code": "600206",
+      "name": "有研新材",
+      "exchange": "SH",
+      "sector": "半导体材料",
+      "role": "板块领涨事实候选",
+      "role_source": "industry 板块领涨股",
+      "source": "akshare:sector_leading_stock",
+      "change_percent": 10,
+      "reason": "来自已采集板块的领涨股字段，仅作为可追溯事实。",
+      "identity_verified": true,
+      "identity_source": "workbuddy:tongdaxin.tdx_lookup_stock",
+      "relative_strength": {
+        "completeness": "complete",
+        "benchmark": "000001",
+        "window_start": "2026-08-11",
+        "window_end": "2026-08-17",
+        "stock_return_percent": 6.0969,
+        "benchmark_return_percent": 1.2343,
+        "excess_return_percent": 4.8625,
+        "direction": "相对偏强",
+        "basis": "个股区间涨幅减去上证指数同区间涨幅得到超额收益"
+      },
+      "continuous_comparison": {
+        "completeness": "complete",
+        "consecutive_up_days": 2,
+        "recent_up_ratio": 0.4,
+        "direction": "震荡",
+        "basis": "末端连涨天数与近五日上涨比例判断自身趋势连续性"
+      }
+    },
+    {
+      "code": "002820",
+      "name": "桂发祥",
+      "exchange": "SZ",
+      "sector": "休闲食品",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 9.9606,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。",
+      "identity_verified": true,
+      "identity_source": "workbuddy:tongdaxin.tdx_lookup_stock",
+      "relative_strength": {
+        "completeness": "complete",
+        "benchmark": "000001",
+        "window_start": "2026-08-11",
+        "window_end": "2026-08-17",
+        "stock_return_percent": 18.491,
+        "benchmark_return_percent": 1.2343,
+        "excess_return_percent": 17.2566,
+        "direction": "相对偏强",
+        "basis": "个股区间涨幅减去上证指数同区间涨幅得到超额收益"
+      },
+      "continuous_comparison": {
+        "completeness": "complete",
+        "consecutive_up_days": 0,
+        "recent_up_ratio": 0.0,
+        "direction": "转弱",
+        "basis": "末端连涨天数与近五日上涨比例判断自身趋势连续性"
+      }
+    },
+    {
+      "code": "300684",
+      "name": "中石科技",
+      "exchange": "SZ",
+      "sector": "电子化学",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 19.997,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。",
+      "identity_verified": true,
+      "identity_source": "workbuddy:tongdaxin.tdx_lookup_stock",
+      "relative_strength": {
+        "completeness": "complete",
+        "benchmark": "000001",
+        "window_start": "2026-08-11",
+        "window_end": "2026-08-17",
+        "stock_return_percent": 58.366,
+        "benchmark_return_percent": 1.2343,
+        "excess_return_percent": 57.1317,
+        "direction": "相对偏强",
+        "basis": "个股区间涨幅减去上证指数同区间涨幅得到超额收益"
+      },
+      "continuous_comparison": {
+        "completeness": "complete",
+        "consecutive_up_days": 0,
+        "recent_up_ratio": 0.0,
+        "direction": "转弱",
+        "basis": "末端连涨天数与近五日上涨比例判断自身趋势连续性"
+      }
+    },
+    {
+      "code": "603186",
+      "name": "华正新材",
+      "exchange": "SH",
+      "sector": "元件",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10.003,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。",
+      "identity_verified": true,
+      "identity_source": "workbuddy:tongdaxin.tdx_lookup_stock",
+      "relative_strength": {
+        "completeness": "complete",
+        "benchmark": "000001",
+        "window_start": "2026-08-11",
+        "window_end": "2026-08-17",
+        "stock_return_percent": 24.5338,
+        "benchmark_return_percent": 1.2343,
+        "excess_return_percent": 23.2994,
+        "direction": "相对偏强",
+        "basis": "个股区间涨幅减去上证指数同区间涨幅得到超额收益"
+      },
+      "continuous_comparison": {
+        "completeness": "complete",
+        "consecutive_up_days": 0,
+        "recent_up_ratio": 0.0,
+        "direction": "转弱",
+        "basis": "末端连涨天数与近五日上涨比例判断自身趋势连续性"
+      }
+    },
+    {
+      "code": "603330",
+      "name": "天洋新材",
+      "exchange": "SH",
+      "sector": "塑料",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（4板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10.0187,
+      "reason": "涨停池记录的连板数为 4，仅作为可追溯事实。",
+      "identity_verified": true,
+      "identity_source": "workbuddy:tongdaxin.tdx_lookup_stock",
+      "relative_strength": {
+        "completeness": "complete",
+        "benchmark": "000001",
+        "window_start": "2026-08-11",
+        "window_end": "2026-08-17",
+        "stock_return_percent": 46.3263,
+        "benchmark_return_percent": 1.2343,
+        "excess_return_percent": 45.0919,
+        "direction": "相对偏强",
+        "basis": "个股区间涨幅减去上证指数同区间涨幅得到超额收益"
+      },
+      "continuous_comparison": {
+        "completeness": "complete",
+        "consecutive_up_days": 5,
+        "recent_up_ratio": 1.0,
+        "direction": "上行延续",
+        "basis": "末端连涨天数与近五日上涨比例判断自身趋势连续性"
+      }
+    },
+    {
+      "code": "603079",
+      "name": "圣达生物",
+      "exchange": "SH",
+      "sector": "化学制品",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 9.9925,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。",
+      "identity_verified": true,
+      "identity_source": "workbuddy:tongdaxin.tdx_lookup_stock",
+      "relative_strength": {
+        "completeness": "complete",
+        "benchmark": "000001",
+        "window_start": "2026-08-11",
+        "window_end": "2026-08-17",
+        "stock_return_percent": 21.1002,
+        "benchmark_return_percent": 1.2343,
+        "excess_return_percent": 19.8658,
+        "direction": "相对偏强",
+        "basis": "个股区间涨幅减去上证指数同区间涨幅得到超额收益"
+      },
+      "continuous_comparison": {
+        "completeness": "complete",
+        "consecutive_up_days": 0,
+        "recent_up_ratio": 0.0,
+        "direction": "转弱",
+        "basis": "末端连涨天数与近五日上涨比例判断自身趋势连续性"
+      }
+    },
+    {
+      "code": "603118",
+      "name": "共进股份",
+      "exchange": "SH",
+      "sector": "通信设备",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（3板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10.0228,
+      "reason": "涨停池记录的连板数为 3，仅作为可追溯事实。",
+      "identity_verified": true,
+      "identity_source": "workbuddy:tongdaxin.tdx_lookup_stock",
+      "relative_strength": {
+        "completeness": "complete",
+        "benchmark": "000001",
+        "window_start": "2026-08-11",
+        "window_end": "2026-08-17",
+        "stock_return_percent": 31.518,
+        "benchmark_return_percent": 1.2343,
+        "excess_return_percent": 30.2837,
+        "direction": "相对偏强",
+        "basis": "个股区间涨幅减去上证指数同区间涨幅得到超额收益"
+      },
+      "continuous_comparison": {
+        "completeness": "complete",
+        "consecutive_up_days": 1,
+        "recent_up_ratio": 0.2,
+        "direction": "震荡",
+        "basis": "末端连涨天数与近五日上涨比例判断自身趋势连续性"
+      }
+    },
+    {
+      "code": "600613",
+      "name": "神奇制药",
+      "exchange": "SH",
+      "sector": "化学制药",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（3板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 9.9844,
+      "reason": "涨停池记录的连板数为 3，仅作为可追溯事实。",
+      "identity_verified": true,
+      "identity_source": "workbuddy:tongdaxin.tdx_lookup_stock",
+      "relative_strength": {
+        "completeness": "complete",
+        "benchmark": "000001",
+        "window_start": "2026-08-11",
+        "window_end": "2026-08-17",
+        "stock_return_percent": 36.3636,
+        "benchmark_return_percent": 1.2343,
+        "excess_return_percent": 35.1293,
+        "direction": "相对偏强",
+        "basis": "个股区间涨幅减去上证指数同区间涨幅得到超额收益"
+      },
+      "continuous_comparison": {
+        "completeness": "complete",
+        "consecutive_up_days": 0,
+        "recent_up_ratio": 0.0,
+        "direction": "转弱",
+        "basis": "末端连涨天数与近五日上涨比例判断自身趋势连续性"
+      }
+    },
+    {
+      "code": "603089",
+      "name": "正裕工业",
+      "exchange": "SH",
+      "sector": "汽车零部",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10.0513,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。",
+      "identity_verified": true,
+      "identity_source": "workbuddy:tongdaxin.tdx_lookup_stock",
+      "relative_strength": {
+        "completeness": "complete",
+        "benchmark": "000001",
+        "window_start": "2026-08-11",
+        "window_end": "2026-08-17",
+        "stock_return_percent": 20.5618,
+        "benchmark_return_percent": 1.2343,
+        "excess_return_percent": 19.3275,
+        "direction": "相对偏强",
+        "basis": "个股区间涨幅减去上证指数同区间涨幅得到超额收益"
+      },
+      "continuous_comparison": {
+        "completeness": "complete",
+        "consecutive_up_days": 0,
+        "recent_up_ratio": 0.0,
+        "direction": "转弱",
+        "basis": "末端连涨天数与近五日上涨比例判断自身趋势连续性"
+      }
+    },
+    {
+      "code": "002081",
+      "name": "金 螳 螂",
+      "exchange": "SZ",
+      "sector": "装修装饰",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（4板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10.0189,
+      "reason": "涨停池记录的连板数为 4，仅作为可追溯事实。",
+      "identity_verified": true,
+      "identity_source": "workbuddy:tongdaxin.tdx_lookup_stock",
+      "relative_strength": {
+        "completeness": "complete",
+        "benchmark": "000001",
+        "window_start": "2026-08-11",
+        "window_end": "2026-08-17",
+        "stock_return_percent": 46.5995,
+        "benchmark_return_percent": 1.2343,
+        "excess_return_percent": 45.3652,
+        "direction": "相对偏强",
+        "basis": "个股区间涨幅减去上证指数同区间涨幅得到超额收益"
+      },
+      "continuous_comparison": {
+        "completeness": "complete",
+        "consecutive_up_days": 0,
+        "recent_up_ratio": 0.0,
+        "direction": "转弱",
+        "basis": "末端连涨天数与近五日上涨比例判断自身趋势连续性"
+      }
+    },
+    {
+      "code": "600353",
+      "name": "旭光电子",
+      "exchange": "SH",
+      "sector": "其他电子",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 9.9903,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。",
+      "identity_verified": true,
+      "identity_source": "workbuddy:tongdaxin.tdx_lookup_stock",
+      "relative_strength": {
+        "completeness": "complete",
+        "benchmark": "000001",
+        "window_start": "2026-08-11",
+        "window_end": "2026-08-17",
+        "stock_return_percent": 16.0884,
+        "benchmark_return_percent": 1.2343,
+        "excess_return_percent": 14.8541,
+        "direction": "相对偏强",
+        "basis": "个股区间涨幅减去上证指数同区间涨幅得到超额收益"
+      },
+      "continuous_comparison": {
+        "completeness": "complete",
+        "consecutive_up_days": 1,
+        "recent_up_ratio": 0.2,
+        "direction": "震荡",
+        "basis": "末端连涨天数与近五日上涨比例判断自身趋势连续性"
+      }
+    },
+    {
+      "code": "002907",
+      "name": "华森制药",
+      "exchange": "SZ",
+      "sector": "中药Ⅱ",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10.0262,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。",
+      "identity_verified": true,
+      "identity_source": "workbuddy:tongdaxin.tdx_lookup_stock",
+      "relative_strength": {
+        "completeness": "complete",
+        "benchmark": "000001",
+        "window_start": "2026-08-11",
+        "window_end": "2026-08-17",
+        "stock_return_percent": 22.6443,
+        "benchmark_return_percent": 1.2343,
+        "excess_return_percent": 21.4099,
+        "direction": "相对偏强",
+        "basis": "个股区间涨幅减去上证指数同区间涨幅得到超额收益"
+      },
+      "continuous_comparison": {
+        "completeness": "complete",
+        "consecutive_up_days": 0,
+        "recent_up_ratio": 0.0,
+        "direction": "转弱",
+        "basis": "末端连涨天数与近五日上涨比例判断自身趋势连续性"
+      }
+    },
+    {
+      "code": "002651",
+      "name": "利君股份",
+      "exchange": "SZ",
+      "sector": "航空装备",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10.0119,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。",
+      "identity_verified": true,
+      "identity_source": "workbuddy:tongdaxin.tdx_lookup_stock",
+      "relative_strength": {
+        "completeness": "complete",
+        "benchmark": "000001",
+        "window_start": "2026-08-11",
+        "window_end": "2026-08-17",
+        "stock_return_percent": 17.8799,
+        "benchmark_return_percent": 1.2343,
+        "excess_return_percent": 16.6456,
+        "direction": "相对偏强",
+        "basis": "个股区间涨幅减去上证指数同区间涨幅得到超额收益"
+      },
+      "continuous_comparison": {
+        "completeness": "complete",
+        "consecutive_up_days": 0,
+        "recent_up_ratio": 0.0,
+        "direction": "转弱",
+        "basis": "末端连涨天数与近五日上涨比例判断自身趋势连续性"
+      }
+    },
+    {
+      "code": "603095",
+      "name": "越剑智能",
+      "exchange": "SH",
+      "sector": "专用设备",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 9.9732,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。",
+      "identity_verified": true,
+      "identity_source": "workbuddy:tongdaxin.tdx_lookup_stock",
+      "relative_strength": {
+        "completeness": "complete",
+        "benchmark": "000001",
+        "window_start": "2026-08-11",
+        "window_end": "2026-08-17",
+        "stock_return_percent": 25.0381,
+        "benchmark_return_percent": 1.2343,
+        "excess_return_percent": 23.8037,
+        "direction": "相对偏强",
+        "basis": "个股区间涨幅减去上证指数同区间涨幅得到超额收益"
+      },
+      "continuous_comparison": {
+        "completeness": "complete",
+        "consecutive_up_days": 0,
+        "recent_up_ratio": 0.0,
+        "direction": "转弱",
+        "basis": "末端连涨天数与近五日上涨比例判断自身趋势连续性"
+      }
+    },
+    {
+      "code": "002172",
+      "name": "澳洋健康",
+      "exchange": "SZ",
+      "sector": "医疗服务",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（4板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 9.9119,
+      "reason": "涨停池记录的连板数为 4，仅作为可追溯事实。",
+      "identity_verified": true,
+      "identity_source": "workbuddy:tongdaxin.tdx_lookup_stock",
+      "relative_strength": {
+        "completeness": "complete",
+        "benchmark": "000001",
+        "window_start": "2026-08-11",
+        "window_end": "2026-08-17",
+        "stock_return_percent": 46.3343,
+        "benchmark_return_percent": 1.2343,
+        "excess_return_percent": 45.1,
+        "direction": "相对偏强",
+        "basis": "个股区间涨幅减去上证指数同区间涨幅得到超额收益"
+      },
+      "continuous_comparison": {
+        "completeness": "complete",
+        "consecutive_up_days": 0,
+        "recent_up_ratio": 0.0,
+        "direction": "转弱",
+        "basis": "末端连涨天数与近五日上涨比例判断自身趋势连续性"
+      }
+    },
+    {
+      "code": "003031",
+      "name": "中瓷电子",
+      "exchange": "SZ",
+      "sector": "通信设备",
+      "role": "连板事实候选",
+      "role_source": "涨停池连板股（2板）",
+      "source": "akshare:stock_zt_pool_em",
+      "change_percent": 10.0015,
+      "reason": "涨停池记录的连板数为 2，仅作为可追溯事实。",
+      "identity_verified": true,
+      "identity_source": "workbuddy:tongdaxin.tdx_lookup_stock",
+      "relative_strength": {
+        "completeness": "complete",
+        "benchmark": "000001",
+        "window_start": "2026-08-11",
+        "window_end": "2026-08-17",
+        "stock_return_percent": 21.6338,
+        "benchmark_return_percent": 1.2343,
+        "excess_return_percent": 20.3995,
+        "direction": "相对偏强",
+        "basis": "个股区间涨幅减去上证指数同区间涨幅得到超额收益"
+      },
+      "continuous_comparison": {
+        "completeness": "complete",
+        "consecutive_up_days": 2,
+        "recent_up_ratio": 0.4,
+        "direction": "震荡",
+        "basis": "末端连涨天数与近五日上涨比例判断自身趋势连续性"
+      }
+    }
+  ],
+  "field_sources": {
+    "market": "akshare:stock_sse_deal_daily+akshare:stock_szse_summary+tencent+workbuddy:tongdaxin.tdx_kline",
+    "sentiment": "hhxg",
+    "sectors": "akshare+hhxg",
+    "stocks": "akshare"
+  },
+  "events": [
+    {
+      "title": "AKShare 市场层最小采集",
+      "source": "akshare",
+      "note": "当前采集指数日线和交易所 A 股成交金额；情绪、板块和个股证据仍需后续数据源补齐。"
+    },
+    {
+      "title": "sh000001 使用腾讯行情备用路径",
+      "source": "tencent",
+      "note": "AKShare stock_zh_index_daily_em 和东方财富 K 线直连失败后，使用腾讯指数 K 线接口；原始错误：[upstream_unavailable] HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=1.000001&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=19900101&end=20500101 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；东方财富错误：[upstream_unavailable] Remote end closed connection without response"
+    },
+    {
+      "title": "sz399001 使用腾讯行情备用路径",
+      "source": "tencent",
+      "note": "AKShare stock_zh_index_daily_em 和东方财富 K 线直连失败后，使用腾讯指数 K 线接口；原始错误：[upstream_unavailable] HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=0.399001&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=19900101&end=20500101 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；东方财富错误：[upstream_unavailable] Remote end closed connection without response"
+    },
+    {
+      "title": "sz399006 使用腾讯行情备用路径",
+      "source": "tencent",
+      "note": "AKShare stock_zh_index_daily_em 和东方财富 K 线直连失败后，使用腾讯指数 K 线接口；原始错误：[upstream_unavailable] HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/kline/get?secid=0.399006&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58&klt=101&fqt=0&beg=19900101&end=20500101 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；东方财富错误：[upstream_unavailable] Remote end closed connection without response"
+    },
+    {
+      "title": "AKShare 短线情绪最小采集",
+      "source": "akshare",
+      "note": "当前仅采集涨停数、跌停数、炸板率和连板高度；情绪温度、板块和个股证据仍需后续数据源补齐。"
+    },
+    {
+      "title": "AKShare 热门板块最小采集",
+      "source": "akshare",
+      "note": "当前仅采集概念和行业板块涨跌幅、总市值、换手率、涨跌家数和领涨股；不写入核心票列表。"
+    },
+    {
+      "title": "concept 板块采集失败",
+      "source": "akshare",
+      "note": "AKShare 板块接口调用失败且东方财富直连备用路径也失败：stock_board_concept_name_em：akshare=[upstream_unavailable] HTTPSConnectionPool(host='push2.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/clist/get?pn=1&pz=100&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f12&fs=m%3A90+t%3A3+f%3A%2150&fields=f2%2Cf3%2Cf4%2Cf8%2Cf12%2Cf14%2Cf15%2Cf16%2Cf17%2Cf18%2Cf20%2Cf21%2Cf24%2Cf25%2Cf22%2Cf33%2Cf11%2Cf62%2Cf128%2Cf124%2Cf107%2Cf104%2Cf105%2Cf136 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))；eastmoney=[upstream_unavailable] Remote end closed connection without response"
+    },
+    {
+      "title": "AKShare 个股事实最小采集",
+      "source": "akshare",
+      "note": "仅提取已有板块领涨股和涨停池连板股事实；不认定核心票，不修改池子，不生成买卖建议。"
+    },
+    {
+      "title": "hhxg 最近交易日快照",
+      "source": "hhxg",
+      "note": "公开接口仅提供最近交易日快照；sentiment_index 按页面标签记录为赚钱效应，公开公式待确认；指数、成交额和可确认股票代码仍为待确认字段。"
+    },
+    {
+      "title": "通达信涨跌家数行情证据",
+      "source": "workbuddy:tongdaxin.tdx_kline",
+      "note": "使用上证 A 股指数与深证综指的通达信行情统计字段；属于行情口径，不替代交易所官方全市场统计。"
+    }
+  ],
+  "missing_fields": []
+}

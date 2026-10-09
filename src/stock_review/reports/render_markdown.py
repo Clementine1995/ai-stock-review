@@ -99,25 +99,49 @@ def render_market_lines(snapshot: EvidenceSnapshot) -> list[str]:
                 change_percent = format_value(index_item.get("change_percent"))
                 lines.append(f"- 指数：{name}，收盘：{close}，涨跌幅：{change_percent}%。")
     if snapshot.market.get("total_amount") not in (None, ""):
-        lines.append(f"- 两市成交额：{format_value(snapshot.market.get('total_amount'))}。")
+        amount_label = (
+            "沪深成交额（通达信行情口径，非交易所官方汇总）"
+            if snapshot.market.get("total_amount_quality") == "market_quote_fallback"
+            else "两市成交额"
+        )
+        lines.append(f"- {amount_label}：{format_value(snapshot.market.get('total_amount'))}。")
     if snapshot.market.get("up_count") not in (None, "") or snapshot.market.get("down_count") not in (None, ""):
+        breadth_label = (
+            "涨跌家数（通达信行情统计口径，非交易所官方全市场统计）"
+            if snapshot.market.get("advance_decline_quality") == "market_quote_breadth"
+            else "涨跌家数"
+        )
         lines.append(
-            f"- 涨跌家数：上涨 {format_value(snapshot.market.get('up_count'))}，下跌 {format_value(snapshot.market.get('down_count'))}。"
+            f"- {breadth_label}：上涨 {format_value(snapshot.market.get('up_count'))}，"
+            f"下跌 {format_value(snapshot.market.get('down_count'))}。"
         )
     return lines
 
 
 def render_sentiment_lines(snapshot: EvidenceSnapshot) -> list[str]:
     sentiment = snapshot.sentiment
-    return [
+    lines = [
         f"- 证据来源：{field_source(snapshot, 'sentiment')}；样本日期：{snapshot.sample_date}。",
         f"- 涨停数：{format_value(sentiment.get('limit_up_count'))}。",
         f"- 跌停数：{format_value(sentiment.get('limit_down_count'))}。",
         f"- 炸板率：{format_value(sentiment.get('broken_board_rate'))}。",
         f"- 连板高度：{format_value(sentiment.get('highest_board'))}。",
-        f"- 赚钱效应：{format_value(sentiment.get('profit_effect_percent'))}；来源：{format_value(sentiment.get('profit_effect_source'))}；公式：来源未公开。",
-        f"- 独立情绪温度：{format_value(sentiment.get('emotion_temperature'))}。",
     ]
+    if sentiment.get("profit_effect_percent") not in (None, ""):
+        calculation = sentiment.get("profit_effect_calculation")
+        if calculation == "source_provided_formula_unverified":
+            formula_text = "公式：来源未公开"
+        elif calculation == "limit_up_ratio_proxy":
+            formula_text = "公式：涨停家数/(涨停+跌停)占比代理"
+        else:
+            formula_text = f"公式：{calculation}"
+        lines.append(
+            f"- 赚钱效应代理：{format_value(sentiment.get('profit_effect_percent'))}；"
+            f"来源：{format_value(sentiment.get('profit_effect_source'))}；{formula_text}。"
+        )
+    if sentiment.get("emotion_temperature") not in (None, ""):
+        lines.append(f"- 独立情绪温度：{format_value(sentiment.get('emotion_temperature'))}。")
+    return lines
 
 
 def render_sector_lines(snapshot: EvidenceSnapshot) -> list[str]:
@@ -176,8 +200,8 @@ def render_gap_lines(number: int, snapshot: EvidenceSnapshot | None) -> list[str
 def is_gap_relevant_to_step(number: int, gap: str) -> bool:
     step_gaps = {
         1: {"missing_indices", "missing_total_amount"},
-        2: {"missing_sentiment", "missing_emotion_temperature"},
-        3: {"missing_sentiment", "missing_emotion_temperature"},
+        2: {"missing_sentiment"},
+        3: {"missing_sentiment"},
         4: {"missing_sectors"},
         5: {"missing_sectors"},
         6: {"missing_stocks"},

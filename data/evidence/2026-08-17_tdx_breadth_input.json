@@ -1,0 +1,40 @@
+{
+  "queries": [
+    {
+      "code": "000001",
+      "setcode": 1,
+      "period": 4,
+      "tqFlag": 0,
+      "Rows": [
+        {"Data": "20260817", "Close": "3982.649902", "up": "1777", "down": "491"}
+      ]
+    },
+    {
+      "code": "000002",
+      "setcode": 1,
+      "period": 4,
+      "tqFlag": 0,
+      "Rows": [
+        {"Data": "20260817", "Close": "4175.939941", "up": "1761", "down": "472"}
+      ]
+    },
+    {
+      "code": "399001",
+      "setcode": 0,
+      "period": 4,
+      "tqFlag": 0,
+      "Rows": [
+        {"Data": "20260817", "Close": "14704.269531", "up": "2324", "down": "540"}
+      ]
+    },
+    {
+      "code": "399106",
+      "setcode": 0,
+      "period": 4,
+      "tqFlag": 0,
+      "Rows": [
+        {"Data": "20260817", "Close": "2647.280029", "up": "2324", "down": "540"}
+      ]
+    }
+  ]
+}

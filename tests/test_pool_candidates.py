@@ -4,6 +4,10 @@ import json
 import unittest
 
 from stock_review.pools.build_pool_candidates import build_pool_candidate_summary, render_pool_candidate_summary
+from stock_review.pools.confirm_pool_candidate import (
+    PoolCandidateConfirmationError,
+    confirm_hot_pool_candidate,
+)
 
 
 class PoolCandidateTest(unittest.TestCase):
@@ -19,6 +23,46 @@ class PoolCandidateTest(unittest.TestCase):
             self.assertEqual(summary.unverified_stock_facts[0].name, "航天环宇")
             self.assertIn("军工", content)
             self.assertIn("不自动写入关注池/热点池", content)
+
+    def test_confirmed_snapshot_candidate_can_enter_hot_pool_without_retyping_identity(self):
+        with TemporaryDirectory() as temp_path:
+            root = Path(temp_path)
+            self.write_snapshot(root)
+
+            item = confirm_hot_pool_candidate(
+                "2026-07-10",
+                "002414",
+                True,
+                snapshot_dir=root,
+                database_path=root / "stock_review.sqlite",
+            )
+
+            self.assertEqual(item.name, "高德红外")
+            self.assertEqual(item.exchange, "SZSE")
+            self.assertEqual(item.sectors, ("军工电子",))
+            self.assertIn("用户确认的当日系统候选", item.reason)
+
+    def test_candidate_write_requires_confirmation_and_same_day_code(self):
+        with TemporaryDirectory() as temp_path:
+            root = Path(temp_path)
+            self.write_snapshot(root)
+
+            with self.assertRaisesRegex(PoolCandidateConfirmationError, "用户显式确认"):
+                confirm_hot_pool_candidate(
+                    "2026-07-10",
+                    "002414",
+                    False,
+                    snapshot_dir=root,
+                    database_path=root / "stock_review.sqlite",
+                )
+            with self.assertRaisesRegex(PoolCandidateConfirmationError, "没有可确认代码"):
+                confirm_hot_pool_candidate(
+                    "2026-07-10",
+                    "999999",
+                    True,
+                    snapshot_dir=root,
+                    database_path=root / "stock_review.sqlite",
+                )
 
     @staticmethod
     def write_snapshot(root: Path) -> None:

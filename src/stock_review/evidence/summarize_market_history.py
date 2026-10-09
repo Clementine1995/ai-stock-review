@@ -10,6 +10,7 @@ from typing import Any
 
 from stock_review.evidence.evidence_snapshot import build_evidence_snapshot
 from stock_review.evidence.manage_evidence_snapshot import EvidenceSnapshotError, read_json_mapping
+from stock_review.evidence.tongdaxin_source import TONGDAXIN_INDEX_HISTORY_QUALITY
 
 
 MINIMUM_MARKET_HISTORY_DAYS = 5
@@ -45,10 +46,20 @@ class MarketHistorySummary:
     market_facts: tuple[MarketDailyFact, ...]
     missing_market_dates: tuple[str, ...]
     index_range_facts: tuple[MarketIndexRangeFact, ...]
+    sequence_basis: str
+    evidence_references: tuple[str, ...]
 
     @property
     def has_enough_history(self) -> bool:
         return len(self.market_facts) >= MINIMUM_MARKET_HISTORY_DAYS
+
+    @property
+    def has_verified_daily_sequence(self) -> bool:
+        return (
+            self.sequence_basis == TONGDAXIN_INDEX_HISTORY_QUALITY
+            and self.has_enough_history
+            and bool(self.index_range_facts)
+        )
 
 
 # 市场历史只读取本地快照中已有的指数和成交额事实，交易日和样本日期分别保留。
@@ -70,6 +81,7 @@ def summarize_market_history(
     snapshot_dates: list[str] = []
     market_facts: list[MarketDailyFact] = []
     missing_market_dates: list[str] = []
+    evidence_references: list[str] = []
     for snapshot_path in sorted(snapshot_dir.glob("*_snapshot.json")):
         raw_data = read_json_mapping(snapshot_path)
         trade_date = str(raw_data.get("trade_date") or snapshot_path.name.removesuffix("_snapshot.json"))
@@ -95,6 +107,7 @@ def summarize_market_history(
                 total_amount_source=str(snapshot.market.get("total_amount_source") or "待确认"),
             )
         )
+        evidence_references.append(str(snapshot_path))
 
     if not snapshot_dates:
         raise EvidenceSnapshotError(
@@ -108,6 +121,92 @@ def summarize_market_history(
         market_facts=tuple(market_facts),
         missing_market_dates=tuple(missing_market_dates),
         index_range_facts=build_index_range_facts(market_facts) if len(market_facts) >= MINIMUM_MARKET_HISTORY_DAYS else (),
+        sequence_basis="local_snapshot_samples",
+        evidence_references=tuple(evidence_references),
+    )
+
+
+# 连接器历史文件只证明三指数返回了相同的五根相邻日 K，不扩展为独立交易日历结论。
+def summarize_tongdaxin_index_history(
+    trade_date: str,
+    history_path: Path,
+) -> MarketHistorySummary:
+    raw_data = read_json_mapping(history_path)
+    if str(raw_data.get("trade_date") or "") != trade_date:
+        raise EvidenceSnapshotError(f"通达信指数历史交易日期不一致：{history_path}")
+    if str(raw_data.get("sample_date") or "") != trade_date:
+        raise EvidenceSnapshotError(f"通达信指数历史样本日期不一致：{history_path}")
+    if raw_data.get("quality") != TONGDAXIN_INDEX_HISTORY_QUALITY:
+        raise EvidenceSnapshotError(f"通达信指数历史质量标记无效：{history_path}")
+
+    sample_dates = raw_data.get("sample_dates")
+    records = raw_data.get("records")
+    if not isinstance(sample_dates, list) or not all(
+        isinstance(item, str) for item in sample_dates
+    ):
+        raise EvidenceSnapshotError(f"通达信指数历史 sample_dates 格式无效：{history_path}")
+    try:
+        parsed_sample_dates = tuple(date.fromisoformat(item) for item in sample_dates)
+    except ValueError as error:
+        raise EvidenceSnapshotError(f"通达信指数历史 sample_dates 日期无效：{history_path}") from error
+    if (
+        len(sample_dates) != MINIMUM_MARKET_HISTORY_DAYS
+        or len(set(sample_dates)) != len(sample_dates)
+        or parsed_sample_dates != tuple(sorted(parsed_sample_dates))
+        or sample_dates[-1] != trade_date
+    ):
+        raise EvidenceSnapshotError(f"通达信指数历史必须包含以目标日结束的 5 个唯一有序样本日期：{history_path}")
+    if not isinstance(records, list) or len(records) != len(sample_dates):
+        raise EvidenceSnapshotError(f"通达信指数历史 records 与 sample_dates 不一致：{history_path}")
+
+    market_facts: list[MarketDailyFact] = []
+    expected_index_names = {
+        "sh000001": "上证指数",
+        "sz399001": "深证成指",
+        "sz399006": "创业板指",
+    }
+    expected_symbols = set(expected_index_names)
+    for expected_date, record in zip(sample_dates, records, strict=True):
+        if not isinstance(record, dict) or record.get("sample_date") != expected_date:
+            raise EvidenceSnapshotError(f"通达信指数历史记录日期不一致：{history_path}")
+        indices = record.get("indices")
+        if not isinstance(indices, list) or len(indices) != len(expected_symbols):
+            raise EvidenceSnapshotError(f"通达信指数历史必须逐日包含固定三指数：{history_path}")
+        symbols = {str(item.get("symbol") or "") for item in indices if isinstance(item, dict)}
+        if symbols != expected_symbols:
+            raise EvidenceSnapshotError(f"通达信指数历史代码不在固定三指数范围内：{history_path}")
+        normalized_indices: list[dict[str, Any]] = []
+        for item in indices:
+            if not isinstance(item, dict):
+                raise EvidenceSnapshotError(f"通达信指数历史指数记录格式无效：{history_path}")
+            symbol = str(item.get("symbol") or "")
+            if item.get("name") != expected_index_names[symbol]:
+                raise EvidenceSnapshotError(f"通达信指数历史指数名称与代码不一致：{history_path}")
+            close = parse_number(item.get("close"))
+            if close is None or close <= 0:
+                raise EvidenceSnapshotError(f"通达信指数历史收盘值无效：{history_path}")
+            normalized_indices.append(dict(item))
+        market_facts.append(
+            MarketDailyFact(
+                trade_date=expected_date,
+                sample_date=expected_date,
+                indices=tuple(normalized_indices),
+                total_amount=None,
+                total_amount_source="不适用",
+            )
+        )
+
+    raw_reference = str(raw_data.get("raw_reference") or "").strip()
+    references = (str(history_path),) + ((raw_reference,) if raw_reference else ())
+    return MarketHistorySummary(
+        start_date=str(sample_dates[0]),
+        end_date=str(sample_dates[-1]),
+        snapshot_dates=tuple(str(item) for item in sample_dates),
+        market_facts=tuple(market_facts),
+        missing_market_dates=(),
+        index_range_facts=build_index_range_facts(market_facts),
+        sequence_basis=TONGDAXIN_INDEX_HISTORY_QUALITY,
+        evidence_references=references,
     )
 
 
@@ -149,7 +248,7 @@ def render_market_history(summary: MarketHistorySummary) -> str:
         "",
         f"- 快照日期数：{len(summary.snapshot_dates)}",
         f"- 有效市场证据日期数：{len(summary.market_facts)}",
-        f"- 市场区间事实最小历史要求：{MINIMUM_MARKET_HISTORY_DAYS} 个有效交易日",
+        f"- 市场区间事实最小历史要求：{MINIMUM_MARKET_HISTORY_DAYS} 个有效样本",
         "- 结论边界：本报告只汇总指数和成交额事实，不判断市场阶段、仓位或买卖方向。",
         "",
         "## 每日市场事实",
@@ -184,15 +283,25 @@ def render_market_history(summary: MarketHistorySummary) -> str:
     lines.extend(["", "## 指数区间事实", ""])
     if not summary.has_enough_history:
         lines.append(
-            f"- 数据不足：当前只有 {len(summary.market_facts)} 个有效交易日，"
-            f"至少需要 {MINIMUM_MARKET_HISTORY_DAYS} 个交易日；不得判断市场阶段。"
+            f"- 数据不足：当前只有 {len(summary.market_facts)} 个有效市场样本，"
+            f"至少需要 {MINIMUM_MARKET_HISTORY_DAYS} 个样本；不得判断市场阶段。"
         )
     elif not summary.index_range_facts:
         lines.append("- 当前有效历史中没有可计算区间涨跌的指数事实。")
     else:
-        for fact in summary.index_range_facts:
+        if summary.has_verified_daily_sequence:
             lines.append(
-                f"- {fact.name}｜样本：{fact.observation_count} 日｜"
+                "- 序列口径：通达信返回的连续 5 根日 K；仅验证连接器行序列，未独立核验交易日历。"
+            )
+        else:
+            lines.append(
+                f"- 区间口径：最近 {len(summary.market_facts)} 个本地有效快照样本（连续性未验证）；"
+                f"日期：{'、'.join(fact.sample_date for fact in summary.market_facts)}。"
+            )
+        for fact in summary.index_range_facts:
+            observation_label = "根日 K" if summary.has_verified_daily_sequence else "个样本"
+            lines.append(
+                f"- {fact.name}｜样本：{fact.observation_count} {observation_label}｜"
                 f"{fact.start_date} 收盘 {format_number(fact.start_close)} → "
                 f"{fact.end_date} 收盘 {format_number(fact.end_close)}｜"
                 f"区间涨跌幅：{format_number(fact.cumulative_change_percent)}%"

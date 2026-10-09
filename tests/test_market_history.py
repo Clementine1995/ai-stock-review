@@ -43,6 +43,28 @@ class MarketHistoryTest(unittest.TestCase):
             self.assertEqual(len(summary.index_range_facts), 1)
             self.assertEqual(summary.index_range_facts[0].name, "上证指数")
             self.assertEqual(summary.index_range_facts[0].cumulative_change_percent, 4.0)
+            self.assertFalse(summary.has_verified_daily_sequence)
+
+    def test_sparse_snapshots_are_labeled_as_samples_not_contiguous_days(self):
+        with TemporaryDirectory() as temp_path:
+            root = Path(temp_path)
+            dates = ("2026-07-21", "2026-07-22", "2026-07-23", "2026-07-28", "2026-08-07")
+            for offset, trade_date in enumerate(dates):
+                self.write_snapshot(root, trade_date, close=100 + offset, change_percent=1, total_amount=10)
+
+            output_path, summary = create_market_history_report(
+                dates[0],
+                dates[-1],
+                snapshot_dir=root,
+                output_dir=root / "reports",
+                log_path=root / "review.log",
+            )
+            content = output_path.read_text(encoding="utf-8")
+
+            self.assertFalse(summary.has_verified_daily_sequence)
+            self.assertIn("5 个本地有效快照样本", content)
+            self.assertIn("连续性未验证", content)
+            self.assertNotIn("样本：5 日", content)
 
     def test_history_rejects_reversed_date_range(self):
         with TemporaryDirectory() as temp_path:

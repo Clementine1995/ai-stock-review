@@ -5,17 +5,20 @@ from __future__ import annotations
 from datetime import date, timedelta
 import json
 import logging
+from math import isfinite
 from pathlib import Path
 from typing import Any
 
 from stock_review.evidence.akshare_source import AkshareRequestPacer, AkshareSourceError, import_akshare_client
 from stock_review.evidence.evidence_snapshot import build_evidence_snapshot
 from stock_review.evidence.manage_evidence_snapshot import read_json_mapping
+from stock_review.pools.classify_pool_freshness import classify_active_real_pool_items
 from stock_review.pools.manage_pool_item import DEFAULT_DATABASE_PATH, list_pool_items
 
 
 DEFAULT_EVIDENCE_DIR = Path("data") / "evidence"
 DEFAULT_LOG_PATH = Path("logs") / "stock_review.log"
+TURNOVER_UNIT = "ratio"
 
 
 # 真实池个股只请求约 45 个自然日，以覆盖最近 20 个交易日且避免扩大请求范围。
@@ -60,6 +63,7 @@ def collect_real_pool_stock_history(
         "source": "akshare:pool_stock_history",
         "sample_date": trade_date,
         "scope": "real_pool_stocks",
+        "turnover_unit": TURNOVER_UNIT,
         "records": records,
         "note": "仅覆盖真实池记录；主日线失败时可降级到 AKShare 的腾讯日线。该备用源的 amount 单位为手，只写入成交量，不伪装成成交额；5/20 日字段不足时保留待确认，不认定核心票或买点。",
     }
@@ -98,7 +102,13 @@ def collect_review_candidate_history(
                 "sectors": (str(stock.get("sector") or "待确认"),),
                 "origin": "system_snapshot",
             }
-    for item in list_pool_items(record_kind="real", database_path=database_path):
+    # 日常复盘只补采仍在有效期内的真实池；待复核对象保留在数据库和报告中，但不继续消耗行情请求。
+    pool_freshness = classify_active_real_pool_items(
+        list_pool_items(record_kind="real", database_path=database_path),
+        trade_date,
+        snapshot_dir,
+    )
+    for item in pool_freshness.fresh_items:
         existing = candidates.get(item.code)
         candidates[item.code] = {
             "code": item.code,
@@ -144,8 +154,9 @@ def collect_review_candidate_history(
         "source": "akshare:review_candidate_history",
         "sample_date": trade_date,
         "scope": "snapshot_and_real_pool_candidates",
+        "turnover_unit": TURNOVER_UNIT,
         "records": records,
-        "note": "仅覆盖同日快照与有效真实池的有限候选；流通市值按收盘价乘流通股本计算，成交容量使用候选自身成交额，不扩展为全市场选股。",
+        "note": "仅覆盖同日快照与有效真实池的有限候选；保留最近 21 根未复权日 K，流通市值按收盘价乘流通股本计算，成交容量使用候选自身成交额，不扩展为全市场选股。",
     }
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"{trade_date}_review_candidate_history.json"
@@ -238,12 +249,31 @@ def build_history_record(code: str, name: str, sectors: tuple[str, ...], target_
     normalized_rows = [row for row in rows if isinstance(row, dict) and parse_row_date(row) is not None and parse_row_date(row) <= target_date]
     normalized_rows.sort(key=parse_row_date)
     latest = normalized_rows[-1] if normalized_rows else {}
+    latest_date = parse_row_date(latest) if latest else None
     close = number_value(latest.get("收盘", latest.get("close")))
+    daily_bars = build_daily_bars(normalized_rows[-21:])
+    daily_bars_complete = bool(
+        len(daily_bars) == 21
+        and latest_date == target_date
+        and all(
+            bar.get(field_name) is not None
+            for bar in daily_bars
+            for field_name in (
+                "open",
+                "high",
+                "low",
+                "close",
+                "volume",
+                "amount",
+                "turnover",
+            )
+        )
+    )
     record = {
         "code": code,
         "name": name,
         "sectors": list(sectors),
-        "sample_date": parse_row_date(latest).isoformat() if latest else None,
+        "sample_date": latest_date.isoformat() if latest_date else None,
         "close": close,
         "change_percent": number_value(latest.get("涨跌幅", latest.get("change_percent"))),
         "volume": number_value(latest.get("成交量", latest.get("volume"))),
@@ -255,16 +285,25 @@ def build_history_record(code: str, name: str, sectors: tuple[str, ...], target_
             if close is not None and number_value(latest.get("outstanding_share")) is not None
             else None
         ),
-        "turnover": number_value(latest.get("换手率", latest.get("turnover"))),
+        # 候选历史统一保存 0-1 比率；不同日线来源不得把百分数和比率混在同一字段。
+        "turnover": turnover_ratio(latest),
+        "turnover_unit": TURNOVER_UNIT,
         "history_days": len(normalized_rows),
+        # 模式核验只消费有限候选最近 21 根日 K；不把该局部样本扩展成全市场扫描。
+        "daily_bars": daily_bars,
+        "daily_bar_count": len(daily_bars),
+        "daily_bars_complete": daily_bars_complete,
+        "adjustment": "none",
         "return_5d_percent": window_return(normalized_rows, 5),
         "return_20d_percent": window_return(normalized_rows, 20),
         "missing_fields": [],
     }
-    if len(normalized_rows) < 5:
+    if len(normalized_rows) < 6:
         record["missing_fields"].append("missing_5d_history")
-    if len(normalized_rows) < 20:
+    if len(normalized_rows) < 21:
         record["missing_fields"].append("missing_20d_history")
+    if latest_date != target_date:
+        record["missing_fields"].append("missing_review_date_bar")
     if close is None:
         record["missing_fields"].append("missing_latest_close")
     if record["volume"] is None:
@@ -278,10 +317,42 @@ def build_history_record(code: str, name: str, sectors: tuple[str, ...], target_
     return record
 
 
+# 日 K 标准字段固定保留日期、OHLC、量额和换手；源缺失的值使用空值，不用其它字段替代。
+def build_daily_bars(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    bars: list[dict[str, Any]] = []
+    for row in rows:
+        row_date = parse_row_date(row)
+        if row_date is None:
+            continue
+        bars.append(
+            {
+                "date": row_date.isoformat(),
+                "open": number_value(row.get("开盘", row.get("open"))),
+                "high": number_value(row.get("最高", row.get("high"))),
+                "low": number_value(row.get("最低", row.get("low"))),
+                "close": number_value(row.get("收盘", row.get("close"))),
+                "volume": number_value(row.get("成交量", row.get("volume"))),
+                "amount": number_value(row.get("成交额", row.get("amount"))),
+                "turnover": turnover_ratio(row),
+            }
+        )
+    return bars
+
+
+# 中文行情字段使用百分数，stock_zh_a_daily 的英文 turnover 使用 0-1 比率；落盘前统一为比率。
+def turnover_ratio(row: dict[str, Any]) -> float | None:
+    turnover_percent = number_value(row.get("换手率"))
+    if turnover_percent is not None:
+        return turnover_percent / 100
+    return number_value(row.get("turnover"))
+
+
+# N 日收益覆盖 N 个收盘区间，因此需要目标日及其之前共 N+1 个收盘点。
 def window_return(rows: list[dict[str, Any]], window: int) -> float | None:
-    if len(rows) < window:
+    required_close_count = window + 1
+    if len(rows) < required_close_count:
         return None
-    start = number_value(rows[-window].get("收盘", rows[-window].get("close")))
+    start = number_value(rows[-required_close_count].get("收盘", rows[-required_close_count].get("close")))
     end = number_value(rows[-1].get("收盘", rows[-1].get("close")))
     if start in (None, 0) or end is None:
         return None
@@ -311,9 +382,10 @@ def parse_row_date(row: dict[str, Any]) -> date | None:
 
 def number_value(value: Any) -> float | None:
     try:
-        return float(value) if value not in (None, "") else None
+        parsed = float(value) if value not in (None, "") else None
     except (TypeError, ValueError):
         return None
+    return parsed if parsed is not None and isfinite(parsed) else None
 
 
 def write_collection_log(command: str, trade_date: str, output_path: Path, item_count: int, log_path: Path) -> None:

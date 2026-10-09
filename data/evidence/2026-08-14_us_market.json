@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "review_date": "2026-08-14",
+  "generated_at": "2026-08-16T05:39:57+00:00",
+  "as_of": "2026-08-16T05:38:32+00:00",
+  "source": "akshare:index_us_stock_sina:.IXIC+.INX",
+  "window": {
+    "a_share_close_at": "2026-08-14T15:00:00+08:00",
+    "next_a_share_open_at": "2026-08-17T09:30:00+08:00",
+    "boundary": "open_interval"
+  },
+  "us_session_date": "2026-08-14",
+  "status": "available",
+  "session_close_at": "2026-08-15T04:00:00+08:00",
+  "indices": [
+    {
+      "symbol": ".IXIC",
+      "name": "纳斯达克综合指数",
+      "close": 26729.1641,
+      "change_percent": -0.2756
+    },
+    {
+      "symbol": ".INX",
+      "name": "标普500指数",
+      "close": 7785.7598,
+      "change_percent": -0.1696
+    }
+  ],
+  "note": "仅记录有效窗内且在证据时点前已经完成的美股常规交易会话，不表示跨市场因果。"
+}

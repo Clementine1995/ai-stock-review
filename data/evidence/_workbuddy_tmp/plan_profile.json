@@ -1,0 +1,6 @@
+{
+  "captures": [
+    {"source": "akshare", "scope": "market"},
+    {"source": "hhxg", "scope": "snapshot"}
+  ]
+}
