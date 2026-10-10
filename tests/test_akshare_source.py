@@ -381,7 +381,18 @@ class AkshareSourceTest(unittest.TestCase):
         self.assertIn("missing_stocks", snapshot.missing_fields)
 
     def test_collect_akshare_sector_evidence_keeps_partial_sector_results(self):
-        raw_data = collect_akshare_sector_evidence("2026-07-06", ak_client=PartiallyBrokenSectorAkshareClient())
+        # 本用例需要「东财直连回退不可用」这一前提；该前提由 mock 提供，不依赖真实环境的网络放行状态，
+        # 否则用例结果会随东财直连可达性波动。
+        original_request_json = akshare_source.request_json_without_environment_proxy
+
+        def blocked_request_json(url):
+            raise RuntimeError("eastmoney fallback blocked for hermetic test")
+
+        akshare_source.request_json_without_environment_proxy = blocked_request_json
+        try:
+            raw_data = collect_akshare_sector_evidence("2026-07-06", ak_client=PartiallyBrokenSectorAkshareClient())
+        finally:
+            akshare_source.request_json_without_environment_proxy = original_request_json
         snapshot = build_evidence_snapshot("2026-07-06", raw_data)
 
         self.assertTrue(raw_data["sectors"])
@@ -414,7 +425,17 @@ class AkshareSourceTest(unittest.TestCase):
         self.assertNotIn("missing_stocks", snapshot.missing_fields)
 
     def test_collect_akshare_sector_evidence_uses_ths_industry_when_eastmoney_fails(self):
-        raw_data = collect_akshare_sector_evidence("2026-07-06", ak_client=EastmoneyBrokenThsSectorAkshareClient())
+        # 前提同上：模拟东财接口与直连回退全部失败，保证 THS 退化路径可确定复现。
+        original_request_json = akshare_source.request_json_without_environment_proxy
+
+        def blocked_request_json(url):
+            raise RuntimeError("eastmoney fallback blocked for hermetic test")
+
+        akshare_source.request_json_without_environment_proxy = blocked_request_json
+        try:
+            raw_data = collect_akshare_sector_evidence("2026-07-06", ak_client=EastmoneyBrokenThsSectorAkshareClient())
+        finally:
+            akshare_source.request_json_without_environment_proxy = original_request_json
         snapshot = build_evidence_snapshot("2026-07-06", raw_data)
 
         self.assertEqual(raw_data["sectors"][0]["name"], "油气开采及服务")

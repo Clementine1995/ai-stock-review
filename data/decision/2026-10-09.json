@@ -1408,7 +1408,7 @@
       "index": "akshare:stock_zh_index_daily_em",
       "breadth": "akshare:stock_market_activity_legu",
       "sentiment": "akshare:stock_zt_pool_em+stock_zt_pool_zbgc_em+stock_zt_pool_dtgc_em",
-      "sectors": "akshare:stock_board_concept_name_em+stock_board_industry_name_em",
+      "sectors": "akshare:stock_board_industry_summary_ths（同花顺口径）",
       "index_history": "akshare:stock_zh_index_daily_em",
       "tdx": "tdx-connector"
     },
@@ -1585,6 +1585,7 @@
         "基线 30%–50% 来自量能档位「1万亿–2万亿」。",
         "参与倾向为谨慎参与，仓位压到 10%–20%。",
         "指数下降期按防守处理，仓位减半。",
+        "单票上限为总资金口径的硬性上限，实际单票金额以总仓位区间为准。",
         "本区间为框架推导建议，不是执行指令，需由用户最终确认。"
       ]
     },
@@ -2151,6 +2152,15 @@
           "seal_amount": 3802.37
         }
       ],
+      "coverage": {
+        "board_ladder_total": 12,
+        "strong_first_board_total": 57,
+        "broken_board_total": 14,
+        "sector_leaders_total": 5,
+        "themes_covered": 3,
+        "themes_total": 12
+      },
+      "themes_available": true,
       "notes": [
         "候选来自涨停池、炸板池与板块领涨股字段，只作为可追溯事实，不构成买入建议。",
         "板块领涨股若未在当日涨停池中出现，代码优先用通达信解析，仍无法确认才标记为待确认。"

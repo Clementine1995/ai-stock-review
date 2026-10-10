@@ -6,6 +6,7 @@ import json
 import tempfile
 from pathlib import Path
 
+from stock_review.decision.collect_decision_inputs import sector_source_label
 from stock_review.decision.decision_inputs import (
     DecisionInputs,
     IndexDay,
@@ -117,6 +118,39 @@ def test_participation_refuses_when_stage_undetermined() -> None:
 def test_participation_blocks_on_sentiment_fade_in_oscillating_market() -> None:
     reading = read_participation({"label": "震荡期"}, {"label": "退潮期"})
     assert reading["label"] == "不参与"
+
+
+# 退潮期必须统一映射为不参与：不得再出现「谨慎参与 + 仓位 0%」这类自相矛盾组合。
+def test_participation_unifies_fade_to_no_participation() -> None:
+    assert read_participation({"label": "下降期"}, {"label": "退潮期"})["label"] == "不参与"
+    assert read_participation({"label": "主升期"}, {"label": "退潮期"})["label"] == "不参与"
+
+
+def test_decision_keeps_position_zero_on_fade() -> None:
+    today = _sentiment("2026-01-10", limit_up=40, limit_down=6, broken=10, highest_board=4)
+    previous = _sentiment("2026-01-09", limit_up=80, limit_down=5, broken=10, highest_board=7)
+    inputs = DecisionInputs(
+        trade_date="2026-01-10",
+        indices={},
+        total_amount=1_900_000_000_000.0,
+        total_amount_source="test",
+        breadth=None,
+        sentiment_today=today,
+        sentiment_history=(previous, today),
+        amount_history=(),
+        index_history={
+            "sh000001": _index_days([110.0, 109.0, 108.0, 107.0, 106.0, 105.0, 104.0, 103.0, 102.0, 100.0])
+        },
+        sectors=(),
+        limit_up_stocks=(),
+        broken_board_stocks=(),
+        sources={},
+        gaps=(),
+    )
+    reading = read_decision(inputs)
+    assert reading.sentiment_stage["label"] == "退潮期"
+    assert reading.participation["label"] == "不参与"
+    assert reading.position_band["total_range"] == (0, 0)
 
 
 # 仓位区间必须随参与倾向与指数阶段收缩，并在不参与时归零。
@@ -364,5 +398,140 @@ def test_render_includes_tdx_evidence_when_snapshot_present() -> None:
     )
     markdown = render_decision_card(inputs, read_decision(inputs), generated_at="2026-10-09T22:00:00+08:00")
     assert "通达信板块行情" in markdown
-    assert "涨停逻辑（通达信）" in markdown
+    assert "涨停逻辑（通达信，覆盖连板梯队 1/1 只）" in markdown
     assert "焦点复盘" in markdown
+
+
+# 候选区必须标注总数与截断关系，避免把「展示前 10 条」误读为全量；首板候选必须渲染。
+def test_render_annotates_candidate_coverage() -> None:
+    ladder = tuple(
+        {
+            "code": f"6000{index:02d}",
+            "name": f"连板{index}",
+            "board_count": 2,
+            "sector": "电池",
+            "change_percent": 10.0,
+            "seal_amount": 1e8,
+        }
+        for index in range(12)
+    )
+    first_boards = tuple(
+        {
+            "code": f"3000{index:02d}",
+            "name": f"首板{index}",
+            "board_count": 1,
+            "sector": "软件",
+            "change_percent": 20.0,
+            "seal_amount": 2e8 - index,
+        }
+        for index in range(15)
+    )
+    broken = tuple({"code": f"0000{index:02d}", "name": f"炸板{index}"} for index in range(14))
+    tdx = TdxEnrichment(
+        provider="tdx-connector",
+        generated_at=None,
+        code_lookup={},
+        board_quotes=(),
+        stock_themes={
+            "600000": TdxTheme(code="600000", theme="测试主题"),
+            "600001": TdxTheme(code="600001", theme="测试主题二"),
+        },
+        news=(),
+    )
+    inputs = DecisionInputs(
+        trade_date="2026-10-09",
+        indices={},
+        total_amount=None,
+        total_amount_source=None,
+        breadth=None,
+        sentiment_today=None,
+        sentiment_history=(),
+        amount_history=(),
+        index_history={},
+        sectors=(),
+        limit_up_stocks=(*ladder, *first_boards),
+        broken_board_stocks=broken,
+        sources={},
+        gaps=(),
+        tdx=tdx,
+    )
+    markdown = render_decision_card(inputs, read_decision(inputs), generated_at="2026-10-09T22:00:00+08:00")
+    assert "共 12 只，展示前 10 只" in markdown
+    assert "连板10" not in markdown and "连板11" not in markdown
+    assert "首板强势" in markdown
+    assert "共 15 只，展示前 10 只" in markdown
+    assert "共 14 只，展示前 10 只" in markdown
+    assert "覆盖连板梯队 2/12 只" in markdown
+
+
+# 快照存在但对连板梯队零覆盖时必须写明覆盖率，禁止静默省略「涨停逻辑」一节。
+def test_render_marks_theme_coverage_zero() -> None:
+    tdx = TdxEnrichment(
+        provider="tdx-connector",
+        generated_at=None,
+        code_lookup={},
+        board_quotes=(),
+        stock_themes={"999999": TdxTheme(code="999999", theme="非连板主题")},
+        news=(),
+    )
+    inputs = DecisionInputs(
+        trade_date="2026-10-09",
+        indices={},
+        total_amount=None,
+        total_amount_source=None,
+        breadth=None,
+        sentiment_today=None,
+        sentiment_history=(),
+        amount_history=(),
+        index_history={},
+        sectors=(),
+        limit_up_stocks=({"code": "600825", "name": "新华传媒", "board_count": 9},),
+        broken_board_stocks=(),
+        sources={},
+        gaps=(),
+        tdx=tdx,
+    )
+    markdown = render_decision_card(inputs, read_decision(inputs), generated_at="2026-10-09T22:00:00+08:00")
+    assert "覆盖连板梯队 0/1 只" in markdown
+    assert "未包含连板股的涨停逻辑" in markdown
+
+
+# 单票上限必须注明分母（总资金口径），消除与总仓位区间的口径歧义。
+def test_render_position_cap_states_denominator() -> None:
+    today = _sentiment("2026-01-10", limit_up=60, limit_down=5, broken=10, highest_board=5)
+    inputs = DecisionInputs(
+        trade_date="2026-01-10",
+        indices={},
+        total_amount=1_900_000_000_000.0,
+        total_amount_source="test",
+        breadth=None,
+        sentiment_today=today,
+        sentiment_history=(today,),
+        amount_history=(),
+        index_history={
+            "sh000001": _index_days([100.0, 101.0, 102.0, 103.0, 104.0, 105.0, 106.0, 107.0, 108.0, 110.0])
+        },
+        sectors=(),
+        limit_up_stocks=(),
+        broken_board_stocks=(),
+        sources={},
+        gaps=(),
+    )
+    reading = read_decision(inputs)
+    assert reading.participation["label"] == "可参与"
+    markdown = render_decision_card(inputs, reading, generated_at="2026-01-10T22:00:00+08:00")
+    assert "总仓位 30%–50%" in markdown
+    assert "单票 ≤ 总资金的 30%" in markdown
+
+
+# 板块来源必须按实际返回口径标注：同花顺退化口径不得写成东财接口名。
+def test_sector_source_label_matches_actual_channel() -> None:
+    assert (
+        sector_source_label([{"source_type": "industry_ths"}])
+        == "akshare:stock_board_industry_summary_ths（同花顺口径）"
+    )
+    assert (
+        sector_source_label([{"source_type": "concept"}, {"source_type": "industry"}])
+        == "akshare:stock_board_concept_name_em+stock_board_industry_name_em"
+    )
+    assert sector_source_label([]) == "akshare:板块接口"

@@ -59,7 +59,7 @@ def _render_answers(reading: DecisionReading) -> str:
         + f" | {_join_brief(sentiment.get('evidence'))} |",
         f"| 明天能不能买 | {participation.get('label')} | {participation.get('rule')} |",
         f"| 买什么 | 主线方向：{reading.sector_leadership.get('label')}（候选见第五节） | {_join_brief(reading.sector_leadership.get('evidence'))} |",
-        f"| 买多少 | 总仓位 {total_range[0]}%–{total_range[1]}%；单票 ≤ {position.get('single_name_cap')}%；最多 {position.get('max_names')} | {position.get('rule')} |",
+        f"| 买多少 | 总仓位 {total_range[0]}%–{total_range[1]}%；单票 ≤ 总资金的 {position.get('single_name_cap')}%；最多 {position.get('max_names')} | {position.get('rule')} |",
         "",
         f"- 参与倾向规则：{participation.get('rule')}",
         f"- 情绪阶段规则：{sentiment.get('rule')}",
@@ -192,12 +192,15 @@ def _render_sector_panel(reading: DecisionReading) -> str:
 
 def _render_candidates(reading: DecisionReading) -> str:
     candidates = reading.candidates
+    coverage = candidates.get("coverage") or {}
     lines = ["## 五、候选对象", ""]
 
     ladder = candidates.get("board_ladder") or []
-    lines.append("连板梯队（板数从高到低）：")
-    lines.append("")
     if ladder:
+        lines.append(
+            f"连板梯队（板数从高到低，{_coverage_note(coverage.get('board_ladder_total'), len(ladder))}）："
+        )
+        lines.append("")
         lines.append("| 连板 | 代码 | 名称 | 所属行业 | 当日涨幅 | 封板资金(万元) | 炸板次数 |")
         lines.append("| --- | --- | --- | --- | --- | --- | --- |")
         for stock in ladder:
@@ -208,11 +211,41 @@ def _render_candidates(reading: DecisionReading) -> str:
                 f"{_fmt(stock.get('broken_times'))} |"
             )
     else:
+        lines.append("连板梯队（板数从高到低）：")
+        lines.append("")
         lines.append("- 当日无 2 板及以上连板记录。")
+
+    # 首板强势按封板资金排序，是连板梯队的补充候选；展示前 N 条并标注总数。
+    first_boards = candidates.get("strong_first_board") or []
+    if first_boards:
+        lines.extend(
+            [
+                "",
+                "首板强势（按封板资金从高到低，"
+                f"{_coverage_note(coverage.get('strong_first_board_total'), len(first_boards))}）：",
+                "",
+                "| 代码 | 名称 | 所属行业 | 当日涨幅 | 封板资金(万元) |",
+                "| --- | --- | --- | --- | --- |",
+            ]
+        )
+        for stock in first_boards:
+            lines.append(
+                f"| {stock.get('code')} | {stock.get('name')} | {_fmt_text(stock.get('sector'))} | "
+                f"{_fmt_percent(stock.get('change_percent'))} | "
+                f"{_fmt(stock.get('seal_amount') / 1e4 if stock.get('seal_amount') else None)} |"
+            )
 
     leaders = candidates.get("sector_leaders") or []
     if leaders:
-        lines.extend(["", "板块领涨股：", "", "| 名称 | 代码 | 所属板块 | 当日涨幅 | 角色来源 |", "| --- | --- | --- | --- | --- |"])
+        lines.extend(
+            [
+                "",
+                f"板块领涨股（{_coverage_note(coverage.get('sector_leaders_total'), len(leaders))}）：",
+                "",
+                "| 名称 | 代码 | 所属板块 | 当日涨幅 | 角色来源 |",
+                "| --- | --- | --- | --- | --- |",
+            ]
+        )
         for stock in leaders:
             lines.append(
                 f"| {stock.get('name')} | {stock.get('code')} | {_fmt_text(stock.get('sector'))} | "
@@ -221,17 +254,43 @@ def _render_candidates(reading: DecisionReading) -> str:
 
     broken = candidates.get("broken_board_watch") or []
     if broken:
-        lines.extend(["", f"炸板观察（{len(broken)} 只，次日反包候选）：", ""])
+        lines.extend(
+            [
+                "",
+                f"炸板观察（{_coverage_note(coverage.get('broken_board_total'), len(broken))}；次日反包候选）：",
+                "",
+            ]
+        )
         lines.append("、".join(f"{stock.get('code')} {stock.get('name')}" for stock in broken))
 
     themes = candidates.get("themes") or []
+    themes_total = coverage.get("themes_total", len(themes))
+    themes_covered = coverage.get("themes_covered", len(themes))
     if themes:
-        lines.extend(["", "涨停逻辑（通达信）：", "", "| 代码 | 名称 | 涨停主题 | 原因揭秘 | 首封时间 |", "| --- | --- | --- | --- | --- |"])
+        lines.extend(
+            [
+                "",
+                f"涨停逻辑（通达信，覆盖连板梯队 {themes_covered}/{themes_total} 只）：",
+                "",
+                "| 代码 | 名称 | 涨停主题 | 原因揭秘 | 首封时间 |",
+                "| --- | --- | --- | --- | --- |",
+            ]
+        )
         for row in themes:
             lines.append(
                 f"| {row.get('code')} | {row.get('name')} | {_fmt_text(row.get('theme'))} | "
                 f"{_fmt_text(row.get('reason'))} | {_fmt_text(row.get('first_limit_time'))} |"
             )
+    elif candidates.get("themes_available") and isinstance(themes_total, int) and themes_total > 0:
+        # 快照存在但对连板梯队零覆盖时也要显式写出，禁止静默省略该节。
+        lines.extend(
+            [
+                "",
+                f"涨停逻辑（通达信，覆盖连板梯队 0/{themes_total} 只）：",
+                "",
+                "- 通达信快照未包含连板股的涨停逻辑。",
+            ]
+        )
 
     lines.extend(["", "说明："])
     lines.extend(f"- {item}" for item in candidates.get("notes") or [])
@@ -315,6 +374,14 @@ def _join_brief(items: Any) -> str:
 def _join_sentences(items: Any) -> str:
     values = [str(item).rstrip("。；") for item in (items or []) if item]
     return "；".join(values)
+
+
+# 覆盖度标注：展示条数与总数不一致时写明「展示前 N」，让「截断」与「没有」可区分。
+def _coverage_note(total: Any, shown: int) -> str:
+    effective = total if isinstance(total, int) and total >= shown else shown
+    if effective > shown:
+        return f"共 {effective} 只，展示前 {shown} 只"
+    return f"共 {effective} 只"
 
 
 def _fmt(value: Any) -> str:

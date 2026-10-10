@@ -188,6 +188,26 @@ def _collect_sentiment_series(
     return today_row, history, today_limit_up_rows, today_broken_rows
 
 
+# 板块来源名映射：适配器实际可能返回东财概念/行业榜，或整体退化为同花顺行业口径。
+SECTOR_SOURCE_LABELS = {
+    "concept": "stock_board_concept_name_em",
+    "industry": "stock_board_industry_name_em",
+    "industry_ths": "stock_board_industry_summary_ths（同花顺口径）",
+}
+
+
+def sector_source_label(sectors: list[dict[str, Any]]) -> str:
+    """按板块记录的实际 source_type 生成来源描述，保证来源栏与采集口径一致。"""
+    seen: list[str] = []
+    for row in sectors:
+        source_type = str(row.get("source_type") or "")
+        if source_type and source_type not in seen:
+            seen.append(source_type)
+    if not seen:
+        return "akshare:板块接口"
+    return "akshare:" + "+".join(SECTOR_SOURCE_LABELS.get(item, item) for item in seen)
+
+
 # 板块证据同时承载 STEP 4 的方向候选和候选对象的领涨股来源。
 def _collect_sectors(
     client: Any,
@@ -203,7 +223,8 @@ def _collect_sectors(
         return []
     sectors = list(evidence.get("sectors") or [])
     if sectors:
-        sources["sectors"] = "akshare:stock_board_concept_name_em+stock_board_industry_name_em"
+        # 来源按实际返回口径标注：东财接口缺失时适配器会退化为同花顺行业口径，不能仍写东财接口名。
+        sources["sectors"] = sector_source_label(sectors)
     else:
         gaps.append("板块接口未返回有效板块。")
     # 概念与行业互为补充：若 akshare 概念榜缺失，但通达信快照已提供概念板块行情，则不再登记该缺口。

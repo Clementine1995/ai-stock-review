@@ -50,6 +50,7 @@ POSITION_BASE_BAND = {
 }
 POSITION_CAUTIOUS_BAND = (10, 20)
 POSITION_NONE_BAND = (0, 0)
+# 单票上限（占总资金比例）；总仓位区间更低时，实际单票金额以区间为准。
 SINGLE_NAME_POSITION_CAP = 30
 POSITION_NAME_COUNT = {
     "2万亿以上": "2–3 只",
@@ -59,6 +60,9 @@ POSITION_NAME_COUNT = {
 
 PRIMARY_INDEX_SYMBOL = "sh000001"
 PRIMARY_INDEX_NAME = "上证指数"
+
+# 候选展示上限：各候选列表最多渲染前 N 条；总数与覆盖率由 candidates["coverage"] 单独承载。
+CANDIDATE_DISPLAY_LIMIT = 10
 
 
 # 决策入口：先算单点事实（量能档、指数阶段、情绪阶段），再合成参与倾向与仓位区间。
@@ -294,13 +298,16 @@ def read_participation(market_stage: dict[str, Any], sentiment_stage: dict[str, 
             "evidence": evidence,
             "rule": "指数阶段或情绪阶段不可判定时，不给出参与倾向。",
         }
+    # 退潮期先于指数阶段判定：STEP 3 要求退潮期撤离、仓位收敛为零，不因指数主升或下降而改变。
+    if sentiment == "退潮期":
+        if market == "主升期":
+            rule = "指数主升但情绪退潮，先按 STEP 3 撤离，等退潮衰竭再参与。"
+        elif market == "下降期":
+            rule = "指数下降且情绪退潮，双重防守，不参与。"
+        else:
+            rule = "STEP 3 退潮期及时撤离，等退潮衰竭。"
+        return {"label": "不参与", "evidence": evidence, "rule": rule}
     if market == "主升期":
-        if sentiment == "退潮期":
-            return {
-                "label": "谨慎参与",
-                "evidence": evidence,
-                "rule": "指数主升但情绪退潮，等待退潮衰竭再参与。",
-            }
         return {
             "label": "可参与",
             "evidence": evidence,
@@ -324,12 +331,6 @@ def read_participation(market_stage: dict[str, Any], sentiment_stage: dict[str, 
             "evidence": evidence,
             "rule": "STEP 3 上升/主升期参与核心，关注涨幅靠前标的。",
         }
-    if sentiment == "退潮期":
-        return {
-            "label": "不参与",
-            "evidence": evidence,
-            "rule": "STEP 3 退潮期及时撤离，等退潮衰竭。",
-        }
     return {
         "label": "谨慎参与",
         "evidence": evidence,
@@ -348,6 +349,7 @@ def read_position_band(
     participation_label = participation.get("label")
     notes: list[str] = []
 
+    # 退潮期兜底与参与倾向的「不参与」保持一致，防止未来改动破坏「退潮期不建新仓」这一不变量。
     if participation_label == "不参与" or sentiment_stage.get("label") == "退潮期":
         return {
             "total_range": POSITION_NONE_BAND,
@@ -378,6 +380,7 @@ def read_position_band(
     if sentiment_stage.get("label") == "冰点日":
         notes.append("冰点日可分批建仓，留足后续加仓空间。")
 
+    notes.append("单票上限为总资金口径的硬性上限，实际单票金额以总仓位区间为准。")
     return {
         "total_range": (low, high),
         "single_name_cap": SINGLE_NAME_POSITION_CAP,
@@ -449,7 +452,7 @@ def read_sector_leadership(
     }
 
 
-# 候选只做事实归类：连板梯队、炸板观察、板块领涨股，均带来源，不生成买入建议。
+# 候选只做事实归类：连板梯队、首板强势、炸板观察、板块领涨股，均带来源，不生成买入建议。
 def build_candidates(
     limit_up_stocks: tuple[dict[str, Any], ...],
     broken_board_stocks: tuple[dict[str, Any], ...],
@@ -506,12 +509,24 @@ def build_candidates(
         if stock.get("code") in themes
     ]
 
+    # 展示条数受限（各列表最多前 CANDIDATE_DISPLAY_LIMIT 条）与涨停逻辑覆盖率一并输出，
+    # 供渲染层显式标注，避免读者把「截断 / 未采」误读为「没有」。
+    coverage = {
+        "board_ladder_total": len(ladder),
+        "strong_first_board_total": len(first_boards),
+        "broken_board_total": len(broken_board_stocks),
+        "sector_leaders_total": len(sector_leaders),
+        "themes_covered": len(theme_rows),
+        "themes_total": len(ladder),
+    }
     return {
-        "board_ladder": list(ladder[:10]),
-        "strong_first_board": list(first_boards[:10]),
-        "broken_board_watch": list(broken_board_stocks[:10]),
-        "sector_leaders": sector_leaders[:10],
+        "board_ladder": list(ladder[:CANDIDATE_DISPLAY_LIMIT]),
+        "strong_first_board": list(first_boards[:CANDIDATE_DISPLAY_LIMIT]),
+        "broken_board_watch": list(broken_board_stocks[:CANDIDATE_DISPLAY_LIMIT]),
+        "sector_leaders": sector_leaders[:CANDIDATE_DISPLAY_LIMIT],
         "themes": theme_rows,
+        "coverage": coverage,
+        "themes_available": bool(themes),
         "notes": [
             "候选来自涨停池、炸板池与板块领涨股字段，只作为可追溯事实，不构成买入建议。",
             "板块领涨股若未在当日涨停池中出现，代码优先用通达信解析，仍无法确认才标记为待确认。",
