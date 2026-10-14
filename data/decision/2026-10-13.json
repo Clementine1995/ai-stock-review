@@ -1,0 +1,2243 @@
+{
+  "inputs": {
+    "trade_date": "2026-10-13",
+    "indices": {
+      "sh000001": {
+        "symbol": "sh000001",
+        "name": "上证指数",
+        "sample_date": "2026-10-13",
+        "close": 3800.86,
+        "change_percent": 0.1,
+        "amount": 779302288022.5
+      },
+      "sz399001": {
+        "symbol": "sz399001",
+        "name": "深证成指",
+        "sample_date": "2026-10-13",
+        "close": 12353.7,
+        "change_percent": -0.25,
+        "amount": 896615516004.82
+      },
+      "sz399006": {
+        "symbol": "sz399006",
+        "name": "创业板指",
+        "sample_date": "2026-10-13",
+        "close": 2958.34,
+        "change_percent": -0.18,
+        "amount": 452004282521.84
+      }
+    },
+    "total_amount": 1677830618112.38,
+    "total_amount_source": "akshare:stock_sse_deal_daily+akshare:stock_szse_summary",
+    "breadth": {
+      "raw": {
+        "上涨": 2790,
+        "涨停": 70,
+        "真实涨停": 62,
+        "st st*涨停": 3,
+        "下跌": 2267,
+        "跌停": 10,
+        "真实跌停": 5,
+        "st st*跌停": 2,
+        "平盘": 155,
+        "停牌": 13
+      },
+      "source": "akshare:stock_market_activity_legu",
+      "activity_percent": "53.40",
+      "sample_time": "2026-10-13 15:00:00",
+      "up_count": 2790,
+      "down_count": 2267,
+      "flat_count": 155,
+      "limit_up_count": 70,
+      "limit_down_count": 10
+    },
+    "sentiment_today": {
+      "trade_date": "2026-10-13",
+      "limit_up_count": 67,
+      "limit_down_count": 8,
+      "broken_board_count": 19,
+      "broken_board_rate": 0.2209,
+      "highest_board": 3
+    },
+    "sentiment_history": [
+      {
+        "trade_date": "2026-09-30",
+        "limit_up_count": 52,
+        "limit_down_count": 9,
+        "broken_board_count": 12,
+        "broken_board_rate": 0.1875,
+        "highest_board": 7
+      },
+      {
+        "trade_date": "2026-10-08",
+        "limit_up_count": 43,
+        "limit_down_count": 13,
+        "broken_board_count": 32,
+        "broken_board_rate": 0.4267,
+        "highest_board": 8
+      },
+      {
+        "trade_date": "2026-10-09",
+        "limit_up_count": 69,
+        "limit_down_count": 8,
+        "broken_board_count": 14,
+        "broken_board_rate": 0.1687,
+        "highest_board": 9
+      },
+      {
+        "trade_date": "2026-10-12",
+        "limit_up_count": 46,
+        "limit_down_count": 19,
+        "broken_board_count": 25,
+        "broken_board_rate": 0.3521,
+        "highest_board": 10
+      },
+      {
+        "trade_date": "2026-10-13",
+        "limit_up_count": 67,
+        "limit_down_count": 8,
+        "broken_board_count": 19,
+        "broken_board_rate": 0.2209,
+        "highest_board": 3
+      }
+    ],
+    "amount_history": [
+      [
+        "2026-09-30",
+        1439173663221.03
+      ],
+      [
+        "2026-10-08",
+        1683431302213.44
+      ],
+      [
+        "2026-10-09",
+        1901573522289.33
+      ],
+      [
+        "2026-10-12",
+        1539169791852.2
+      ],
+      [
+        "2026-10-13",
+        1677830618112.38
+      ]
+    ],
+    "index_history": {
+      "sh000001": [
+        {
+          "trade_date": "2026-09-22",
+          "close": 3952.13,
+          "open": 3963.81,
+          "high": 3967.68,
+          "low": 3945.42,
+          "amount": 1007995610882.3
+        },
+        {
+          "trade_date": "2026-09-23",
+          "close": 3936.52,
+          "open": 3951.37,
+          "high": 3951.52,
+          "low": 3934.46,
+          "amount": 834132862985.2
+        },
+        {
+          "trade_date": "2026-09-24",
+          "close": 3888.37,
+          "open": 3925.32,
+          "high": 3930.5,
+          "low": 3888.37,
+          "amount": 783613001376.2
+        },
+        {
+          "trade_date": "2026-09-28",
+          "close": 3823.62,
+          "open": 3878.41,
+          "high": 3878.41,
+          "low": 3806.67,
+          "amount": 804543704707.9
+        },
+        {
+          "trade_date": "2026-09-29",
+          "close": 3830.45,
+          "open": 3816.15,
+          "high": 3843.84,
+          "low": 3810.81,
+          "amount": 661704292800.7
+        },
+        {
+          "trade_date": "2026-09-30",
+          "close": 3842.19,
+          "open": 3839.25,
+          "high": 3851.22,
+          "low": 3833.09,
+          "amount": 679398992444.8
+        },
+        {
+          "trade_date": "2026-10-08",
+          "close": 3811.9,
+          "open": 3838.98,
+          "high": 3864.12,
+          "low": 3795.37,
+          "amount": 811183096365.3
+        },
+        {
+          "trade_date": "2026-10-09",
+          "close": 3813.79,
+          "open": 3804.09,
+          "high": 3824.71,
+          "low": 3754.14,
+          "amount": 888561198263.9
+        },
+        {
+          "trade_date": "2026-10-12",
+          "close": 3797.24,
+          "open": 3806.98,
+          "high": 3828.22,
+          "low": 3791.0,
+          "amount": 714909910722.2
+        },
+        {
+          "trade_date": "2026-10-13",
+          "close": 3800.86,
+          "open": 3760.8,
+          "high": 3822.11,
+          "low": 3741.53,
+          "amount": 779302288022.5
+        }
+      ],
+      "sz399001": [
+        {
+          "trade_date": "2026-09-22",
+          "close": 13723.74,
+          "open": 13858.62,
+          "high": 13914.21,
+          "low": 13691.09,
+          "amount": 1127554799048.82
+        },
+        {
+          "trade_date": "2026-09-23",
+          "close": 13636.07,
+          "open": 13742.55,
+          "high": 13742.55,
+          "low": 13617.05,
+          "amount": 930843553664.32
+        },
+        {
+          "trade_date": "2026-09-24",
+          "close": 13316.97,
+          "open": 13575.07,
+          "high": 13577.86,
+          "low": 13316.97,
+          "amount": 869744360964.31
+        },
+        {
+          "trade_date": "2026-09-28",
+          "close": 12858.75,
+          "open": 13265.79,
+          "high": 13267.65,
+          "low": 12801.2,
+          "amount": 898255357218.28
+        },
+        {
+          "trade_date": "2026-09-29",
+          "close": 12901.95,
+          "open": 12839.61,
+          "high": 12955.25,
+          "low": 12831.87,
+          "amount": 747493244834.23
+        },
+        {
+          "trade_date": "2026-09-30",
+          "close": 12887.62,
+          "open": 12958.08,
+          "high": 12966.45,
+          "low": 12854.78,
+          "amount": 758619097498.63
+        },
+        {
+          "trade_date": "2026-10-08",
+          "close": 12620.9,
+          "open": 12896.45,
+          "high": 12984.95,
+          "low": 12540.73,
+          "amount": 870943814467.83
+        },
+        {
+          "trade_date": "2026-10-09",
+          "close": 12641.86,
+          "open": 12557.02,
+          "high": 12679.63,
+          "low": 12278.78,
+          "amount": 1011994216302.37
+        },
+        {
+          "trade_date": "2026-10-12",
+          "close": 12384.87,
+          "open": 12586.96,
+          "high": 12656.69,
+          "low": 12373.0,
+          "amount": 822921459018.44
+        },
+        {
+          "trade_date": "2026-10-13",
+          "close": 12353.7,
+          "open": 12163.23,
+          "high": 12486.21,
+          "low": 12060.8,
+          "amount": 896615516004.82
+        }
+      ],
+      "sz399006": [
+        {
+          "trade_date": "2026-09-22",
+          "close": 3399.93,
+          "open": 3446.33,
+          "high": 3472.47,
+          "low": 3387.88,
+          "amount": 544584013488.23
+        },
+        {
+          "trade_date": "2026-09-23",
+          "close": 3379.61,
+          "open": 3412.53,
+          "high": 3412.53,
+          "low": 3372.95,
+          "amount": 442742055561.55
+        },
+        {
+          "trade_date": "2026-09-24",
+          "close": 3288.95,
+          "open": 3366.89,
+          "high": 3371.61,
+          "low": 3288.95,
+          "amount": 414217590040.08
+        },
+        {
+          "trade_date": "2026-09-28",
+          "close": 3139.82,
+          "open": 3267.6,
+          "high": 3270.81,
+          "low": 3125.2,
+          "amount": 433230203099.95
+        },
+        {
+          "trade_date": "2026-09-29",
+          "close": 3142.56,
+          "open": 3136.53,
+          "high": 3158.91,
+          "low": 3128.48,
+          "amount": 359056474180.71
+        },
+        {
+          "trade_date": "2026-09-30",
+          "close": 3135.28,
+          "open": 3164.7,
+          "high": 3173.36,
+          "low": 3125.49,
+          "amount": 368971648170.82
+        },
+        {
+          "trade_date": "2026-10-08",
+          "close": 3036.66,
+          "open": 3140.46,
+          "high": 3168.4,
+          "low": 3012.03,
+          "amount": 425271860796.43
+        },
+        {
+          "trade_date": "2026-10-09",
+          "close": 3043.33,
+          "open": 3021.33,
+          "high": 3053.38,
+          "low": 2932.8,
+          "amount": 494823547448.06
+        },
+        {
+          "trade_date": "2026-10-12",
+          "close": 2963.82,
+          "open": 3023.51,
+          "high": 3049.34,
+          "low": 2962.24,
+          "amount": 394480230843.77
+        },
+        {
+          "trade_date": "2026-10-13",
+          "close": 2958.34,
+          "open": 2899.15,
+          "high": 2999.76,
+          "low": 2860.8,
+          "amount": 452004282521.84
+        }
+      ]
+    },
+    "sectors": [
+      {
+        "name": "冰雪经济",
+        "code": "BK1185",
+        "source_type": "concept",
+        "ranking_group": "akshare_concept_change_rank",
+        "rank": 1,
+        "strength": "按涨跌幅排序",
+        "change_percent": 3.31,
+        "market_value": 311276768000,
+        "turnover": null,
+        "net_inflow": null,
+        "total_volume": null,
+        "turnover_rate": 3.39,
+        "up_count": 34,
+        "down_count": 7,
+        "leading_stock": "冰山冷热",
+        "leading_stock_change_percent": 9.98
+      },
+      {
+        "name": "2025三季报预减",
+        "code": "BK1199",
+        "source_type": "concept",
+        "ranking_group": "akshare_concept_change_rank",
+        "rank": 2,
+        "strength": "按涨跌幅排序",
+        "change_percent": 2.89,
+        "market_value": 66503197000,
+        "turnover": null,
+        "net_inflow": null,
+        "total_volume": null,
+        "turnover_rate": 8.67,
+        "up_count": 8,
+        "down_count": 0,
+        "leading_stock": "东岳硅材",
+        "leading_stock_change_percent": 7
+      },
+      {
+        "name": "氦气概念",
+        "code": "BK0949",
+        "source_type": "concept",
+        "ranking_group": "akshare_concept_change_rank",
+        "rank": 3,
+        "strength": "按涨跌幅排序",
+        "change_percent": 2.86,
+        "market_value": 385997248000,
+        "turnover": null,
+        "net_inflow": null,
+        "total_volume": null,
+        "turnover_rate": 3.51,
+        "up_count": 15,
+        "down_count": 3,
+        "leading_stock": "凯美特气",
+        "leading_stock_change_percent": 10.04
+      },
+      {
+        "name": "裸眼3D",
+        "code": "BK1142",
+        "source_type": "concept",
+        "ranking_group": "akshare_concept_change_rank",
+        "rank": 4,
+        "strength": "按涨跌幅排序",
+        "change_percent": 2.65,
+        "market_value": 346604576000,
+        "turnover": null,
+        "net_inflow": null,
+        "total_volume": null,
+        "turnover_rate": 2.71,
+        "up_count": 16,
+        "down_count": 6,
+        "leading_stock": "超声电子",
+        "leading_stock_change_percent": 10
+      },
+      {
+        "name": "退税商店",
+        "code": "BK0933",
+        "source_type": "concept",
+        "ranking_group": "akshare_concept_change_rank",
+        "rank": 5,
+        "strength": "按涨跌幅排序",
+        "change_percent": 2.58,
+        "market_value": 294326256000,
+        "turnover": null,
+        "net_inflow": null,
+        "total_volume": null,
+        "turnover_rate": 1.51,
+        "up_count": 17,
+        "down_count": 3,
+        "leading_stock": "南宁百货",
+        "leading_stock_change_percent": 10.06
+      },
+      {
+        "name": "其他数字媒体",
+        "code": "BK1295",
+        "source_type": "industry",
+        "ranking_group": "akshare_industry_change_rank",
+        "rank": 1,
+        "strength": "按涨跌幅排序",
+        "change_percent": 11.94,
+        "market_value": 11449895000,
+        "turnover": null,
+        "net_inflow": null,
+        "total_volume": null,
+        "turnover_rate": 17.52,
+        "up_count": 2,
+        "down_count": 0,
+        "leading_stock": "风语筑",
+        "leading_stock_change_percent": 9.97
+      },
+      {
+        "name": "印制电路板",
+        "code": "BK1340",
+        "source_type": "industry",
+        "ranking_group": "akshare_industry_change_rank",
+        "rank": 2,
+        "strength": "按涨跌幅排序",
+        "change_percent": 6.08,
+        "market_value": 2480202096000,
+        "turnover": null,
+        "net_inflow": null,
+        "total_volume": null,
+        "turnover_rate": 5.66,
+        "up_count": 47,
+        "down_count": 1,
+        "leading_stock": "超声电子",
+        "leading_stock_change_percent": 10
+      },
+      {
+        "name": "纺织化学制品",
+        "code": "BK1423",
+        "source_type": "industry",
+        "ranking_group": "akshare_industry_change_rank",
+        "rank": 3,
+        "strength": "按涨跌幅排序",
+        "change_percent": 5.43,
+        "market_value": 99779315000,
+        "turnover": null,
+        "net_inflow": null,
+        "total_volume": null,
+        "turnover_rate": 5.08,
+        "up_count": 12,
+        "down_count": 1,
+        "leading_stock": "亚邦股份",
+        "leading_stock_change_percent": 10.08
+      },
+      {
+        "name": "元件",
+        "code": "BK0459",
+        "source_type": "industry",
+        "ranking_group": "akshare_industry_change_rank",
+        "rank": 4,
+        "strength": "按涨跌幅排序",
+        "change_percent": 4.77,
+        "market_value": 2937432112000,
+        "turnover": null,
+        "net_inflow": null,
+        "total_volume": null,
+        "turnover_rate": 5.43,
+        "up_count": 61,
+        "down_count": 6,
+        "leading_stock": "超声电子",
+        "leading_stock_change_percent": 10
+      },
+      {
+        "name": "地面兵装Ⅲ",
+        "code": "BK1382",
+        "source_type": "industry",
+        "ranking_group": "akshare_industry_change_rank",
+        "rank": 5,
+        "strength": "按涨跌幅排序",
+        "change_percent": 4.54,
+        "market_value": 134678466000,
+        "turnover": null,
+        "net_inflow": null,
+        "total_volume": null,
+        "turnover_rate": 3.38,
+        "up_count": 12,
+        "down_count": 0,
+        "leading_stock": "国科军工",
+        "leading_stock_change_percent": 12.24
+      }
+    ],
+    "limit_up_stocks": [
+      {
+        "code": "000668",
+        "name": "荣丰控股",
+        "board_count": 1,
+        "sector": "房地产开",
+        "change_percent": 10.005350112915039,
+        "seal_amount": 87682232.0,
+        "broken_times": 0,
+        "turnover_rate": 0.6126998066902161,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "002343",
+        "name": "慈文传媒",
+        "board_count": 3,
+        "sector": "影视院线",
+        "change_percent": 10.014947891235352,
+        "seal_amount": 251983289.0,
+        "broken_times": 0,
+        "turnover_rate": 3.3690614700317383,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 3）"
+      },
+      {
+        "code": "002917",
+        "name": "金奥博",
+        "board_count": 1,
+        "sector": "化学制品",
+        "change_percent": 10.0,
+        "seal_amount": 96902300.0,
+        "broken_times": 1,
+        "turnover_rate": 5.000976085662842,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "603096",
+        "name": "新经典",
+        "board_count": 3,
+        "sector": "出版",
+        "change_percent": 10.020986557006836,
+        "seal_amount": 216938172.0,
+        "broken_times": 0,
+        "turnover_rate": 2.7860360145568848,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 3）"
+      },
+      {
+        "code": "600693",
+        "name": "东百集团",
+        "board_count": 2,
+        "sector": "一般零售",
+        "change_percent": 10.017889022827148,
+        "seal_amount": 129715800.0,
+        "broken_times": 4,
+        "turnover_rate": 19.746036529541016,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 2）"
+      },
+      {
+        "code": "002322",
+        "name": "理工能科",
+        "board_count": 1,
+        "sector": "软件开发",
+        "change_percent": 10.008410453796387,
+        "seal_amount": 76952256.0,
+        "broken_times": 1,
+        "turnover_rate": 7.020061016082764,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "605577",
+        "name": "龙版传媒",
+        "board_count": 3,
+        "sector": "出版",
+        "change_percent": 9.988776206970215,
+        "seal_amount": 51557800.0,
+        "broken_times": 3,
+        "turnover_rate": 13.113713264465332,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 3）"
+      },
+      {
+        "code": "001231",
+        "name": "农心科技",
+        "board_count": 2,
+        "sector": "农化制品",
+        "change_percent": 9.996095657348633,
+        "seal_amount": 296275045.0,
+        "broken_times": 0,
+        "turnover_rate": 19.187055587768555,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 2）"
+      },
+      {
+        "code": "605136",
+        "name": "丽人丽妆",
+        "board_count": 3,
+        "sector": "互联网电",
+        "change_percent": 10.019268035888672,
+        "seal_amount": 100856872.0,
+        "broken_times": 0,
+        "turnover_rate": 7.899640083312988,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 3）"
+      },
+      {
+        "code": "000995",
+        "name": "皇台酒业",
+        "board_count": 1,
+        "sector": "白酒Ⅱ",
+        "change_percent": 9.964093208312988,
+        "seal_amount": 91654500.0,
+        "broken_times": 1,
+        "turnover_rate": 7.776537895202637,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "000823",
+        "name": "超声电子",
+        "board_count": 1,
+        "sector": "元件",
+        "change_percent": 10.004928588867188,
+        "seal_amount": 387691257.0,
+        "broken_times": 0,
+        "turnover_rate": 6.940157890319824,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "002184",
+        "name": "海得控制",
+        "board_count": 1,
+        "sector": "自动化设",
+        "change_percent": 10.039761543273926,
+        "seal_amount": 53457749.0,
+        "broken_times": 1,
+        "turnover_rate": 6.859966278076172,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "603188",
+        "name": "亚邦股份",
+        "board_count": 1,
+        "sector": "化学制品",
+        "change_percent": 10.080645561218262,
+        "seal_amount": 52302432.0,
+        "broken_times": 0,
+        "turnover_rate": 5.5080766677856445,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "600802",
+        "name": "福建水泥",
+        "board_count": 1,
+        "sector": "水泥",
+        "change_percent": 9.984639167785645,
+        "seal_amount": 11306134.0,
+        "broken_times": 3,
+        "turnover_rate": 21.552831649780273,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "002696",
+        "name": "百洋股份",
+        "board_count": 3,
+        "sector": "饲料",
+        "change_percent": 10.062111854553223,
+        "seal_amount": 67280775.0,
+        "broken_times": 0,
+        "turnover_rate": 10.849814414978027,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 3）"
+      },
+      {
+        "code": "000833",
+        "name": "粤桂股份",
+        "board_count": 1,
+        "sector": "综合Ⅱ",
+        "change_percent": 10.015983581542969,
+        "seal_amount": 139304342.0,
+        "broken_times": 0,
+        "turnover_rate": 7.8141093254089355,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "600847",
+        "name": "万里股份",
+        "board_count": 1,
+        "sector": "电池",
+        "change_percent": 10.039215087890625,
+        "seal_amount": 39925002.0,
+        "broken_times": 0,
+        "turnover_rate": 3.5997817516326904,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "603767",
+        "name": "中马传动",
+        "board_count": 1,
+        "sector": "汽车零部",
+        "change_percent": 10.006998062133789,
+        "seal_amount": 83069871.0,
+        "broken_times": 1,
+        "turnover_rate": 4.336776256561279,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "003037",
+        "name": "三和管桩",
+        "board_count": 1,
+        "sector": "水泥",
+        "change_percent": 10.068259239196777,
+        "seal_amount": 56671138.0,
+        "broken_times": 1,
+        "turnover_rate": 1.9774291515350342,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "603968",
+        "name": "醋化股份",
+        "board_count": 2,
+        "sector": "化学制品",
+        "change_percent": 10.038313865661621,
+        "seal_amount": 22695477.0,
+        "broken_times": 2,
+        "turnover_rate": 14.066563606262207,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 2）"
+      },
+      {
+        "code": "600831",
+        "name": "广电网络",
+        "board_count": 2,
+        "sector": "电视广播",
+        "change_percent": 9.974424362182617,
+        "seal_amount": 52693275.0,
+        "broken_times": 0,
+        "turnover_rate": 10.871196746826172,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 2）"
+      },
+      {
+        "code": "600199",
+        "name": "金种子酒",
+        "board_count": 1,
+        "sector": "白酒Ⅱ",
+        "change_percent": 9.985527992248535,
+        "seal_amount": 32731680.0,
+        "broken_times": 3,
+        "turnover_rate": 9.265822410583496,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "600851",
+        "name": "海欣股份",
+        "board_count": 2,
+        "sector": "化学制药",
+        "change_percent": 10.0,
+        "seal_amount": 20695632.0,
+        "broken_times": 3,
+        "turnover_rate": 7.535775661468506,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 2）"
+      },
+      {
+        "code": "002549",
+        "name": "凯美特气",
+        "board_count": 1,
+        "sector": "化学制品",
+        "change_percent": 10.038609504699707,
+        "seal_amount": 144781325.0,
+        "broken_times": 1,
+        "turnover_rate": 9.40006160736084,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "002693",
+        "name": "双成药业",
+        "board_count": 1,
+        "sector": "化学制药",
+        "change_percent": 10.021322250366211,
+        "seal_amount": 53892846.0,
+        "broken_times": 0,
+        "turnover_rate": 7.774509906768799,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "300107",
+        "name": "建新股份",
+        "board_count": 1,
+        "sector": "化学制品",
+        "change_percent": 20.027816772460938,
+        "seal_amount": 64153694.0,
+        "broken_times": 1,
+        "turnover_rate": 20.708436965942383,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "000530",
+        "name": "冰山冷热",
+        "board_count": 1,
+        "sector": "通用设备",
+        "change_percent": 9.980806350708008,
+        "seal_amount": 111305765.0,
+        "broken_times": 1,
+        "turnover_rate": 8.532500267028809,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "002640",
+        "name": "跨境通",
+        "board_count": 1,
+        "sector": "互联网电",
+        "change_percent": 9.887005805969238,
+        "seal_amount": 83119964.0,
+        "broken_times": 2,
+        "turnover_rate": 17.034414291381836,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "002748",
+        "name": "世龙实业",
+        "board_count": 1,
+        "sector": "化学原料",
+        "change_percent": 9.991602897644043,
+        "seal_amount": 43721485.0,
+        "broken_times": 1,
+        "turnover_rate": 5.6607842445373535,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "605058",
+        "name": "澳弘电子",
+        "board_count": 1,
+        "sector": "元件",
+        "change_percent": 10.0,
+        "seal_amount": 84959852.0,
+        "broken_times": 2,
+        "turnover_rate": 12.94788646697998,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "600202",
+        "name": "哈空调",
+        "board_count": 1,
+        "sector": "通用设备",
+        "change_percent": 10.039369583129883,
+        "seal_amount": 42115060.0,
+        "broken_times": 0,
+        "turnover_rate": 7.487856864929199,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "605258",
+        "name": "协和电子",
+        "board_count": 1,
+        "sector": "元件",
+        "change_percent": 10.010851860046387,
+        "seal_amount": 57589110.0,
+        "broken_times": 1,
+        "turnover_rate": 6.281489849090576,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "601188",
+        "name": "龙江交通",
+        "board_count": 1,
+        "sector": "铁路公路",
+        "change_percent": 9.931507110595703,
+        "seal_amount": 41650558.0,
+        "broken_times": 0,
+        "turnover_rate": 5.489013195037842,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "000715",
+        "name": "中兴商业",
+        "board_count": 1,
+        "sector": "一般零售",
+        "change_percent": 10.095237731933594,
+        "seal_amount": 46379384.0,
+        "broken_times": 0,
+        "turnover_rate": 5.673029899597168,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "301010",
+        "name": "晶雪节能",
+        "board_count": 1,
+        "sector": "装修建材",
+        "change_percent": 20.0,
+        "seal_amount": 28047954.0,
+        "broken_times": 1,
+        "turnover_rate": 14.013338088989258,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "600593",
+        "name": "大连圣亚",
+        "board_count": 1,
+        "sector": "旅游及景",
+        "change_percent": 10.0,
+        "seal_amount": 161663469.0,
+        "broken_times": 0,
+        "turnover_rate": 9.148679733276367,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "603328",
+        "name": "依顿电子",
+        "board_count": 1,
+        "sector": "元件",
+        "change_percent": 9.975268363952637,
+        "seal_amount": 62191080.0,
+        "broken_times": 0,
+        "turnover_rate": 5.594598293304443,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "600853",
+        "name": "龙建股份",
+        "board_count": 1,
+        "sector": "基础建设",
+        "change_percent": 9.939759254455566,
+        "seal_amount": 40155781.0,
+        "broken_times": 2,
+        "turnover_rate": 6.861461639404297,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "603386",
+        "name": "骏亚科技",
+        "board_count": 1,
+        "sector": "元件",
+        "change_percent": 10.012594223022461,
+        "seal_amount": 61782655.0,
+        "broken_times": 0,
+        "turnover_rate": 3.5733048915863037,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "002639",
+        "name": "雪人集团",
+        "board_count": 1,
+        "sector": "通用设备",
+        "change_percent": 10.030165672302246,
+        "seal_amount": 168385991.0,
+        "broken_times": 0,
+        "turnover_rate": 14.127902030944824,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "001229",
+        "name": "魅视科技",
+        "board_count": 1,
+        "sector": "计算机设",
+        "change_percent": 10.010537147521973,
+        "seal_amount": 20085056.0,
+        "broken_times": 0,
+        "turnover_rate": 9.777792930603027,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "603956",
+        "name": "威派格",
+        "board_count": 1,
+        "sector": "专用设备",
+        "change_percent": 9.986504554748535,
+        "seal_amount": 23985694.0,
+        "broken_times": 4,
+        "turnover_rate": 13.524286270141602,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "301041",
+        "name": "金百泽",
+        "board_count": 1,
+        "sector": "元件",
+        "change_percent": 20.0,
+        "seal_amount": 31355722.0,
+        "broken_times": 0,
+        "turnover_rate": 14.454760551452637,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "002579",
+        "name": "中京电子",
+        "board_count": 1,
+        "sector": "元件",
+        "change_percent": 9.973226547241211,
+        "seal_amount": 104830136.0,
+        "broken_times": 0,
+        "turnover_rate": 14.066078186035156,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "002949",
+        "name": "华阳国际",
+        "board_count": 1,
+        "sector": "工程咨询",
+        "change_percent": 9.984639167785645,
+        "seal_amount": 27848104.0,
+        "broken_times": 0,
+        "turnover_rate": 8.391342163085938,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "688655",
+        "name": "迅捷兴",
+        "board_count": 1,
+        "sector": "元件",
+        "change_percent": 20.00339126586914,
+        "seal_amount": 22600556.0,
+        "broken_times": 3,
+        "turnover_rate": 13.313501358032227,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "603353",
+        "name": "和顺石油",
+        "board_count": 1,
+        "sector": "炼化及贸",
+        "change_percent": 10.014513969421387,
+        "seal_amount": 46435080.0,
+        "broken_times": 0,
+        "turnover_rate": 5.638195514678955,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "600237",
+        "name": "铜峰电子",
+        "board_count": 1,
+        "sector": "元件",
+        "change_percent": 9.98781967163086,
+        "seal_amount": 26546285.0,
+        "broken_times": 0,
+        "turnover_rate": 8.216622352600098,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "600228",
+        "name": "返利科技",
+        "board_count": 1,
+        "sector": "数字媒体",
+        "change_percent": 9.978307723999023,
+        "seal_amount": 31483686.0,
+        "broken_times": 0,
+        "turnover_rate": 6.011337757110596,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "603466",
+        "name": "风语筑",
+        "board_count": 1,
+        "sector": "数字媒体",
+        "change_percent": 9.967584609985352,
+        "seal_amount": 125285866.0,
+        "broken_times": 0,
+        "turnover_rate": 17.00518798828125,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "002862",
+        "name": "实丰文化",
+        "board_count": 1,
+        "sector": "文娱用品",
+        "change_percent": 10.0,
+        "seal_amount": 11717189.0,
+        "broken_times": 0,
+        "turnover_rate": 8.092876434326172,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "603001",
+        "name": "奥康国际",
+        "board_count": 1,
+        "sector": "服装家纺",
+        "change_percent": 9.972298622131348,
+        "seal_amount": 27389427.0,
+        "broken_times": 0,
+        "turnover_rate": 3.4601800441741943,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "603099",
+        "name": "长白山",
+        "board_count": 1,
+        "sector": "旅游及景",
+        "change_percent": 10.00479793548584,
+        "seal_amount": 34818031.0,
+        "broken_times": 1,
+        "turnover_rate": 8.86367416381836,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "603980",
+        "name": "吉华集团",
+        "board_count": 1,
+        "sector": "化学制品",
+        "change_percent": 10.0,
+        "seal_amount": 46485135.0,
+        "broken_times": 1,
+        "turnover_rate": 14.726038932800293,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "002980",
+        "name": "华盛昌",
+        "board_count": 1,
+        "sector": "电网设备",
+        "change_percent": 10.0,
+        "seal_amount": 105535870.0,
+        "broken_times": 0,
+        "turnover_rate": 16.10038948059082,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "002878",
+        "name": "元隆雅图",
+        "board_count": 1,
+        "sector": "广告营销",
+        "change_percent": 9.97697639465332,
+        "seal_amount": 48985672.0,
+        "broken_times": 1,
+        "turnover_rate": 9.315634727478027,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "001318",
+        "name": "阳光乳业",
+        "board_count": 1,
+        "sector": "饮料乳品",
+        "change_percent": 10.039215087890625,
+        "seal_amount": 141947122.0,
+        "broken_times": 1,
+        "turnover_rate": 9.368654251098633,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "600391",
+        "name": "航发科技",
+        "board_count": 1,
+        "sector": "航空装备",
+        "change_percent": 10.014184951782227,
+        "seal_amount": 75283614.0,
+        "broken_times": 2,
+        "turnover_rate": 6.613508224487305,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "002587",
+        "name": "奥拓电子",
+        "board_count": 1,
+        "sector": "光学光电",
+        "change_percent": 9.923664093017578,
+        "seal_amount": 11192832.0,
+        "broken_times": 4,
+        "turnover_rate": 11.630741119384766,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "603042",
+        "name": "华脉科技",
+        "board_count": 1,
+        "sector": "通信设备",
+        "change_percent": 10.034130096435547,
+        "seal_amount": 39340860.0,
+        "broken_times": 0,
+        "turnover_rate": 12.979487419128418,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "000558",
+        "name": "天府文旅",
+        "board_count": 1,
+        "sector": "旅游及景",
+        "change_percent": 10.028653144836426,
+        "seal_amount": 22609263.0,
+        "broken_times": 0,
+        "turnover_rate": 4.232858657836914,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "600712",
+        "name": "南宁百货",
+        "board_count": 1,
+        "sector": "一般零售",
+        "change_percent": 10.055866241455078,
+        "seal_amount": 43644327.0,
+        "broken_times": 0,
+        "turnover_rate": 5.16549825668335,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "600281",
+        "name": "华阳新材",
+        "board_count": 1,
+        "sector": "小金属",
+        "change_percent": 9.933774948120117,
+        "seal_amount": 26143506.0,
+        "broken_times": 0,
+        "turnover_rate": 5.398617744445801,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "002430",
+        "name": "杭氧股份",
+        "board_count": 1,
+        "sector": "化学制品",
+        "change_percent": 9.992006301879883,
+        "seal_amount": 67781760.0,
+        "broken_times": 1,
+        "turnover_rate": 4.712057590484619,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "002172",
+        "name": "澳洋健康",
+        "board_count": 1,
+        "sector": "医疗服务",
+        "change_percent": 10.037175178527832,
+        "seal_amount": 174091689.0,
+        "broken_times": 0,
+        "turnover_rate": 21.146127700805664,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "002811",
+        "name": "郑中设计",
+        "board_count": 1,
+        "sector": "装修装饰",
+        "change_percent": 9.983721733093262,
+        "seal_amount": 22813885.0,
+        "broken_times": 0,
+        "turnover_rate": 9.102842330932617,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      },
+      {
+        "code": "002623",
+        "name": "亚玛顿",
+        "board_count": 1,
+        "sector": "光伏设备",
+        "change_percent": 10.011442184448242,
+        "seal_amount": 83563965.0,
+        "broken_times": 0,
+        "turnover_rate": 6.499248027801514,
+        "role": "连板事实候选",
+        "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+      }
+    ],
+    "broken_board_stocks": [
+      {
+        "code": "002692",
+        "name": "远程股份",
+        "change_percent": -5.9160308837890625,
+        "turnover_rate": 21.53354263305664,
+        "role": "炸板事实候选",
+        "role_source": "akshare:stock_zt_pool_zbgc_em"
+      },
+      {
+        "code": "605287",
+        "name": "德才股份",
+        "change_percent": 3.6199097633361816,
+        "turnover_rate": 21.475204467773438,
+        "role": "炸板事实候选",
+        "role_source": "akshare:stock_zt_pool_zbgc_em"
+      },
+      {
+        "code": "603528",
+        "name": "多伦科技",
+        "change_percent": -0.283687949180603,
+        "turnover_rate": 12.217536926269531,
+        "role": "炸板事实候选",
+        "role_source": "akshare:stock_zt_pool_zbgc_em"
+      },
+      {
+        "code": "600318",
+        "name": "新力金融",
+        "change_percent": 9.1304349899292,
+        "turnover_rate": 16.766611099243164,
+        "role": "炸板事实候选",
+        "role_source": "akshare:stock_zt_pool_zbgc_em"
+      },
+      {
+        "code": "600408",
+        "name": "安泰集团",
+        "change_percent": 4.532577991485596,
+        "turnover_rate": 24.703853607177734,
+        "role": "炸板事实候选",
+        "role_source": "akshare:stock_zt_pool_zbgc_em"
+      },
+      {
+        "code": "002961",
+        "name": "瑞达期货",
+        "change_percent": 5.899704933166504,
+        "turnover_rate": 6.395320415496826,
+        "role": "炸板事实候选",
+        "role_source": "akshare:stock_zt_pool_zbgc_em"
+      },
+      {
+        "code": "603216",
+        "name": "梦天家居",
+        "change_percent": 1.7586913108825684,
+        "turnover_rate": 6.6017889976501465,
+        "role": "炸板事实候选",
+        "role_source": "akshare:stock_zt_pool_zbgc_em"
+      },
+      {
+        "code": "603578",
+        "name": "三星新材",
+        "change_percent": 6.1992621421813965,
+        "turnover_rate": 8.156770706176758,
+        "role": "炸板事实候选",
+        "role_source": "akshare:stock_zt_pool_zbgc_em"
+      },
+      {
+        "code": "300929",
+        "name": "华骐环保",
+        "change_percent": 10.466666221618652,
+        "turnover_rate": 12.57252311706543,
+        "role": "炸板事实候选",
+        "role_source": "akshare:stock_zt_pool_zbgc_em"
+      },
+      {
+        "code": "688004",
+        "name": "博汇科技",
+        "change_percent": 14.711409568786621,
+        "turnover_rate": 28.22084617614746,
+        "role": "炸板事实候选",
+        "role_source": "akshare:stock_zt_pool_zbgc_em"
+      },
+      {
+        "code": "301313",
+        "name": "凡拓数创",
+        "change_percent": 13.906142234802246,
+        "turnover_rate": 21.43402862548828,
+        "role": "炸板事实候选",
+        "role_source": "akshare:stock_zt_pool_zbgc_em"
+      },
+      {
+        "code": "002354",
+        "name": "天娱数科",
+        "change_percent": 6.438355922698975,
+        "turnover_rate": 19.85335350036621,
+        "role": "炸板事实候选",
+        "role_source": "akshare:stock_zt_pool_zbgc_em"
+      },
+      {
+        "code": "002913",
+        "name": "奥士康",
+        "change_percent": 6.784696102142334,
+        "turnover_rate": 5.8636627197265625,
+        "role": "炸板事实候选",
+        "role_source": "akshare:stock_zt_pool_zbgc_em"
+      },
+      {
+        "code": "600316",
+        "name": "洪都航空",
+        "change_percent": 9.748940467834473,
+        "turnover_rate": 3.8435120582580566,
+        "role": "炸板事实候选",
+        "role_source": "akshare:stock_zt_pool_zbgc_em"
+      },
+      {
+        "code": "002425",
+        "name": "凯撒文化",
+        "change_percent": 4.320987701416016,
+        "turnover_rate": 10.565995216369629,
+        "role": "炸板事实候选",
+        "role_source": "akshare:stock_zt_pool_zbgc_em"
+      },
+      {
+        "code": "002724",
+        "name": "海洋王",
+        "change_percent": 6.626506328582764,
+        "turnover_rate": 8.606311798095703,
+        "role": "炸板事实候选",
+        "role_source": "akshare:stock_zt_pool_zbgc_em"
+      },
+      {
+        "code": "603669",
+        "name": "灵康药业",
+        "change_percent": 7.578008651733398,
+        "turnover_rate": 10.521688461303711,
+        "role": "炸板事实候选",
+        "role_source": "akshare:stock_zt_pool_zbgc_em"
+      },
+      {
+        "code": "002086",
+        "name": "东方海洋",
+        "change_percent": 5.911330223083496,
+        "turnover_rate": 10.610915184020996,
+        "role": "炸板事实候选",
+        "role_source": "akshare:stock_zt_pool_zbgc_em"
+      },
+      {
+        "code": "603661",
+        "name": "恒林股份",
+        "change_percent": 4.23954963684082,
+        "turnover_rate": 7.496047496795654,
+        "role": "炸板事实候选",
+        "role_source": "akshare:stock_zt_pool_zbgc_em"
+      }
+    ],
+    "sources": {
+      "index": "akshare:stock_zh_index_daily_em",
+      "breadth": "akshare:stock_market_activity_legu",
+      "sentiment": "akshare:stock_zt_pool_em+stock_zt_pool_zbgc_em+stock_zt_pool_dtgc_em",
+      "sectors": "akshare:stock_board_concept_name_em+stock_board_industry_name_em",
+      "index_history": "akshare:stock_zh_index_daily_em"
+    },
+    "gaps": [],
+    "tdx": null
+  },
+  "reading": {
+    "market_stage": {
+      "label": "下降期",
+      "evidence": [
+        "上证指数收 3800.86（5 日 -0.77%）",
+        "近 10 日收盘区间 3797.24–3952.13，当前处于箱体 2% 位置。",
+        "MA5 3813.20，MA10 3849.71。",
+        "当日下影占比 74%。"
+      ],
+      "rule": "5 日跌幅 ≥ 3%，或收盘同时跌破 MA5/MA10 且 MA5 低于 MA10，按下降处理。",
+      "detail": {
+        "close": 3800.86,
+        "ret5_percent": -0.77,
+        "position_ratio": 0.023,
+        "ma5": 3813.2,
+        "ma10": 3849.71,
+        "ma5_rising": false,
+        "low": 3741.53,
+        "high": 3822.11,
+        "lower_shadow_ratio": 0.736,
+        "long_lower_shadow": true
+      }
+    },
+    "amount_band": {
+      "label": "1万亿–2万亿",
+      "evidence": [
+        "两市 A 股成交额 16778.3 亿元。",
+        "较上一交易日（2026-10-12，15391.7 亿元）环比 +9.01%。"
+      ],
+      "rule": "量能中性，一般可支撑一个板块走出主升。",
+      "amount_yi": 16778.3
+    },
+    "sentiment_stage": {
+      "label": "上升期",
+      "evidence": [
+        "涨停 67 家，跌停 8 家，炸板率 22.1%",
+        "最高连板 3 板。",
+        "全市场上涨 2790 家，下跌 2267 家。",
+        "上一交易日（2026-10-12）涨停 46 家，最高连板 10 板。"
+      ],
+      "rule": "涨停 ≥ 50 家、炸板率 ≤ 35% 且最高连板 ≥ 3，按上升/修复处理。",
+      "temperature": 43.5,
+      "detail": {
+        "limit_up_count": 67,
+        "limit_down_count": 8,
+        "broken_board_rate": 0.2209,
+        "highest_board": 3,
+        "up_count": 2790,
+        "down_count": 2267,
+        "previous_limit_up_count": 46,
+        "previous_limit_down_count": 19,
+        "previous_broken_board_rate": 0.3521,
+        "previous_highest_board": 10,
+        "previous_trade_date": "2026-10-12"
+      }
+    },
+    "participation": {
+      "label": "谨慎参与",
+      "evidence": [
+        "指数阶段：下降期。",
+        "情绪阶段：上升期。"
+      ],
+      "rule": "STEP 1.1 下降期总体防守，小仓位试错，做核心抱团。"
+    },
+    "position_band": {
+      "total_range": [
+        5,
+        10
+      ],
+      "single_name_cap": 30,
+      "max_names": "2 只",
+      "evidence": [
+        "两市 A 股成交额 16778.3 亿元。",
+        "较上一交易日（2026-10-12，15391.7 亿元）环比 +9.01%。",
+        "指数阶段：下降期。",
+        "情绪阶段：上升期。"
+      ],
+      "rule": "仓位区间由量能档位、指数阶段与情绪阶段共同推导。",
+      "notes": [
+        "基线 30%–50% 来自量能档位「1万亿–2万亿」。",
+        "参与倾向为谨慎参与，仓位压到 10%–20%。",
+        "指数下降期按防守处理，仓位减半。",
+        "单票上限为总资金口径的硬性上限，实际单票金额以总仓位区间为准。",
+        "本区间为框架推导建议，不是执行指令，需由用户最终确认。"
+      ]
+    },
+    "sector_leadership": {
+      "label": "元件",
+      "evidence": [
+        "涨停家数最多行业：元件 9 家、化学制品 7 家、一般零售 3 家、旅游及景 3 家、通用设备 3 家。",
+        "概念板块涨幅前列：冰雪经济 +3.31%、2025三季报预减 +2.89%、氦气概念 +2.86%、裸眼3D +2.65%、退税商店 +2.58%。",
+        "行业板块涨幅前列：其他数字媒体 +11.94%、印制电路板 +6.08%、纺织化学制品 +5.43%、元件 +4.77%、地面兵装Ⅲ +4.54%。"
+      ],
+      "rule": "STEP 4 以近期反复活跃、涨幅榜靠前的板块为核心方向；涨停聚集度作为主证据。",
+      "top_industries": [
+        [
+          "元件",
+          9
+        ],
+        [
+          "化学制品",
+          7
+        ],
+        [
+          "一般零售",
+          3
+        ],
+        [
+          "旅游及景",
+          3
+        ],
+        [
+          "通用设备",
+          3
+        ],
+        [
+          "互联网电",
+          2
+        ]
+      ],
+      "concepts": [
+        {
+          "name": "冰雪经济",
+          "code": "BK1185",
+          "source_type": "concept",
+          "ranking_group": "akshare_concept_change_rank",
+          "rank": 1,
+          "strength": "按涨跌幅排序",
+          "change_percent": 3.31,
+          "market_value": 311276768000,
+          "turnover": null,
+          "net_inflow": null,
+          "total_volume": null,
+          "turnover_rate": 3.39,
+          "up_count": 34,
+          "down_count": 7,
+          "leading_stock": "冰山冷热",
+          "leading_stock_change_percent": 9.98
+        },
+        {
+          "name": "2025三季报预减",
+          "code": "BK1199",
+          "source_type": "concept",
+          "ranking_group": "akshare_concept_change_rank",
+          "rank": 2,
+          "strength": "按涨跌幅排序",
+          "change_percent": 2.89,
+          "market_value": 66503197000,
+          "turnover": null,
+          "net_inflow": null,
+          "total_volume": null,
+          "turnover_rate": 8.67,
+          "up_count": 8,
+          "down_count": 0,
+          "leading_stock": "东岳硅材",
+          "leading_stock_change_percent": 7
+        },
+        {
+          "name": "氦气概念",
+          "code": "BK0949",
+          "source_type": "concept",
+          "ranking_group": "akshare_concept_change_rank",
+          "rank": 3,
+          "strength": "按涨跌幅排序",
+          "change_percent": 2.86,
+          "market_value": 385997248000,
+          "turnover": null,
+          "net_inflow": null,
+          "total_volume": null,
+          "turnover_rate": 3.51,
+          "up_count": 15,
+          "down_count": 3,
+          "leading_stock": "凯美特气",
+          "leading_stock_change_percent": 10.04
+        },
+        {
+          "name": "裸眼3D",
+          "code": "BK1142",
+          "source_type": "concept",
+          "ranking_group": "akshare_concept_change_rank",
+          "rank": 4,
+          "strength": "按涨跌幅排序",
+          "change_percent": 2.65,
+          "market_value": 346604576000,
+          "turnover": null,
+          "net_inflow": null,
+          "total_volume": null,
+          "turnover_rate": 2.71,
+          "up_count": 16,
+          "down_count": 6,
+          "leading_stock": "超声电子",
+          "leading_stock_change_percent": 10
+        },
+        {
+          "name": "退税商店",
+          "code": "BK0933",
+          "source_type": "concept",
+          "ranking_group": "akshare_concept_change_rank",
+          "rank": 5,
+          "strength": "按涨跌幅排序",
+          "change_percent": 2.58,
+          "market_value": 294326256000,
+          "turnover": null,
+          "net_inflow": null,
+          "total_volume": null,
+          "turnover_rate": 1.51,
+          "up_count": 17,
+          "down_count": 3,
+          "leading_stock": "南宁百货",
+          "leading_stock_change_percent": 10.06
+        }
+      ],
+      "industries": [
+        {
+          "name": "其他数字媒体",
+          "code": "BK1295",
+          "source_type": "industry",
+          "ranking_group": "akshare_industry_change_rank",
+          "rank": 1,
+          "strength": "按涨跌幅排序",
+          "change_percent": 11.94,
+          "market_value": 11449895000,
+          "turnover": null,
+          "net_inflow": null,
+          "total_volume": null,
+          "turnover_rate": 17.52,
+          "up_count": 2,
+          "down_count": 0,
+          "leading_stock": "风语筑",
+          "leading_stock_change_percent": 9.97
+        },
+        {
+          "name": "印制电路板",
+          "code": "BK1340",
+          "source_type": "industry",
+          "ranking_group": "akshare_industry_change_rank",
+          "rank": 2,
+          "strength": "按涨跌幅排序",
+          "change_percent": 6.08,
+          "market_value": 2480202096000,
+          "turnover": null,
+          "net_inflow": null,
+          "total_volume": null,
+          "turnover_rate": 5.66,
+          "up_count": 47,
+          "down_count": 1,
+          "leading_stock": "超声电子",
+          "leading_stock_change_percent": 10
+        },
+        {
+          "name": "纺织化学制品",
+          "code": "BK1423",
+          "source_type": "industry",
+          "ranking_group": "akshare_industry_change_rank",
+          "rank": 3,
+          "strength": "按涨跌幅排序",
+          "change_percent": 5.43,
+          "market_value": 99779315000,
+          "turnover": null,
+          "net_inflow": null,
+          "total_volume": null,
+          "turnover_rate": 5.08,
+          "up_count": 12,
+          "down_count": 1,
+          "leading_stock": "亚邦股份",
+          "leading_stock_change_percent": 10.08
+        },
+        {
+          "name": "元件",
+          "code": "BK0459",
+          "source_type": "industry",
+          "ranking_group": "akshare_industry_change_rank",
+          "rank": 4,
+          "strength": "按涨跌幅排序",
+          "change_percent": 4.77,
+          "market_value": 2937432112000,
+          "turnover": null,
+          "net_inflow": null,
+          "total_volume": null,
+          "turnover_rate": 5.43,
+          "up_count": 61,
+          "down_count": 6,
+          "leading_stock": "超声电子",
+          "leading_stock_change_percent": 10
+        },
+        {
+          "name": "地面兵装Ⅲ",
+          "code": "BK1382",
+          "source_type": "industry",
+          "ranking_group": "akshare_industry_change_rank",
+          "rank": 5,
+          "strength": "按涨跌幅排序",
+          "change_percent": 4.54,
+          "market_value": 134678466000,
+          "turnover": null,
+          "net_inflow": null,
+          "total_volume": null,
+          "turnover_rate": 3.38,
+          "up_count": 12,
+          "down_count": 0,
+          "leading_stock": "国科军工",
+          "leading_stock_change_percent": 12.24
+        }
+      ],
+      "tdx_concepts": [],
+      "tdx_industries": []
+    },
+    "candidates": {
+      "board_ladder": [
+        {
+          "code": "002343",
+          "name": "慈文传媒",
+          "board_count": 3,
+          "sector": "影视院线",
+          "change_percent": 10.014947891235352,
+          "seal_amount": 251983289.0,
+          "broken_times": 0,
+          "turnover_rate": 3.3690614700317383,
+          "role": "连板事实候选",
+          "role_source": "akshare:stock_zt_pool_em（连板数 3）"
+        },
+        {
+          "code": "002696",
+          "name": "百洋股份",
+          "board_count": 3,
+          "sector": "饲料",
+          "change_percent": 10.062111854553223,
+          "seal_amount": 67280775.0,
+          "broken_times": 0,
+          "turnover_rate": 10.849814414978027,
+          "role": "连板事实候选",
+          "role_source": "akshare:stock_zt_pool_em（连板数 3）"
+        },
+        {
+          "code": "603096",
+          "name": "新经典",
+          "board_count": 3,
+          "sector": "出版",
+          "change_percent": 10.020986557006836,
+          "seal_amount": 216938172.0,
+          "broken_times": 0,
+          "turnover_rate": 2.7860360145568848,
+          "role": "连板事实候选",
+          "role_source": "akshare:stock_zt_pool_em（连板数 3）"
+        },
+        {
+          "code": "605136",
+          "name": "丽人丽妆",
+          "board_count": 3,
+          "sector": "互联网电",
+          "change_percent": 10.019268035888672,
+          "seal_amount": 100856872.0,
+          "broken_times": 0,
+          "turnover_rate": 7.899640083312988,
+          "role": "连板事实候选",
+          "role_source": "akshare:stock_zt_pool_em（连板数 3）"
+        },
+        {
+          "code": "605577",
+          "name": "龙版传媒",
+          "board_count": 3,
+          "sector": "出版",
+          "change_percent": 9.988776206970215,
+          "seal_amount": 51557800.0,
+          "broken_times": 3,
+          "turnover_rate": 13.113713264465332,
+          "role": "连板事实候选",
+          "role_source": "akshare:stock_zt_pool_em（连板数 3）"
+        },
+        {
+          "code": "001231",
+          "name": "农心科技",
+          "board_count": 2,
+          "sector": "农化制品",
+          "change_percent": 9.996095657348633,
+          "seal_amount": 296275045.0,
+          "broken_times": 0,
+          "turnover_rate": 19.187055587768555,
+          "role": "连板事实候选",
+          "role_source": "akshare:stock_zt_pool_em（连板数 2）"
+        },
+        {
+          "code": "600693",
+          "name": "东百集团",
+          "board_count": 2,
+          "sector": "一般零售",
+          "change_percent": 10.017889022827148,
+          "seal_amount": 129715800.0,
+          "broken_times": 4,
+          "turnover_rate": 19.746036529541016,
+          "role": "连板事实候选",
+          "role_source": "akshare:stock_zt_pool_em（连板数 2）"
+        },
+        {
+          "code": "600831",
+          "name": "广电网络",
+          "board_count": 2,
+          "sector": "电视广播",
+          "change_percent": 9.974424362182617,
+          "seal_amount": 52693275.0,
+          "broken_times": 0,
+          "turnover_rate": 10.871196746826172,
+          "role": "连板事实候选",
+          "role_source": "akshare:stock_zt_pool_em（连板数 2）"
+        },
+        {
+          "code": "600851",
+          "name": "海欣股份",
+          "board_count": 2,
+          "sector": "化学制药",
+          "change_percent": 10.0,
+          "seal_amount": 20695632.0,
+          "broken_times": 3,
+          "turnover_rate": 7.535775661468506,
+          "role": "连板事实候选",
+          "role_source": "akshare:stock_zt_pool_em（连板数 2）"
+        },
+        {
+          "code": "603968",
+          "name": "醋化股份",
+          "board_count": 2,
+          "sector": "化学制品",
+          "change_percent": 10.038313865661621,
+          "seal_amount": 22695477.0,
+          "broken_times": 2,
+          "turnover_rate": 14.066563606262207,
+          "role": "连板事实候选",
+          "role_source": "akshare:stock_zt_pool_em（连板数 2）"
+        }
+      ],
+      "strong_first_board": [
+        {
+          "code": "000823",
+          "name": "超声电子",
+          "board_count": 1,
+          "sector": "元件",
+          "change_percent": 10.004928588867188,
+          "seal_amount": 387691257.0,
+          "broken_times": 0,
+          "turnover_rate": 6.940157890319824,
+          "role": "连板事实候选",
+          "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+        },
+        {
+          "code": "002172",
+          "name": "澳洋健康",
+          "board_count": 1,
+          "sector": "医疗服务",
+          "change_percent": 10.037175178527832,
+          "seal_amount": 174091689.0,
+          "broken_times": 0,
+          "turnover_rate": 21.146127700805664,
+          "role": "连板事实候选",
+          "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+        },
+        {
+          "code": "002639",
+          "name": "雪人集团",
+          "board_count": 1,
+          "sector": "通用设备",
+          "change_percent": 10.030165672302246,
+          "seal_amount": 168385991.0,
+          "broken_times": 0,
+          "turnover_rate": 14.127902030944824,
+          "role": "连板事实候选",
+          "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+        },
+        {
+          "code": "600593",
+          "name": "大连圣亚",
+          "board_count": 1,
+          "sector": "旅游及景",
+          "change_percent": 10.0,
+          "seal_amount": 161663469.0,
+          "broken_times": 0,
+          "turnover_rate": 9.148679733276367,
+          "role": "连板事实候选",
+          "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+        },
+        {
+          "code": "002549",
+          "name": "凯美特气",
+          "board_count": 1,
+          "sector": "化学制品",
+          "change_percent": 10.038609504699707,
+          "seal_amount": 144781325.0,
+          "broken_times": 1,
+          "turnover_rate": 9.40006160736084,
+          "role": "连板事实候选",
+          "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+        },
+        {
+          "code": "001318",
+          "name": "阳光乳业",
+          "board_count": 1,
+          "sector": "饮料乳品",
+          "change_percent": 10.039215087890625,
+          "seal_amount": 141947122.0,
+          "broken_times": 1,
+          "turnover_rate": 9.368654251098633,
+          "role": "连板事实候选",
+          "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+        },
+        {
+          "code": "000833",
+          "name": "粤桂股份",
+          "board_count": 1,
+          "sector": "综合Ⅱ",
+          "change_percent": 10.015983581542969,
+          "seal_amount": 139304342.0,
+          "broken_times": 0,
+          "turnover_rate": 7.8141093254089355,
+          "role": "连板事实候选",
+          "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+        },
+        {
+          "code": "603466",
+          "name": "风语筑",
+          "board_count": 1,
+          "sector": "数字媒体",
+          "change_percent": 9.967584609985352,
+          "seal_amount": 125285866.0,
+          "broken_times": 0,
+          "turnover_rate": 17.00518798828125,
+          "role": "连板事实候选",
+          "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+        },
+        {
+          "code": "000530",
+          "name": "冰山冷热",
+          "board_count": 1,
+          "sector": "通用设备",
+          "change_percent": 9.980806350708008,
+          "seal_amount": 111305765.0,
+          "broken_times": 1,
+          "turnover_rate": 8.532500267028809,
+          "role": "连板事实候选",
+          "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+        },
+        {
+          "code": "002980",
+          "name": "华盛昌",
+          "board_count": 1,
+          "sector": "电网设备",
+          "change_percent": 10.0,
+          "seal_amount": 105535870.0,
+          "broken_times": 0,
+          "turnover_rate": 16.10038948059082,
+          "role": "连板事实候选",
+          "role_source": "akshare:stock_zt_pool_em（连板数 1）"
+        }
+      ],
+      "broken_board_watch": [
+        {
+          "code": "002692",
+          "name": "远程股份",
+          "change_percent": -5.9160308837890625,
+          "turnover_rate": 21.53354263305664,
+          "role": "炸板事实候选",
+          "role_source": "akshare:stock_zt_pool_zbgc_em"
+        },
+        {
+          "code": "605287",
+          "name": "德才股份",
+          "change_percent": 3.6199097633361816,
+          "turnover_rate": 21.475204467773438,
+          "role": "炸板事实候选",
+          "role_source": "akshare:stock_zt_pool_zbgc_em"
+        },
+        {
+          "code": "603528",
+          "name": "多伦科技",
+          "change_percent": -0.283687949180603,
+          "turnover_rate": 12.217536926269531,
+          "role": "炸板事实候选",
+          "role_source": "akshare:stock_zt_pool_zbgc_em"
+        },
+        {
+          "code": "600318",
+          "name": "新力金融",
+          "change_percent": 9.1304349899292,
+          "turnover_rate": 16.766611099243164,
+          "role": "炸板事实候选",
+          "role_source": "akshare:stock_zt_pool_zbgc_em"
+        },
+        {
+          "code": "600408",
+          "name": "安泰集团",
+          "change_percent": 4.532577991485596,
+          "turnover_rate": 24.703853607177734,
+          "role": "炸板事实候选",
+          "role_source": "akshare:stock_zt_pool_zbgc_em"
+        },
+        {
+          "code": "002961",
+          "name": "瑞达期货",
+          "change_percent": 5.899704933166504,
+          "turnover_rate": 6.395320415496826,
+          "role": "炸板事实候选",
+          "role_source": "akshare:stock_zt_pool_zbgc_em"
+        },
+        {
+          "code": "603216",
+          "name": "梦天家居",
+          "change_percent": 1.7586913108825684,
+          "turnover_rate": 6.6017889976501465,
+          "role": "炸板事实候选",
+          "role_source": "akshare:stock_zt_pool_zbgc_em"
+        },
+        {
+          "code": "603578",
+          "name": "三星新材",
+          "change_percent": 6.1992621421813965,
+          "turnover_rate": 8.156770706176758,
+          "role": "炸板事实候选",
+          "role_source": "akshare:stock_zt_pool_zbgc_em"
+        },
+        {
+          "code": "300929",
+          "name": "华骐环保",
+          "change_percent": 10.466666221618652,
+          "turnover_rate": 12.57252311706543,
+          "role": "炸板事实候选",
+          "role_source": "akshare:stock_zt_pool_zbgc_em"
+        },
+        {
+          "code": "688004",
+          "name": "博汇科技",
+          "change_percent": 14.711409568786621,
+          "turnover_rate": 28.22084617614746,
+          "role": "炸板事实候选",
+          "role_source": "akshare:stock_zt_pool_zbgc_em"
+        }
+      ],
+      "sector_leaders": [
+        {
+          "name": "冰山冷热",
+          "code": "000530",
+          "sector": "冰雪经济",
+          "change_percent": 9.98,
+          "role": "板块领涨事实候选",
+          "role_source": "akshare:concept 板块领涨股"
+        },
+        {
+          "name": "东岳硅材",
+          "code": "待确认",
+          "sector": "2025三季报预减",
+          "change_percent": 7,
+          "role": "板块领涨事实候选",
+          "role_source": "akshare:concept 板块领涨股"
+        },
+        {
+          "name": "凯美特气",
+          "code": "002549",
+          "sector": "氦气概念",
+          "change_percent": 10.04,
+          "role": "板块领涨事实候选",
+          "role_source": "akshare:concept 板块领涨股"
+        },
+        {
+          "name": "超声电子",
+          "code": "000823",
+          "sector": "裸眼3D",
+          "change_percent": 10,
+          "role": "板块领涨事实候选",
+          "role_source": "akshare:concept 板块领涨股"
+        },
+        {
+          "name": "南宁百货",
+          "code": "600712",
+          "sector": "退税商店",
+          "change_percent": 10.06,
+          "role": "板块领涨事实候选",
+          "role_source": "akshare:concept 板块领涨股"
+        },
+        {
+          "name": "风语筑",
+          "code": "603466",
+          "sector": "其他数字媒体",
+          "change_percent": 9.97,
+          "role": "板块领涨事实候选",
+          "role_source": "akshare:industry 板块领涨股"
+        },
+        {
+          "name": "亚邦股份",
+          "code": "603188",
+          "sector": "纺织化学制品",
+          "change_percent": 10.08,
+          "role": "板块领涨事实候选",
+          "role_source": "akshare:industry 板块领涨股"
+        },
+        {
+          "name": "国科军工",
+          "code": "待确认",
+          "sector": "地面兵装Ⅲ",
+          "change_percent": 12.24,
+          "role": "板块领涨事实候选",
+          "role_source": "akshare:industry 板块领涨股"
+        }
+      ],
+      "themes": [],
+      "coverage": {
+        "board_ladder_total": 10,
+        "strong_first_board_total": 57,
+        "broken_board_total": 19,
+        "sector_leaders_total": 8,
+        "themes_covered": 0,
+        "themes_total": 10
+      },
+      "themes_available": false,
+      "notes": [
+        "候选来自涨停池、炸板池与板块领涨股字段，只作为可追溯事实，不构成买入建议。",
+        "板块领涨股若未在当日涨停池中出现，代码优先用通达信解析，仍无法确认才标记为待确认。"
+      ]
+    }
+  },
+  "generated_at": "2026-10-13T20:52:36+08:00"
+}

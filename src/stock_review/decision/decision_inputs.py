@@ -98,6 +98,7 @@ class DecisionReading:
     market_stage: dict[str, Any]
     amount_band: dict[str, Any]
     sentiment_stage: dict[str, Any]
+    divergence_quality: dict[str, Any]
     participation: dict[str, Any]
     position_band: dict[str, Any]
     sector_leadership: dict[str, Any]

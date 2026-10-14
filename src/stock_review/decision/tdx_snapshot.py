@@ -35,6 +35,11 @@ def load_tdx_enrichment(
     return _build_enrichment(payload)
 
 
+# 由已落盘的通达信快照字典构造值对象；对外暴露同一套解析规则，供决策卡从既有卡片快照重渲染时复用。
+def build_tdx_enrichment(payload: dict[str, Any]) -> TdxEnrichment:
+    return _build_enrichment(payload)
+
+
 def _build_enrichment(payload: dict[str, Any]) -> TdxEnrichment:
     return TdxEnrichment(
         provider=_text(payload.get("provider")) or "tdx-connector",

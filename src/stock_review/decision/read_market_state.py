@@ -29,7 +29,9 @@ AMOUNT_BAND_SUPPORT = {
 MARKET_UPTREND_RET5_PERCENT = 3.0
 MARKET_UPTREND_POSITION_RATIO = 0.8
 MARKET_DOWNTREND_RET5_PERCENT = -3.0
-LONG_LOWER_SHADOW_RATIO = 0.6
+# 「收盘强度」= (收盘 - 最低) / (最高 - 最低)，即收盘价在当日振幅中的位置，不是下影线占比。
+# 该值高说明尾盘把日内跌幅收回去，是承接强的表现；指数日线描述与止跌迹象共用同一阈值。
+CLOSE_STRENGTH_STRONG = 0.6
 
 # 情绪阶段阈值，对应 STEP 3 的冰点/主升/上升/退潮/混沌。
 SENTIMENT_ICE_LIMIT_DOWN = 15
@@ -41,6 +43,20 @@ SENTIMENT_RISING_MIN_LIMIT_UP = 50
 SENTIMENT_RISING_MAX_BROKEN_RATE = 0.35
 SENTIMENT_RISING_MIN_HIGHEST_BOARD = 3
 SENTIMENT_FADE_LIMIT_UP_RATIO = 0.8
+
+# 分歧质量（结构）阈值：只用盘后已有事实判断情绪结构是否转弱，对应「连板高度环比、封板/炸板结构」。
+# 与 STEP 3 情绪阶段互补——情绪阶段看当日横截面强弱，结构标记看高度与封板质量的环比变化。
+DIVERGENCE_BOARD_DROP = 3
+DIVERGENCE_BROKEN_RATE_RISE = 0.10
+
+# 止跌迹象阈值：只用盘后已有事实判断「指数当日是否出现低位承接形态」。
+# 与指数阶段互补——阶段看趋势方向（均线/箱体），止跌标记看当日 K 线在低位是否被接住。
+STABILIZE_MAX_BOX_POSITION = 0.3
+STABILIZE_RULE = (
+    "下降期或震荡期中，收盘高于开盘、收盘位于当日振幅 ≥ 60% 位置，"
+    "且处于 10 日箱体下沿 30% 以内时，标记指数止跌迹象。"
+    "止跌迹象只提示短线承接，不代表趋势反转，需次日确认。"
+)
 
 # 仓位区间按量能档位给基线，再由参与倾向和指数阶段修正。
 POSITION_BASE_BAND = {
@@ -72,6 +88,7 @@ def read_decision(inputs: DecisionInputs) -> DecisionReading:
     sentiment_stage = read_sentiment_stage(
         inputs.sentiment_today, inputs.sentiment_history, inputs.breadth
     )
+    divergence_quality = read_divergence_quality(inputs.sentiment_today, inputs.sentiment_history)
     participation = read_participation(market_stage, sentiment_stage)
     position_band = read_position_band(amount_band, market_stage, sentiment_stage, participation)
     sector_leadership = read_sector_leadership(inputs.limit_up_stocks, inputs.sectors, inputs.tdx)
@@ -82,6 +99,7 @@ def read_decision(inputs: DecisionInputs) -> DecisionReading:
         market_stage=market_stage,
         amount_band=amount_band,
         sentiment_stage=sentiment_stage,
+        divergence_quality=divergence_quality,
         participation=participation,
         position_band=position_band,
         sector_leadership=sector_leadership,
@@ -141,6 +159,7 @@ def read_market_stage(index_history: dict[str, tuple[IndexDay, ...]]) -> dict[st
             "evidence": [f"{PRIMARY_INDEX_NAME}可用交易日不足 5 天。"],
             "rule": "STEP 1.1 需要至少 5 个交易日路径才能判断阶段。",
             "detail": {},
+            "stabilization": _read_stabilization(None, (), None, "不可判定"),
         }
 
     latest = days[-1]
@@ -179,16 +198,80 @@ def read_market_stage(index_history: dict[str, tuple[IndexDay, ...]]) -> dict[st
         "ma5": round(ma5, 2),
         "ma10": round(ma10, 2),
         "ma5_rising": ma5 > ma5_prev,
+        "box_low": round(low, 2),
+        "box_high": round(high, 2),
         "low": latest.low,
         "high": latest.high,
     }
     if latest.high and latest.low and latest.high > latest.low:
-        shadow = (latest.close - latest.low) / (latest.high - latest.low)
-        detail["lower_shadow_ratio"] = round(shadow, 3)
-        detail["long_lower_shadow"] = shadow >= LONG_LOWER_SHADOW_RATIO
-        evidence.append(f"当日下影占比 {shadow * 100:.0f}%。")
+        close_strength = (latest.close - latest.low) / (latest.high - latest.low)
+        detail["close_strength"] = round(close_strength, 3)
+        detail["strong_close"] = close_strength >= CLOSE_STRENGTH_STRONG
+        evidence.append(f"当日收盘位于振幅 {close_strength * 100:.0f}% 位置（收盘强度）。")
 
-    return {"label": label, "evidence": evidence, "rule": rule, "detail": detail}
+    return {
+        "label": label,
+        "evidence": evidence,
+        "rule": rule,
+        "detail": detail,
+        "stabilization": _read_stabilization(latest, days[:-1], position, label),
+    }
+
+
+# 止跌迹象只回答「指数当日是否在低位被接住」，不改变指数阶段标签，也不进入参与倾向与仓位判定。
+# 它补的是均线判定的盲点：阴跌途中收盘仍在均线下方（阶段照判下降期），但当日已出现低开高走与尾盘承接。
+def _read_stabilization(
+    latest: IndexDay | None,
+    prior_days: tuple[IndexDay, ...],
+    position: float | None,
+    stage_label: str,
+) -> dict[str, Any]:
+    if (
+        latest is None
+        or latest.open is None
+        or latest.high is None
+        or latest.low is None
+        or latest.high <= latest.low
+    ):
+        return {
+            "label": "不可判定",
+            "evidence": ["当日 K 线开/高/低缺失或不完整，无法判断止跌形态。"],
+            "rule": STABILIZE_RULE,
+            "flags": [],
+        }
+
+    close_strength = (latest.close - latest.low) / (latest.high - latest.low)
+    evidence = [
+        f"开盘 {latest.open:.2f}，收盘 {latest.close:.2f}，"
+        f"收盘位于振幅 {close_strength * 100:.0f}% 位置。"
+    ]
+    if position is not None:
+        evidence.append(f"处于 10 日箱体 {position * 100:.0f}% 位置。")
+
+    # 逐条记录未满足项，避免只给「没有迹象」而不说清是差在哪一条。
+    blockers: list[str] = []
+    if stage_label not in ("下降期", "震荡期"):
+        blockers.append(f"指数阶段为{stage_label}，不适用止跌判断")
+    if latest.close <= latest.open:
+        blockers.append("收盘未高于开盘")
+    if close_strength < CLOSE_STRENGTH_STRONG:
+        blockers.append(f"收盘强度低于 {round(CLOSE_STRENGTH_STRONG * 100)}%")
+    if position is None or position > STABILIZE_MAX_BOX_POSITION:
+        blockers.append(f"未处于 10 日箱体下沿 {round(STABILIZE_MAX_BOX_POSITION * 100)}% 以内")
+
+    if blockers:
+        evidence.append("未满足：" + "、".join(blockers) + "。")
+        return {"label": "无止跌迹象", "evidence": evidence, "rule": STABILIZE_RULE, "flags": []}
+
+    flags = [f"低开高走：开盘 {latest.open:.2f} → 收盘 {latest.close:.2f}。"]
+    prior_lows = [day.low for day in prior_days if day.low]
+    if prior_lows and latest.low < min(prior_lows):
+        flags.append(f"盘中最低 {latest.low:.2f} 创近 {len(prior_days) + 1} 日新低后收回。")
+    flags.append(
+        f"收盘位于当日振幅 {close_strength * 100:.0f}% 位置，"
+        f"处于 10 日箱体 {position * 100:.0f}% 低位。"
+    )
+    return {"label": "止跌迹象", "evidence": evidence, "rule": STABILIZE_RULE, "flags": flags}
 
 
 # 情绪阶段按有序规则命中：冰点 → 退潮 → 主升 → 上升 → 混沌，先命中者优先。
@@ -283,6 +366,64 @@ def read_sentiment_stage(
             "previous_highest_board": previous.highest_board if previous else None,
             "previous_trade_date": previous.trade_date if previous else None,
         },
+    }
+
+
+# 分歧质量（结构）只看盘后已有事实：最高连板环比与炸板率环比。
+# 它不引入分时、竞价或次日反馈，只给出「结构转弱 / 结构健康 / 不可判定」这一层标记，
+# 用于补上情绪阶段阈值（只看当日横截面）发现不了的连板高度断层。
+def read_divergence_quality(
+    today: SentimentDay | None,
+    history: tuple[SentimentDay, ...],
+) -> dict[str, Any]:
+    if today is None:
+        return {
+            "label": "不可判定",
+            "evidence": ["当日涨停/跌停/炸板/连板事实缺失。"],
+            "rule": "分歧质量需要当日与前一日事实才能比较。",
+            "flags": [],
+        }
+
+    previous = _previous_sentiment(history, today.trade_date)
+    if previous is None or previous.highest_board is None:
+        return {
+            "label": "不可判定",
+            "evidence": ["缺少前一交易日的最高连板事实，无法比较连板高度环比。"],
+            "rule": "分歧质量需要前一交易日最高连板才能判断高标是否断板。",
+            "flags": [],
+        }
+
+    flags: list[str] = []
+    evidence: list[str] = []
+
+    # 高标断板：最高连板环比骤降，是情绪高度断裂最直接的信号。
+    if today.highest_board is not None:
+        board_drop = previous.highest_board - today.highest_board
+        evidence.append(f"最高连板 {previous.highest_board} → {today.highest_board} 板。")
+        if board_drop >= DIVERGENCE_BOARD_DROP:
+            flags.append(
+                f"高标断板：最高连板 {previous.highest_board} → {today.highest_board} 板（降 {board_drop} 板）。"
+            )
+    else:
+        evidence.append("当日最高连板缺失，未参与结构判断。")
+
+    # 封板质量转差：炸板率环比明显抬升，说明承接转弱。
+    if previous.broken_board_rate is not None and today.broken_board_rate is not None:
+        rate_delta = today.broken_board_rate - previous.broken_board_rate
+        evidence.append(
+            f"炸板率 {previous.broken_board_rate * 100:.1f}% → {today.broken_board_rate * 100:.1f}%。"
+        )
+        if rate_delta >= DIVERGENCE_BROKEN_RATE_RISE:
+            flags.append(
+                f"封板质量转差：炸板率 {previous.broken_board_rate * 100:.1f}% → "
+                f"{today.broken_board_rate * 100:.1f}%（抬升 {rate_delta * 100:.1f} 个百分点）。"
+            )
+
+    return {
+        "label": "结构转弱" if flags else "结构健康",
+        "evidence": evidence,
+        "rule": "最高连板环比骤降或炸板率环比抬升时标记结构转弱；两者均未触发时视为结构健康。",
+        "flags": flags,
     }
 
 

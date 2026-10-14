@@ -45,24 +45,31 @@ def _render_header(inputs: DecisionInputs, generated_at: str, data_note: str) ->
 # 四个问题必须直给结论，同时把依据与规则来源并列，避免只有结论没有出处。
 def _render_answers(reading: DecisionReading) -> str:
     sentiment = reading.sentiment_stage
+    divergence = reading.divergence_quality
     participation = reading.participation
     position = reading.position_band
     total_range = position.get("total_range") or (0, 0)
+
+    # 情绪结论携带结构标记：结构转弱时读者在四问表里就能看到高度/封板质量的环比警示。
+    sentiment_cell = str(sentiment.get("label"))
+    if sentiment.get("temperature") is not None:
+        sentiment_cell += f"（情绪温度 {sentiment.get('temperature')}）"
+    if divergence.get("label") == "结构转弱":
+        sentiment_cell += "｜结构转弱"
 
     lines = [
         "## 一、四个问题",
         "",
         "| 问题 | 结论 | 依据 |",
         "| --- | --- | --- |",
-        f"| 当前市场情绪 | {sentiment.get('label')}"
-        + (f"（情绪温度 {sentiment.get('temperature')}）" if sentiment.get("temperature") is not None else "")
-        + f" | {_join_brief(sentiment.get('evidence'))} |",
+        f"| 当前市场情绪 | {sentiment_cell} | {_join_brief(sentiment.get('evidence'))} |",
         f"| 明天能不能买 | {participation.get('label')} | {participation.get('rule')} |",
         f"| 买什么 | 主线方向：{reading.sector_leadership.get('label')}（候选见第五节） | {_join_brief(reading.sector_leadership.get('evidence'))} |",
         f"| 买多少 | 总仓位 {total_range[0]}%–{total_range[1]}%；单票 ≤ 总资金的 {position.get('single_name_cap')}%；最多 {position.get('max_names')} | {position.get('rule')} |",
         "",
         f"- 参与倾向规则：{participation.get('rule')}",
         f"- 情绪阶段规则：{sentiment.get('rule')}",
+        f"- 分歧质量规则：{divergence.get('rule')}",
         f"- 仓位说明：{_join_sentences(position.get('notes') or [])}",
     ]
     return "\n".join(lines)
@@ -89,6 +96,16 @@ def _render_sentiment_panel(inputs: DecisionInputs, reading: DecisionReading) ->
         lines.append(f"| 市场活跃度 | {inputs.breadth['activity_percent']:.2f}% | — |")
     lines.extend(["", "证据："])
     lines.extend(f"- {item}" for item in reading.sentiment_stage.get("evidence") or [])
+
+    # 分歧质量只陈列结构标记与触发的信号，不改写情绪阶段结论，避免与 STEP 3 判定混淆。
+    divergence = reading.divergence_quality
+    lines.extend(["", f"分歧质量（结构）：**{divergence.get('label')}**"])
+    flags = divergence.get("flags") or []
+    if flags:
+        lines.extend(f"- {item}" for item in flags)
+    elif divergence.get("label") == "不可判定":
+        lines.extend(f"- {item}" for item in divergence.get("evidence") or [])
+
     if inputs.sentiment_history:
         lines.append("")
         lines.append("近期情绪序列：")
@@ -104,15 +121,29 @@ def _render_sentiment_panel(inputs: DecisionInputs, reading: DecisionReading) ->
 
 
 def _render_index_panel(inputs: DecisionInputs, reading: DecisionReading) -> str:
+    stabilization = reading.market_stage.get("stabilization") or {}
+    # 指数结论携带止跌标记：阴跌途中出现低位承接时，读者在阶段标签旁就能看到，但阶段判定本身不变。
+    stage_cell = str(reading.market_stage.get("label"))
+    if stabilization.get("label") == "止跌迹象":
+        stage_cell += "｜止跌迹象"
+
     lines = ["## 三、指数与量能", ""]
     lines.extend(
         [
-            f"- 指数阶段：**{reading.market_stage.get('label')}**",
+            f"- 指数阶段：**{stage_cell}**",
             f"- 量能档位：**{reading.amount_band.get('label')}**",
         ]
     )
     for item in reading.market_stage.get("evidence") or []:
         lines.append(f"- {item}")
+
+    # 止跌迹象只陈列当日形态与触发信号，不改写指数阶段结论，也不进入参与倾向与仓位判定。
+    lines.extend(["", f"止跌迹象（指数）：**{stabilization.get('label', '不可判定')}**"])
+    signals = stabilization.get("flags") or stabilization.get("evidence") or []
+    lines.extend(f"- {item}" for item in signals)
+    lines.append(f"- 规则：{stabilization.get('rule')}")
+
+    lines.append("")
     for item in reading.amount_band.get("evidence") or []:
         lines.append(f"- {item}")
     lines.append(f"- 量能含义：{reading.amount_band.get('rule')}")
@@ -339,9 +370,18 @@ def _render_next_day_plan(inputs: DecisionInputs, reading: DecisionReading) -> s
             f"最高连板跌破 {detail['highest_board']} 板且涨停家数萎缩 20% 以上 → 按退潮处理，转为不参与。"
         )
     if market_detail.get("ma10") is not None:
-        invalidations.append(
-            f"上证指数跌破 MA10（{market_detail['ma10']}）且量能萎缩 → 按下降期处理，仓位减半或清仓。"
-        )
+        # 失效条件必须与当前阶段方向一致：已在下降期时，「跌破 MA10」早已成立，不构成新的失效信号。
+        # 数值统一保留两位小数，与第三节指数证据的格式保持一致。
+        if reading.market_stage.get("label") == "下降期" and market_detail.get("box_low") is not None:
+            invalidations.append(
+                f"上证指数收盘跌破 10 日箱底（{market_detail['box_low']:.2f}）"
+                "且量能萎缩 → 下降延续，仓位减半或清仓。"
+            )
+        else:
+            invalidations.append(
+                f"上证指数跌破 MA10（{market_detail['ma10']:.2f}）"
+                "且量能萎缩 → 按下降期处理，仓位减半或清仓。"
+            )
     if detail.get("broken_board_rate") is not None:
         invalidations.append(
             f"炸板率显著高于当日 {detail['broken_board_rate'] * 100:.1f}% → 封板质量转差，候选降级为观察。"

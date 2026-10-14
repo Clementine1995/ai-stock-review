@@ -37,6 +37,8 @@
 
 它的定位、规则来源、数据来源与已知限制见 [`docs/DECISION_CARD.md`](docs/DECISION_CARD.md)。决策卡定位为**独立决策入口**（2026-10-09 确认），不写 `data/review_run.sqlite`、不创建 publication、不进入 `reports/daily/`，因此不能表述为正式复盘，也不构成平行正式流程。
 
+规则或渲染变更后，可用 `--from-snapshot data\decision\<trade-date>.json` 从既有快照重渲染已归档交易日——只读回当日已落盘的事实，不重新采集任何外部数据，与「禁止给历史日期补跑」不冲突。详见 [`docs/DECISION_CARD.md`](docs/DECISION_CARD.md)。
+
 决策卡可选用通达信连接器补充证据：Agent 把当日通达信事实落成 `data/decision/tdx/<trade-date>.json`，决策卡运行时自动读取，用于补全概念板块、解析候选代码、附上个股涨停逻辑与当日消息面。该快照由**每交易日盘后任务自动采集**，采集步骤见 [`docs/DECISION_TDX_COLLECTION.md`](docs/DECISION_TDX_COLLECTION.md)；采集后必须自校验：
 
 ```powershell
@@ -44,6 +46,21 @@
 ```
 
 快照缺失或自校验不通过时，决策卡照常产出并写明相应缺口。
+
+## 核心异动票跟踪
+
+需要长期跟踪「进过异动的核心票」在见顶后的调整位置时，使用跟踪入口。候选由模块自动收集，审核后入池，再按交易日出跟踪表：
+
+```powershell
+# 1) 自动收集异动候选（龙虎榜 + 涨停池 + 强势股池），审核后入池
+.\.venv\Scripts\python.exe -m stock_review.watchlist candidates --date 2026-10-14
+.\.venv\Scripts\python.exe -m stock_review.watchlist pool-add --code 301251 --name 威尔高 --reason "严重异常波动"
+
+# 2) 按交易日出跟踪表（位置 / 量价 / 异动认定 / 龙虎榜 / 资金流向）
+.\.venv\Scripts\python.exe -m stock_review.watchlist run --date 2026-10-14
+```
+
+它的定位、口径与已知限制见 [`docs/WATCHLIST.md`](docs/WATCHLIST.md)。与决策卡同为**独立决策入口**：不写 `data/review_run.sqlite`、不创建 publication、不进入 `reports/daily/`。产物落在 `reports/watchlist/` 与 `data/watchlist/`。数据全部走 AKShare 直连（前复权日线、指数日线、龙虎榜、资金流向），因此可无人值守运行。
 
 ## 唯一正式流程
 

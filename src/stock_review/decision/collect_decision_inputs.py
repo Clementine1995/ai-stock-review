@@ -401,7 +401,9 @@ def _parse_percent_text(value: Any) -> float | None:
     text = akshare.format_optional_text(value)
     if not text:
         return None
-    return akshare.parse_decimal(text.replace("%", ""))
+    parsed = akshare.parse_decimal(text.replace("%", ""))
+    # 活跃度按百分数存放；显式转 float，避免 Decimal 经 JSON 序列化后退化成字符串。
+    return float(parsed) if parsed is not None else None
 
 
 def _brief_error(error: Exception) -> str:

@@ -20,6 +20,7 @@ from stock_review.decision.read_market_state import (
     build_candidates,
     read_amount_band,
     read_decision,
+    read_divergence_quality,
     read_market_stage,
     read_participation,
     read_position_band,
@@ -27,6 +28,10 @@ from stock_review.decision.read_market_state import (
     read_sentiment_stage,
 )
 from stock_review.decision.render_decision_card import render_decision_card
+from stock_review.decision.run_decision_card import (
+    inputs_from_snapshot,
+    run_decision_card_from_snapshot,
+)
 from stock_review.decision.tdx_snapshot import inspect_tdx_snapshot, load_tdx_enrichment
 
 
@@ -535,3 +540,338 @@ def test_sector_source_label_matches_actual_channel() -> None:
         == "akshare:stock_board_concept_name_em+stock_board_industry_name_em"
     )
     assert sector_source_label([]) == "akshare:板块接口"
+
+
+# 分歧质量（结构）：连板高度环比骤降必须标记结构转弱，补上情绪阶段只看当日横截面的盲点。
+def test_divergence_quality_flags_board_collapse() -> None:
+    previous = _sentiment("2026-10-12", limit_up=46, limit_down=19, broken=25, highest_board=10)
+    today = _sentiment("2026-10-13", limit_up=67, limit_down=8, broken=19, highest_board=3)
+    reading = read_divergence_quality(today, (previous, today))
+    assert reading["label"] == "结构转弱"
+    assert any("高标断板" in item for item in reading["flags"])
+
+
+# 分歧质量（结构）：炸板率环比明显抬升同样标记结构转弱。
+def test_divergence_quality_flags_broken_rate_rise() -> None:
+    previous = _sentiment("2026-10-09", limit_up=69, limit_down=8, broken=14, highest_board=9)
+    today = _sentiment("2026-10-12", limit_up=46, limit_down=19, broken=25, highest_board=10)
+    reading = read_divergence_quality(today, (previous, today))
+    assert reading["label"] == "结构转弱"
+    assert any("封板质量转差" in item for item in reading["flags"])
+
+
+def test_divergence_quality_is_healthy_when_structure_stable() -> None:
+    previous = _sentiment("2026-01-09", limit_up=60, limit_down=5, broken=10, highest_board=5)
+    today = _sentiment("2026-01-10", limit_up=64, limit_down=4, broken=11, highest_board=6)
+    reading = read_divergence_quality(today, (previous, today))
+    assert reading["label"] == "结构健康"
+    assert reading["flags"] == []
+    assert any("最高连板" in item for item in reading["evidence"])
+
+
+def test_divergence_quality_is_undetermined_without_previous() -> None:
+    today = _sentiment("2026-01-10", limit_up=64, limit_down=4, broken=11, highest_board=6)
+    assert read_divergence_quality(today, (today,))["label"] == "不可判定"
+    assert read_divergence_quality(None, ())["label"] == "不可判定"
+
+
+# 结构转弱必须同时出现在四问表的情绪结论与情绪面板，让读者在四问层就看到高度警示。
+def test_render_surfaces_divergence_warning() -> None:
+    previous = _sentiment("2026-10-12", limit_up=46, limit_down=19, broken=25, highest_board=10)
+    today = _sentiment("2026-10-13", limit_up=67, limit_down=8, broken=19, highest_board=3)
+    inputs = DecisionInputs(
+        trade_date="2026-10-13",
+        indices={},
+        total_amount=1_600_000_000_000.0,
+        total_amount_source="test",
+        breadth={"up_count": 2790, "down_count": 2267},
+        sentiment_today=today,
+        sentiment_history=(previous, today),
+        amount_history=(),
+        index_history={},
+        sectors=(),
+        limit_up_stocks=(),
+        broken_board_stocks=(),
+        sources={},
+        gaps=(),
+    )
+    reading = read_decision(inputs)
+    assert reading.sentiment_stage["label"] == "上升期"
+    assert reading.divergence_quality["label"] == "结构转弱"
+    markdown = render_decision_card(inputs, reading, generated_at="2026-10-13T20:00:00+08:00")
+    assert "结构转弱" in markdown
+    assert "分歧质量（结构）" in markdown
+    assert "高标断板" in markdown
+
+
+# 2026-10-13 真实路径：阴跌至 10 日箱体下沿，当日低开高走、盘中创新低后收回。
+_INDEX_ROWS_2026_10_13 = (
+    ("2026-09-22", 3963.81, 3967.68, 3945.42, 3952.13),
+    ("2026-09-23", 3951.37, 3951.52, 3934.46, 3936.52),
+    ("2026-09-24", 3925.32, 3930.50, 3888.37, 3888.37),
+    ("2026-09-28", 3878.41, 3878.41, 3806.67, 3823.62),
+    ("2026-09-29", 3816.15, 3843.84, 3810.81, 3830.45),
+    ("2026-09-30", 3839.25, 3851.22, 3833.09, 3842.19),
+    ("2026-10-08", 3838.98, 3864.12, 3795.37, 3811.90),
+    ("2026-10-09", 3804.09, 3824.71, 3754.14, 3813.79),
+    ("2026-10-12", 3806.98, 3828.22, 3791.00, 3797.24),
+    ("2026-10-13", 3760.80, 3822.11, 3741.53, 3800.86),
+)
+
+
+def _index_history(rows: tuple[tuple[str, float, float, float, float], ...]) -> dict[str, tuple[IndexDay, ...]]:
+    return {
+        "sh000001": tuple(
+            IndexDay(trade_date=date, close=close, open=open_, high=high, low=low)
+            for date, open_, high, low, close in rows
+        )
+    }
+
+
+# 止跌迹象：下降期内的低位低开高走必须被标记，且不得改变指数阶段结论。
+def test_stabilization_flags_low_open_high_close_at_box_bottom() -> None:
+    stage = read_market_stage(_index_history(_INDEX_ROWS_2026_10_13))
+    assert stage["label"] == "下降期"
+    assert stage["detail"]["close_strength"] == 0.736
+    assert stage["detail"]["strong_close"] is True
+    assert stage["detail"]["box_low"] == 3797.24
+    assert any("收盘强度" in item for item in stage["evidence"])
+    assert not any("下影" in item for item in stage["evidence"])
+
+    stabilization = stage["stabilization"]
+    assert stabilization["label"] == "止跌迹象"
+    assert any("低开高走" in item for item in stabilization["flags"])
+    assert any("新低" in item for item in stabilization["flags"])
+
+
+def test_stabilization_absent_when_close_below_open() -> None:
+    rows = (*_INDEX_ROWS_2026_10_13[:-1], ("2026-10-13", 3806.98, 3828.22, 3791.00, 3797.24))
+    stabilization = read_market_stage(_index_history(rows))["stabilization"]
+    assert stabilization["label"] == "无止跌迹象"
+    assert stabilization["flags"] == []
+    assert any("收盘未高于开盘" in item for item in stabilization["evidence"])
+
+
+# 开/高/低缺失时不得臆造形态：必须明确不可判定，而不是按 0 或缺省值计算。
+def test_stabilization_is_undetermined_without_intraday_fields() -> None:
+    closes = [110.0, 109.0, 108.0, 107.0, 106.0, 105.0, 104.0, 103.0, 102.0, 100.0]
+    assert read_market_stage({"sh000001": _index_days(closes)})["stabilization"]["label"] == "不可判定"
+    assert read_market_stage({"sh000001": _index_days([100.0, 101.0])})["stabilization"]["label"] == "不可判定"
+
+
+def test_stabilization_not_applicable_in_uptrend() -> None:
+    rows = tuple(
+        (
+            f"2026-01-{index + 1:02d}",
+            100.0 + index - 0.5,
+            100.0 + index + 0.5,
+            100.0 + index - 1.0,
+            100.0 + index,
+        )
+        for index in range(10)
+    )
+    stage = read_market_stage(_index_history(rows))
+    assert stage["label"] == "主升期"
+    stabilization = stage["stabilization"]
+    assert stabilization["label"] == "无止跌迹象"
+    assert any("不适用止跌判断" in item for item in stabilization["evidence"])
+
+
+# 触发时必须在第三节的指数阶段旁与止跌块同时出现；同时不得再出现「下影占比」这一错误措辞。
+def test_render_surfaces_stabilization_marker() -> None:
+    previous = _sentiment("2026-10-12", limit_up=46, limit_down=19, broken=25, highest_board=10)
+    today = _sentiment("2026-10-13", limit_up=67, limit_down=8, broken=19, highest_board=3)
+    inputs = DecisionInputs(
+        trade_date="2026-10-13",
+        indices={"sh000001": {"name": "上证指数", "close": 3800.86, "change_percent": 0.1}},
+        total_amount=1_677_830_000_000.0,
+        total_amount_source="test",
+        breadth={"up_count": 2790, "down_count": 2267},
+        sentiment_today=today,
+        sentiment_history=(previous, today),
+        amount_history=(),
+        index_history=_index_history(_INDEX_ROWS_2026_10_13),
+        sectors=(),
+        limit_up_stocks=(),
+        broken_board_stocks=(),
+        sources={},
+        gaps=(),
+    )
+    reading = read_decision(inputs)
+    assert reading.market_stage["label"] == "下降期"
+    markdown = render_decision_card(inputs, reading, generated_at="2026-10-13T20:00:00+08:00")
+    assert "下降期｜止跌迹象" in markdown
+    assert "止跌迹象（指数）：**止跌迹象**" in markdown
+    assert "低开高走" in markdown
+    assert "下影占比" not in markdown
+
+
+# 失效条件必须与阶段方向一致：已在下降期时不得再写「跌破 MA10 → 按下降期处理」这类已成立的空条款。
+def test_render_invalidation_follows_stage_direction() -> None:
+    previous = _sentiment("2026-10-12", limit_up=46, limit_down=19, broken=25, highest_board=10)
+    today = _sentiment("2026-10-13", limit_up=67, limit_down=8, broken=19, highest_board=3)
+    downtrend = DecisionInputs(
+        trade_date="2026-10-13",
+        indices={},
+        total_amount=1_677_830_000_000.0,
+        total_amount_source="test",
+        breadth=None,
+        sentiment_today=today,
+        sentiment_history=(previous, today),
+        amount_history=(),
+        index_history=_index_history(_INDEX_ROWS_2026_10_13),
+        sectors=(),
+        limit_up_stocks=(),
+        broken_board_stocks=(),
+        sources={},
+        gaps=(),
+    )
+    downtrend_markdown = render_decision_card(
+        downtrend, read_decision(downtrend), generated_at="2026-10-13T20:00:00+08:00"
+    )
+    assert "10 日箱底（3797.24）" in downtrend_markdown
+    assert "按下降期处理" not in downtrend_markdown
+
+    uptrend_today = _sentiment("2026-01-10", limit_up=60, limit_down=5, broken=10, highest_board=5)
+    uptrend = DecisionInputs(
+        trade_date="2026-01-10",
+        indices={},
+        total_amount=1_900_000_000_000.0,
+        total_amount_source="test",
+        breadth=None,
+        sentiment_today=uptrend_today,
+        sentiment_history=(uptrend_today,),
+        amount_history=(),
+        index_history={
+            "sh000001": _index_days([100.0, 101.0, 102.0, 103.0, 104.0, 105.0, 106.0, 107.0, 108.0, 110.0])
+        },
+        sectors=(),
+        limit_up_stocks=(),
+        broken_board_stocks=(),
+        sources={},
+        gaps=(),
+    )
+    uptrend_markdown = render_decision_card(
+        uptrend, read_decision(uptrend), generated_at="2026-01-10T20:00:00+08:00"
+    )
+    assert "跌破 MA10（104.60）且量能萎缩 → 按下降期处理" in uptrend_markdown
+
+
+# 重渲染用的最小快照：结构与 run_decision_card._serialize 写出的 JSON 一致，不依赖真实归档文件。
+def _snapshot_payload() -> dict:
+    return {
+        "inputs": {
+            "trade_date": "2026-10-13",
+            "indices": {"sh000001": {"name": "上证指数", "close": 3800.86, "change_percent": 0.1}},
+            "total_amount": 1_677_830_618_112.38,
+            "total_amount_source": "akshare:stock_sse_deal_daily+akshare:stock_szse_summary",
+            "breadth": {"up_count": 2790, "down_count": 2267, "activity_percent": "53.40"},
+            "sentiment_today": {
+                "trade_date": "2026-10-13",
+                "limit_up_count": 67,
+                "limit_down_count": 8,
+                "broken_board_count": 19,
+                "broken_board_rate": 0.2209,
+                "highest_board": 3,
+            },
+            "sentiment_history": [
+                {
+                    "trade_date": "2026-10-12",
+                    "limit_up_count": 46,
+                    "limit_down_count": 19,
+                    "broken_board_count": 25,
+                    "broken_board_rate": 0.3521,
+                    "highest_board": 10,
+                },
+                {
+                    "trade_date": "2026-10-13",
+                    "limit_up_count": 67,
+                    "limit_down_count": 8,
+                    "broken_board_count": 19,
+                    "broken_board_rate": 0.2209,
+                    "highest_board": 3,
+                },
+            ],
+            "amount_history": [
+                ["2026-10-12", 1_539_169_791_852.2],
+                ["2026-10-13", 1_677_830_618_112.38],
+            ],
+            "index_history": {
+                "sh000001": [
+                    {"trade_date": day, "open": open_, "high": high, "low": low, "close": close, "amount": None}
+                    for day, open_, high, low, close in _INDEX_ROWS_2026_10_13
+                ]
+            },
+            "sectors": [],
+            "limit_up_stocks": [],
+            "broken_board_stocks": [],
+            "sources": {"index": "akshare:stock_zh_index_daily_em"},
+            "gaps": [],
+            "tdx": None,
+        },
+        "reading": {},
+        "generated_at": "2026-10-13T20:52:36+08:00",
+    }
+
+
+# 快照反序列化必须还原全部输入事实；缺失的数值不得用 0 冒充，K 线的开/高/低要逐日保留。
+def test_inputs_from_snapshot_restores_frozen_facts() -> None:
+    inputs = inputs_from_snapshot(_snapshot_payload())
+    assert inputs.trade_date == "2026-10-13"
+    assert inputs.total_amount == 1_677_830_618_112.38
+    assert [day.trade_date for day in inputs.sentiment_history] == ["2026-10-12", "2026-10-13"]
+    assert inputs.sentiment_today.highest_board == 3
+    assert inputs.amount_history[-1] == ("2026-10-13", 1_677_830_618_112.38)
+    assert len(inputs.index_history["sh000001"]) == 10
+    latest = inputs.index_history["sh000001"][-1]
+    assert (latest.open, latest.high, latest.low, latest.close) == (3760.80, 3822.11, 3741.53, 3800.86)
+    assert inputs.tdx is None
+    # 历史快照把活跃度存成了字符串，读回时必须还原为数值，否则渲染会按字符串处理而失真。
+    assert inputs.breadth["activity_percent"] == 53.4
+
+
+# 家数等必需字段缺失时该日视为不可用，不用 0 替代；快照缺 inputs 节点必须显式报错。
+def test_inputs_from_snapshot_refuses_defaults_and_missing_node() -> None:
+    broken = _snapshot_payload()
+    del broken["inputs"]["sentiment_today"]["limit_up_count"]
+    assert inputs_from_snapshot(broken).sentiment_today is None
+
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "2026-10-13.json"
+        path.write_text(json.dumps({"reading": {}}, ensure_ascii=False), encoding="utf-8")
+        for call in (
+            lambda: inputs_from_snapshot({"reading": {}}),
+            lambda: run_decision_card_from_snapshot(path, write=False),
+        ):
+            try:
+                call()
+            except ValueError as error:
+                assert "inputs" in str(error)
+            else:  # pragma: no cover - 走到这里说明未按预期报错
+                raise AssertionError("缺少 inputs 节点时必须报错")
+
+
+# 从快照重渲染必须：读回已冻结事实、产出新标记、沿用快照生成时间，且不触碰采集通道。
+def test_run_decision_card_from_snapshot_rerenders_without_collecting() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        snapshot = Path(tmp) / "source.json"
+        snapshot.write_text(json.dumps(_snapshot_payload(), ensure_ascii=False), encoding="utf-8")
+        result = run_decision_card_from_snapshot(
+            snapshot,
+            report_dir=Path(tmp) / "reports",
+            data_dir=Path(tmp) / "data",
+        )
+        assert result["trade_date"] == "2026-10-13"
+        # 沿用快照记录的生成时间，保证与归档稿的差异只来自规则层。
+        assert result["generated_at"] == "2026-10-13T20:52:36+08:00"
+        assert result["answers"]["market_stage"] == "下降期"
+        assert result["answers"]["stabilization"] == "止跌迹象"
+        assert result["answers"]["divergence_quality"] == "结构转弱"
+        markdown = result["markdown"]
+        assert "下降期｜止跌迹象" in markdown
+        assert "结构转弱" in markdown
+        assert "市场活跃度 | 53.40%" in markdown
+        # 落盘路径按交易日命名，内容可回读。
+        written = Path(result["report_path"])
+        assert written.is_file() and written.read_text(encoding="utf-8") == markdown
+        assert Path(result["data_path"]).is_file()
